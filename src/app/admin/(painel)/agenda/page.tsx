@@ -163,7 +163,7 @@ export default async function AgendaPage({ searchParams }: Props) {
                 </div>
 
                 <div className="mt-4 border-t pt-3">
-                  <BookingActions booking={b} businessName={business.name} />
+                <BookingActions booking={b} businessName={business.name} slug={business.slug} />
                 </div>
               </li>
             ))}

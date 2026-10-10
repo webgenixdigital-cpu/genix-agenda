@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { Check, CheckCheck, Loader2, MessageCircle, X } from "lucide-react";
+import { useEffect, useState, useTransition } from "react";
+import { Check, CheckCheck, Loader2, MessageCircle, Star, X } from "lucide-react";
 import { toast } from "sonner";
 import { completeBooking, updateBookingStatus } from "@/app/admin/(painel)/agenda/actions";
 import { Button } from "@/components/ui/button";
@@ -32,11 +32,23 @@ const METHODS = [
   { value: "debito", label: "Cartão de débito" },
 ] as const;
 
-export function BookingActions({ booking: b, businessName }: { booking: AgendaBooking; businessName: string }) {
+export function BookingActions({
+  booking: b,
+  businessName,
+  slug,
+}: {
+  booking: AgendaBooking;
+  businessName: string;
+  slug: string;
+}) {
   const [pending, start] = useTransition();
   const [completeOpen, setCompleteOpen] = useState(false);
+  const [origin, setOrigin] = useState("");
 
-  const wa = whatsappLink(b.customer_phone, customerMessage(b, businessName));
+  useEffect(() => setOrigin(window.location.origin), []);
+
+  const reviewUrl = origin ? `${origin}/v/${slug}/avaliar/${b.id}` : undefined;
+  const wa = whatsappLink(b.customer_phone, customerMessage(b, businessName, reviewUrl));
 
   function run(fn: () => Promise<{ ok: boolean; error?: string }>, success: string) {
     start(async () => {
@@ -70,7 +82,8 @@ export function BookingActions({ booking: b, businessName }: { booking: AgendaBo
       {wa && (
         <Button asChild size="sm" className="h-10 bg-whatsapp text-white hover:bg-whatsapp-hover">
           <a href={wa} target="_blank" rel="noopener noreferrer" data-testid={`btn-whatsapp-cliente-${b.id}`}>
-            <MessageCircle className="mr-1.5 h-4 w-4" /> WhatsApp
+            {b.status === "completed" ? <Star className="mr-1.5 h-4 w-4" /> : <MessageCircle className="mr-1.5 h-4 w-4" />}
+            {b.status === "completed" ? "Pedir avaliação" : "WhatsApp"}
           </a>
         </Button>
       )}

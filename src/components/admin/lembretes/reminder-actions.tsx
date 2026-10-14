@@ -18,6 +18,7 @@ export function SendReminderButton({ id, href }: { id: string; href: string }) {
         onClick={() =>
           start(async () => {
             const r = await markReminderSent(id, true);
+            if (!r) return; // demonstração: o servidor redirecionou
             if (!r.ok) toast.error(r.error);
           })
         }
@@ -39,6 +40,7 @@ export function UndoReminderButton({ id }: { id: string }) {
       onClick={() =>
         start(async () => {
           const r = await markReminderSent(id, false);
+          if (!r) return; // demonstração: o servidor redirecionou
           if (r.ok) toast.success("Voltou para a fila");
           else toast.error(r.error);
         })

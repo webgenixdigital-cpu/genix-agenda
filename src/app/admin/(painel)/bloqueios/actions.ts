@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { getAdminContext } from "@/lib/admin";
+import { getEditorContext } from "@/lib/admin";
 
 export type AffectedBooking = {
   id: string;
@@ -38,7 +38,7 @@ function refresh() {
 // PARTE 1 — Criar bloqueio + listar clientes afetados
 // ---------------------------------------------------------------------
 export async function createBlock(input: BlockInput): Promise<CreateResult> {
-  const { business } = await getAdminContext();
+  const { business } = await getEditorContext();
   const supabase = createClient();
 
   if (!input.dateStart || !input.dateEnd || input.dateEnd < input.dateStart) {
@@ -95,7 +95,7 @@ export async function createBlock(input: BlockInput): Promise<CreateResult> {
 // PARTE 2 — Remover bloqueio
 // ---------------------------------------------------------------------
 export async function deleteBlock(id: string): Promise<{ ok: boolean; error?: string }> {
-  const { business } = await getAdminContext();
+  const { business } = await getEditorContext();
   const supabase = createClient();
   const { error } = await supabase.from("schedule_blocks").delete().eq("id", id).eq("business_id", business.id);
   if (error) return { ok: false, error: "Não foi possível remover o bloqueio." };

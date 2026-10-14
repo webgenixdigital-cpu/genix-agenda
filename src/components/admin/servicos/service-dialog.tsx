@@ -76,6 +76,7 @@ export function ServiceDialog({
         price: parseMoney(price),
         duration_min: Number(dur),
       });
+      if (!r) return; // demonstração: o servidor redirecionou
       if (r.ok) {
         toast.success(service ? "Serviço atualizado" : "Serviço criado");
         onOpenChange(false);

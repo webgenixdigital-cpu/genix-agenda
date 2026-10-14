@@ -70,6 +70,7 @@ export function HoursForm({
   function save() {
     start(async () => {
       const r = await updateHours({ hours, slotStep: Number(step), noticeMin: Number(notice) });
+      if (!r) return; // demonstração: o servidor redirecionou
       if (r.ok) toast.success("Horários salvos");
       else toast.error(r.error);
     });

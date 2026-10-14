@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { getAdminContext } from "@/lib/admin";
+import { getEditorContext } from "@/lib/admin";
 
 type Result = { ok: true } | { ok: false; error: string };
 
@@ -21,7 +21,7 @@ function refresh() {
 }
 
 export async function addCashEntry(input: CashInput): Promise<Result> {
-  const { business, userId } = await getAdminContext();
+  const { business, userId } = await getEditorContext();
   const supabase = createClient();
 
   if (!(input.amount > 0)) return { ok: false, error: "Informe o valor." };
@@ -43,7 +43,7 @@ export async function addCashEntry(input: CashInput): Promise<Result> {
 }
 
 export async function deleteCashEntry(id: string): Promise<Result> {
-  const { business } = await getAdminContext();
+  const { business } = await getEditorContext();
   const supabase = createClient();
   const { error } = await supabase.from("cash_entries").delete().eq("id", id).eq("business_id", business.id);
   if (error) return { ok: false, error: "Não foi possível excluir." };

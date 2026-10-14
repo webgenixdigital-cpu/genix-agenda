@@ -21,6 +21,7 @@ export function DeleteBlockButton({ id }: { id: string }) {
         if (!confirm("Remover este bloqueio? Os horários voltam a aparecer na vitrine.")) return;
         start(async () => {
           const r = await deleteBlock(id);
+          if (!r) return; // demonstração: o servidor redirecionou
           if (r.ok) toast.success("Bloqueio removido");
           else toast.error(r.error);
         });

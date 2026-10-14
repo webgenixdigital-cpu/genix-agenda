@@ -53,6 +53,7 @@ export function BookingActions({
   function run(fn: () => Promise<{ ok: boolean; error?: string }>, success: string) {
     start(async () => {
       const r = await fn();
+      if (!r) return; // demonstração: o servidor redirecionou
       if (r.ok) toast.success(success);
       else toast.error(r.error);
     });

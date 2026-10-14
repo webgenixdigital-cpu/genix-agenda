@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { getAdminContext } from "@/lib/admin";
+import { getEditorContext } from "@/lib/admin";
 
 type Result = { ok: true } | { ok: false; error: string };
 type Method = "pix" | "dinheiro" | "credito" | "debito";
@@ -18,7 +18,7 @@ function refresh() {
 // PARTE 1 — Confirmar / cancelar
 // ---------------------------------------------------------------------
 export async function updateBookingStatus(id: string, status: "confirmed" | "cancelled"): Promise<Result> {
-  const { business } = await getAdminContext();
+  const { business } = await getEditorContext();
   const supabase = createClient();
 
   const { error } = await supabase
@@ -43,7 +43,7 @@ export async function updateBookingStatus(id: string, status: "confirmed" | "can
 // PARTE 2 — Concluir (e lançar no caixa)
 // ---------------------------------------------------------------------
 export async function completeBooking(id: string, method: Method | null): Promise<Result> {
-  const { business, userId } = await getAdminContext();
+  const { business, userId } = await getEditorContext();
   const supabase = createClient();
 
   const { data: bk } = await supabase
@@ -95,7 +95,7 @@ export async function createManualBooking(input: {
   customerPhone: string;
   notes?: string;
 }): Promise<Result> {
-  const { business } = await getAdminContext();
+  const { business } = await getEditorContext();
   const supabase = createClient();
 
   const name = input.customerName.trim();

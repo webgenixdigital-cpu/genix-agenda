@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { getAdminContext } from "@/lib/admin";
+import { getEditorContext } from "@/lib/admin";
 
 type Result = { ok: true } | { ok: false; error: string };
 
@@ -35,7 +35,7 @@ export async function updateProfile(input: {
   whatsapp: string;          // como digitado: (35) 99999-0001
   whatsapp_message: string;
 }): Promise<Result> {
-  const { business, role } = await getAdminContext();
+  const { business, role } = await getEditorContext();
   if (role !== "owner") return { ok: false, error: NOT_OWNER };
   const supabase = createClient();
 
@@ -80,7 +80,7 @@ export async function updateProfile(input: {
 // PARTE 2 — Link da vitrine, domínio e publicação
 // ---------------------------------------------------------------------
 export async function updateLink(input: { slug: string; customDomain: string; isPublished: boolean }): Promise<Result> {
-  const { business, role } = await getAdminContext();
+  const { business, role } = await getEditorContext();
   if (role !== "owner") return { ok: false, error: NOT_OWNER };
   const supabase = createClient();
 
@@ -124,7 +124,7 @@ export async function updateHours(input: {
   slotStep: number;
   noticeMin: number;
 }): Promise<Result> {
-  const { business, role } = await getAdminContext();
+  const { business, role } = await getEditorContext();
   if (role !== "owner") return { ok: false, error: NOT_OWNER };
   const supabase = createClient();
 

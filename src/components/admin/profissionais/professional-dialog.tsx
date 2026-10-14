@@ -77,6 +77,7 @@ export function ProfessionalDialog({
         allServices,
         serviceIds: selected,
       });
+      if (!r) return; // demonstração: o servidor redirecionou
       if (r.ok) {
         toast.success(pro ? "Profissional atualizado" : "Profissional cadastrado");
         onOpenChange(false);

@@ -50,6 +50,7 @@ export function CashEntryDialog({ defaultDate }: { defaultDate: string }) {
     setError(null);
     start(async () => {
       const r = await addCashEntry({ kind, category, method, amount: parseMoney(amount), description, date });
+      if (!r) return; // demonstração: o servidor redirecionou
       if (r.ok) {
         toast.success(kind === "income" ? "Entrada lançada" : "Saída lançada");
         setOpen(false);

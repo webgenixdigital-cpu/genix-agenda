@@ -58,6 +58,7 @@ export function NewBookingDialog({ defaultDate, services, professionals }: Props
       const r = await createManualBooking({
         serviceId, professionalId, date, time, customerName: name, customerPhone: phone, notes,
       });
+      if (!r) return; // demonstração: o servidor redirecionou
       if (r.ok) {
         toast.success("Agendamento criado");
         setOpen(false);

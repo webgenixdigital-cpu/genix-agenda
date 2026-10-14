@@ -22,6 +22,7 @@ export function TeamManager({ team, services }: { team: Row[]; services: Service
   function toggle(p: Row, active: boolean) {
     start(async () => {
       const r = await toggleProfessional(p.id, active);
+      if (!r) return; // demonstração: o servidor redirecionou
       if (r.ok) toast.success(active ? `${p.name} está ativo` : `${p.name} foi desativado`);
       else toast.error(r.error);
     });
@@ -31,6 +32,7 @@ export function TeamManager({ team, services }: { team: Row[]; services: Service
     if (!confirm(`Excluir ${p.name}?`)) return;
     start(async () => {
       const r = await deleteProfessional(p.id);
+      if (!r) return; // demonstração: o servidor redirecionou
       if (r.ok) toast.success("Profissional excluído");
       else toast.error(r.error);
     });
@@ -91,7 +93,7 @@ export function TeamManager({ team, services }: { team: Row[]; services: Service
                 : `Faz: ${p.serviceIds.map(serviceName).filter(Boolean).join(", ")}`}
             </p>
 
-<div className="mt-auto flex items-center justify-between border-t pt-3">
+            <div className="mt-auto flex items-center justify-between border-t pt-3">
               <label className="flex cursor-pointer items-center gap-2 text-sm">
                 <Switch checked={p.active} disabled={pending} onCheckedChange={(v) => toggle(p, v)} data-testid={`switch-profissional-${p.id}`} />
                 {p.active ? "Ativo" : "Inativo"}

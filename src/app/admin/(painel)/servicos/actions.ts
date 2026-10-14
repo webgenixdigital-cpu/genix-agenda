@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { getAdminContext } from "@/lib/admin";
+import { getEditorContext } from "@/lib/admin";
 
 type Result = { ok: true } | { ok: false; error: string };
 
@@ -25,7 +25,7 @@ function refresh(slug: string) {
 // PARTE 1 — Criar / editar
 // ---------------------------------------------------------------------
 export async function saveService(input: ServiceInput): Promise<Result> {
-  const { business } = await getAdminContext();
+  const { business } = await getEditorContext();
   const supabase = createClient();
 
   const name = input.name.trim();
@@ -67,7 +67,7 @@ export async function toggleService(
   field: "active" | "bookable_online" | "show_in_catalog",
   value: boolean
 ): Promise<Result> {
-  const { business } = await getAdminContext();
+  const { business } = await getEditorContext();
   const supabase = createClient();
   const { error } = await supabase.from("services").update({ [field]: value }).eq("id", id).eq("business_id", business.id);
   if (error) return { ok: false, error: "Não foi possível atualizar." };
@@ -79,7 +79,7 @@ export async function toggleService(
 // PARTE 3 — Excluir
 // ---------------------------------------------------------------------
 export async function deleteService(id: string): Promise<Result> {
-  const { business } = await getAdminContext();
+  const { business } = await getEditorContext();
   const supabase = createClient();
   const { error } = await supabase.from("services").delete().eq("id", id).eq("business_id", business.id);
   if (error) return { ok: false, error: "Não foi possível excluir." };

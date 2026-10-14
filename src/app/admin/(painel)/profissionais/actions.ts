@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { getAdminContext } from "@/lib/admin";
+import { getEditorContext } from "@/lib/admin";
 
 type Result = { ok: true } | { ok: false; error: string };
 
@@ -28,7 +28,7 @@ function refresh(slug: string) {
 // PARTE 1 — Criar / editar (inclui serviços que a pessoa faz)
 // ---------------------------------------------------------------------
 export async function saveProfessional(input: ProfessionalInput): Promise<Result> {
-  const { business } = await getAdminContext();
+  const { business } = await getEditorContext();
   const supabase = createClient();
 
   const name = input.name.trim();
@@ -85,7 +85,7 @@ export async function saveProfessional(input: ProfessionalInput): Promise<Result
 // PARTE 2 — Ativar / desativar
 // ---------------------------------------------------------------------
 export async function toggleProfessional(id: string, active: boolean): Promise<Result> {
-  const { business } = await getAdminContext();
+  const { business } = await getEditorContext();
   const supabase = createClient();
 
   if (!active) {
@@ -105,7 +105,7 @@ export async function toggleProfessional(id: string, active: boolean): Promise<R
 // PARTE 3 — Excluir (só sem histórico de atendimentos)
 // ---------------------------------------------------------------------
 export async function deleteProfessional(id: string): Promise<Result> {
-  const { business } = await getAdminContext();
+  const { business } = await getEditorContext();
   const supabase = createClient();
 
   const { count } = await supabase

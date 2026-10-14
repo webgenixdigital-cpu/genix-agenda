@@ -53,7 +53,10 @@ export default function LoginPage({ searchParams }: Props) {
             <span className="font-heading text-xl">Genix Agenda</span>
           </Link>
           <h2 className="text-3xl">Entrar no painel</h2>
-          <p className="mt-2 text-muted-foreground">Use o e-mail cadastrado do seu espaço.</p>
+                    <p className="mt-2 text-muted-foreground">
+            Use o e-mail cadastrado do seu espaço. Ainda não tem conta?{" "}
+            <Link href="/cadastro" className="font-semibold text-primary underline">Criar conta grátis</Link>
+          </p>
           <LoginForm next={next} />
         </div>
       </main>

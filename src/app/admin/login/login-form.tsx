@@ -1,35 +1,31 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import { Loader2, PlayCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-// Contas de demonstração (mesmas do seed). Remova antes de ir para produção real.
-const DEMOS = [
-  { label: "Salão Lumina", email: "dona@lumina.com", testId: "demo-login-salao" },
-  { label: "Barbearia Imperial", email: "dono@imperial.com", testId: "demo-login-barbearia" },
-  { label: "Clínica Harmonize", email: "gestor@harmonize.com", testId: "demo-login-clinica" },
-];
-const DEMO_PASSWORD = "demo123";
-
 export function LoginForm({ next }: { next: string }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function signIn(e: string, p: string, key: string) {
-    setLoading(key);
+  async function signIn() {
+    setLoading(true);
     setError(null);
     const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({ email: e, password: p });
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password,
+    });
     if (error) {
-      setLoading(null);
+      setLoading(false);
       setError(
         error.message.includes("Invalid login")
           ? "E-mail ou senha incorretos."
@@ -47,7 +43,7 @@ export function LoginForm({ next }: { next: string }) {
         className="mt-8 space-y-4"
         onSubmit={(ev) => {
           ev.preventDefault();
-          signIn(email, password, "form");
+          signIn();
         }}
       >
         <div className="space-y-1.5">
@@ -79,32 +75,19 @@ export function LoginForm({ next }: { next: string }) {
 
         {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-destructive">{error}</p>}
 
-        <Button type="submit" className="h-12 w-full text-base" disabled={!!loading} data-testid="btn-entrar">
-          {loading === "form" ? <Loader2 className="h-5 w-5 animate-spin" /> : "Entrar"}
+        <Button type="submit" className="h-12 w-full text-base" disabled={loading} data-testid="btn-entrar">
+          {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Entrar"}
         </Button>
       </form>
 
-      <div className="mt-10">
-        <p className="text-sm text-muted-foreground">Ou explore com uma conta de demonstração:</p>
-        <div className="mt-3 grid gap-2">
-          {DEMOS.map((d) => (
-            <Button
-              key={d.email}
-              variant="outline"
-              className="h-11 justify-between"
-              disabled={!!loading}
-              onClick={() => signIn(d.email, DEMO_PASSWORD, d.email)}
-              data-testid={d.testId}
-            >
-              {d.label}
-              {loading === d.email ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <span className="text-xs text-muted-foreground">{d.email}</span>
-              )}
-            </Button>
-          ))}
-        </div>
+      <div className="mt-10 rounded-2xl bg-secondary p-5">
+        <p className="font-semibold">Quer conhecer antes?</p>
+        <p className="mt-1 text-sm text-muted-foreground">Veja um painel de verdade, com agenda e financeiro, sem criar conta.</p>
+        <Button asChild variant="outline" className="mt-4 h-11 w-full bg-white" data-testid="btn-login-ver-demo">
+          <Link href="/demo">
+            <PlayCircle className="mr-2 h-4 w-4" /> Ver demonstração
+          </Link>
+        </Button>
       </div>
     </>
   );

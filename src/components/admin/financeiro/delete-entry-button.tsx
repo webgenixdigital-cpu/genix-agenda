@@ -20,6 +20,7 @@ export function DeleteEntryButton({ id }: { id: string }) {
         if (!confirm("Excluir este lançamento?")) return;
         start(async () => {
           const r = await deleteCashEntry(id);
+          if (!r) return; // demonstração: o servidor redirecionou
           if (r.ok) toast.success("Lançamento excluído");
           else toast.error(r.error);
         });

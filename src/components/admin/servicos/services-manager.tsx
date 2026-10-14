@@ -26,6 +26,7 @@ export function ServicesManager({ services }: { services: Row[] }) {
   function toggle(id: string, field: "active" | "bookable_online" | "show_in_catalog", value: boolean) {
     start(async () => {
       const r = await toggleService(id, field, value);
+      if (!r) return; // demonstração: o servidor redirecionou
       if (!r.ok) toast.error(r.error);
     });
   }
@@ -34,6 +35,7 @@ export function ServicesManager({ services }: { services: Row[] }) {
     if (!confirm(`Excluir "${s.name}"? Os agendamentos antigos continuam no histórico.`)) return;
     start(async () => {
       const r = await deleteService(s.id);
+      if (!r) return; // demonstração: o servidor redirecionou
       if (r.ok) toast.success("Serviço excluído");
       else toast.error(r.error);
     });

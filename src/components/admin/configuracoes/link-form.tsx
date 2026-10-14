@@ -35,6 +35,7 @@ export function LinkForm({
   function save() {
     start(async () => {
       const r = await updateLink({ slug: slug.replace(/-+$/, ""), customDomain: domain, isPublished: published });
+      if (!r) return; // demonstração: o servidor redirecionou
       if (r.ok) toast.success("Link da vitrine salvo");
       else toast.error(r.error);
     });

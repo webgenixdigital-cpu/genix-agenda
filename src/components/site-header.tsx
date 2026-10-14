@@ -13,7 +13,7 @@ export function SiteHeader() {
           <span className="font-heading text-xl tracking-tight">Genix Agenda</span>
         </Link>
         <Button asChild variant="outline" size="sm" data-testid="btn-area-profissional">
-          <Link href="/admin/login">Área do profissional</Link>
+          <Link href="/profissional">Área do profissional</Link>
         </Button>
       </div>
     </header>

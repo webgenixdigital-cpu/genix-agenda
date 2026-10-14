@@ -50,6 +50,7 @@ export function ProfileForm({ initial }: { initial: Initial }) {
   function save() {
     start(async () => {
       const r = await updateProfile(f);
+      if (!r) return; // demonstração: o servidor redirecionou
       if (r.ok) toast.success("Perfil salvo");
       else toast.error(r.error);
     });

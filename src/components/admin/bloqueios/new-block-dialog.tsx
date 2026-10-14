@@ -100,6 +100,7 @@ export function NewBlockDialog({
         recurring: mode === "weekly",
         weekdays,
       });
+      if (!r) return; // demonstração: o servidor redirecionou
       if (!r.ok) {
         setError(r.error);
         return;
@@ -118,6 +119,7 @@ export function NewBlockDialog({
   function cancelBooking(id: string) {
     start(async () => {
       const r = await updateBookingStatus(id, "cancelled");
+      if (!r) return; // demonstração: o servidor redirecionou
       if (r.ok) setCancelled((c) => [...c, id]);
       else toast.error(r.error);
     });

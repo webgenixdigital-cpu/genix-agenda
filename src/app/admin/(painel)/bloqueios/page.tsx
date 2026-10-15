@@ -1,6 +1,8 @@
 import { CalendarOff, Repeat } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminContext } from "@/lib/admin";
+import { getPlanContext } from "@/lib/plan";
+import { LockedFeature } from "@/components/admin/locked-feature";
 import { todayISO } from "@/lib/dates";
 import { NewBlockDialog } from "@/components/admin/bloqueios/new-block-dialog";
 import { DeleteBlockButton } from "@/components/admin/bloqueios/delete-block-button";
@@ -18,6 +20,9 @@ function joinPt(list: string[]) {
 
 export default async function BloqueiosPage() {
   const { business } = await getAdminContext();
+  const plan = await getPlanContext(business.id);
+  if (plan.tier === "gratis") return <LockedFeature feature="bloqueios" />;
+
   const supabase = createClient();
   const today = todayISO();
 

@@ -4,6 +4,8 @@ import { ptBR } from "date-fns/locale";
 import { ArrowDownRight, ArrowUpRight, ChevronLeft, ChevronRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminContext } from "@/lib/admin";
+import { getPlanContext } from "@/lib/plan";
+import { LockedFeature } from "@/components/admin/locked-feature";
 import { todayISO } from "@/lib/dates";
 import { brl } from "@/lib/format";
 import { CATEGORY_LABEL, METHOD_LABEL, type CashCategory, type CashMethod } from "@/lib/cash";
@@ -33,6 +35,9 @@ type Entry = {
 // ---------------------------------------------------------------------
 export default async function FinanceiroPage({ searchParams }: Props) {
   const { business } = await getAdminContext();
+  const plan = await getPlanContext(business.id);
+  if (plan.tier === "gratis") return <LockedFeature feature="financeiro" />;
+
   const supabase = createClient();
 
   const today = todayISO();

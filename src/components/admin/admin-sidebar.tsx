@@ -4,8 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  BellRing, CalendarDays, CalendarHeart, CalendarOff, ExternalLink, LayoutDashboard,
-  LogOut, Menu, Scissors, Settings, Users, Wallet,
+  BellRing, CalendarDays, CalendarHeart, CalendarOff, CreditCard, ExternalLink, LayoutDashboard,
+  Lock, LogOut, Menu, Scissors, Settings, Users, Wallet,
 } from "lucide-react";
 import { signOut } from "@/app/admin/actions";
 import { Button } from "@/components/ui/button";
@@ -20,12 +20,13 @@ const NAV = [
   { href: "/admin/servicos", label: "Serviços", icon: Scissors },
   { href: "/admin/profissionais", label: "Equipe", icon: Users },
   { href: "/admin/financeiro", label: "Financeiro", icon: Wallet },
+  { href: "/admin/assinatura", label: "Assinatura", icon: CreditCard },
   { href: "/admin/configuracoes", label: "Configurações", icon: Settings },
 ];
 
-type Props = { businessName: string; slug: string; email: string };
+type Props = { businessName: string; slug: string; email: string; lockedHrefs?: string[] };
 
-function NavContent({ businessName, slug, email, onNavigate }: Props & { onNavigate?: () => void }) {
+function NavContent({ businessName, slug, email, lockedHrefs = [], onNavigate }: Props & { onNavigate?: () => void }) {
   const pathname = usePathname();
 
   return (
@@ -55,7 +56,8 @@ function NavContent({ businessName, slug, email, onNavigate }: Props & { onNavig
               )}
             >
               <Icon className={cn("h-[18px] w-[18px]", active && "text-primary")} />
-              {label}
+              <span className="flex-1">{label}</span>
+              {lockedHrefs.includes(href) && <Lock className="h-3.5 w-3.5 text-muted-foreground" aria-label="Recurso do Completo" />}
             </Link>
           );
         })}

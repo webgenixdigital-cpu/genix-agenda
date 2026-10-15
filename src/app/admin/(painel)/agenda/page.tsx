@@ -1,6 +1,7 @@
 import { CalendarOff, Globe, Phone, StickyNote } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminContext } from "@/lib/admin";
+import { getPlanContext } from "@/lib/plan";
 import { todayISO } from "@/lib/dates";
 import { brl, longDate, maskPhone } from "@/lib/format";
 import { StatusBadge } from "@/components/admin/status-badge";
@@ -21,6 +22,7 @@ const STATUSES = ["pending", "confirmed", "completed", "cancelled"];
 // ---------------------------------------------------------------------
 export default async function AgendaPage({ searchParams }: Props) {
   const { business } = await getAdminContext();
+  const plan = await getPlanContext(business.id);
   const supabase = createClient();
 
   const today = todayISO();
@@ -163,7 +165,7 @@ export default async function AgendaPage({ searchParams }: Props) {
                 </div>
 
                 <div className="mt-4 border-t pt-3">
-                <BookingActions booking={b} businessName={business.name} slug={business.slug} />
+                  <BookingActions booking={b} businessName={business.name} slug={business.slug} fullAccess={plan.tier === "completo"} />
                 </div>
               </li>
             ))}

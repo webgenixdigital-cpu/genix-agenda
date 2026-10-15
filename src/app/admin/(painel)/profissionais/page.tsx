@@ -1,11 +1,13 @@
 import { createClient } from "@/lib/supabase/server";
 import { getAdminContext } from "@/lib/admin";
+import { getPlanContext } from "@/lib/plan";
 import { TeamManager } from "@/components/admin/profissionais/team-manager";
 
 export const dynamic = "force-dynamic";
 
 export default async function ProfissionaisPage() {
   const { business } = await getAdminContext();
+  const plan = await getPlanContext(business.id);
   const supabase = createClient();
 
   const [{ data: pros }, { data: services }] = await Promise.all([
@@ -43,7 +45,11 @@ export default async function ProfissionaisPage() {
           Quem atende no seu espaço e quais serviços cada pessoa faz. Isso define os horários oferecidos na vitrine.
         </p>
       </header>
-      <TeamManager team={team} services={services ?? []} />
+      <TeamManager
+        team={team}
+        services={services ?? []}
+        canAddMore={plan.tier === "completo" || !team.some((p) => p.active)}
+      />
     </main>
   );
 }

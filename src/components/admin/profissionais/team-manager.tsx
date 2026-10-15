@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { Lock, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { deleteProfessional, toggleProfessional } from "@/app/admin/(painel)/profissionais/actions";
 import { ProfessionalDialog, type EditablePro } from "@/components/admin/profissionais/professional-dialog";
@@ -12,7 +13,16 @@ import { cn } from "@/lib/utils";
 type Row = EditablePro & { active: boolean };
 type ServiceOption = { id: string; name: string; category: string | null };
 
-export function TeamManager({ team, services }: { team: Row[]; services: ServiceOption[] }) {
+export function TeamManager({
+  team,
+  services,
+  canAddMore = true,
+}: {
+  team: Row[];
+  services: ServiceOption[];
+  /** plano Grátis com 1 profissional ativo = false */
+  canAddMore?: boolean;
+}) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<EditablePro | null>(null);
   const [pending, start] = useTransition();
@@ -41,16 +51,24 @@ export function TeamManager({ team, services }: { team: Row[]; services: Service
   return (
     <>
       <div className="flex justify-end">
-        <Button
-          className="h-11"
-          onClick={() => {
-            setEditing(null);
-            setDialogOpen(true);
-          }}
-          data-testid="btn-novo-profissional"
-        >
-          <Plus className="mr-1.5 h-4 w-4" /> Novo profissional
-        </Button>
+        {canAddMore ? (
+          <Button
+            className="h-11"
+            onClick={() => {
+              setEditing(null);
+              setDialogOpen(true);
+            }}
+            data-testid="btn-novo-profissional"
+          >
+            <Plus className="mr-1.5 h-4 w-4" /> Novo profissional
+          </Button>
+        ) : (
+          <Button asChild variant="outline" className="h-11" data-testid="btn-equipe-completo">
+            <Link href="/admin/assinatura">
+              <Lock className="mr-1.5 h-4 w-4" /> Mais profissionais no Completo
+            </Link>
+          </Button>
+        )}
       </div>
 
       <ul className="grid gap-4 md:grid-cols-2">

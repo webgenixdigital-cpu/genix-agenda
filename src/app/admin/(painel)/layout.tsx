@@ -1,12 +1,16 @@
 import { Suspense } from "react";
 import { getAdminContext } from "@/lib/admin";
+import { getPlanContext } from "@/lib/plan";
+import { FREE_LOCKED_HREFS } from "@/lib/plan-features";
 import { AdminSidebar } from "@/components/admin/admin-sidebar";
 import { DemoBanner } from "@/components/admin/demo-banner";
+import { PlanBanner } from "@/components/admin/plan-banner";
 
 export const dynamic = "force-dynamic";
 
 export default async function PainelLayout({ children }: { children: React.ReactNode }) {
   const ctx = await getAdminContext();
+  const plan = await getPlanContext(ctx.business.id);
   const isDemo = ctx.role === "viewer";
 
   return (
@@ -21,8 +25,12 @@ export default async function PainelLayout({ children }: { children: React.React
           businessName={ctx.business.name}
           slug={ctx.business.slug}
           email={isDemo ? "Conta de demonstração" : ctx.email}
+          lockedHrefs={plan.tier === "gratis" ? FREE_LOCKED_HREFS : []}
         />
-        <div className="min-w-0 flex-1">{children}</div>
+        <div className="min-w-0 flex-1">
+          {!isDemo && <PlanBanner plan={plan} />}
+          {children}
+        </div>
       </div>
     </>
   );

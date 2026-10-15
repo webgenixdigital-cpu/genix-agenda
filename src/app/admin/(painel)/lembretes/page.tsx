@@ -2,6 +2,8 @@ import Link from "next/link";
 import { CheckCircle2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminContext } from "@/lib/admin";
+import { getPlanContext } from "@/lib/plan";
+import { LockedFeature } from "@/components/admin/locked-feature";
 import { todayISO } from "@/lib/dates";
 import { longDate, maskPhone, whatsappLink } from "@/lib/format";
 import { StatusBadge } from "@/components/admin/status-badge";
@@ -24,6 +26,9 @@ function reminderMessage(name: string, service: string, pro: string, date: strin
 
 export default async function LembretesPage({ searchParams }: Props) {
   const { business } = await getAdminContext();
+  const plan = await getPlanContext(business.id);
+  if (plan.tier === "gratis") return <LockedFeature feature="lembretes" />;
+
   const supabase = createClient();
 
   const isToday = searchParams.dia === "hoje";

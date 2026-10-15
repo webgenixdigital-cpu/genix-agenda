@@ -36,10 +36,13 @@ export function BookingActions({
   booking: b,
   businessName,
   slug,
+  fullAccess = true,
 }: {
   booking: AgendaBooking;
   businessName: string;
   slug: string;
+  /** plano Completo: pergunta a forma de pagamento e lança no caixa */
+  fullAccess?: boolean;
 }) {
   const [pending, start] = useTransition();
   const [completeOpen, setCompleteOpen] = useState(false);
@@ -75,7 +78,7 @@ export function BookingActions({
       )}
 
       {b.status === "confirmed" && (
-        <Button size="sm" className="h-10" disabled={pending} onClick={() => setCompleteOpen(true)} data-testid={`btn-concluir-${b.id}`}>
+        <Button size="sm" className="h-10" disabled={pending} onClick={() => (fullAccess ? setCompleteOpen(true) : run(() => completeBooking(b.id, null), "Atendimento concluído"))} data-testid={`btn-concluir-${b.id}`}>
           <CheckCheck className="mr-1.5 h-4 w-4" /> Concluir
         </Button>
       )}

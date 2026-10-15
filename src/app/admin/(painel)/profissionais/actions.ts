@@ -6,6 +6,9 @@ import { getEditorContext } from "@/lib/admin";
 
 type Result = { ok: true } | { ok: false; error: string };
 
+const FREE_LIMIT =
+  "No plano Grátis é possível ter 1 profissional ativo. Libere o Completo para montar sua equipe.";
+
 export type ProfessionalInput = {
   id?: string;
   name: string;
@@ -64,6 +67,7 @@ export async function saveProfessional(input: ProfessionalInput): Promise<Result
       .insert({ ...row, business_id: business.id, sort_order: (last?.sort_order ?? 0) + 1 })
       .select("id")
       .single();
+    if (error?.message.includes("LIMITE_PLANO_GRATIS")) return { ok: false, error: FREE_LIMIT };
     if (error || !data) return { ok: false, error: "Não foi possível cadastrar." };
     id = data.id;
   }
@@ -96,6 +100,7 @@ export async function toggleProfessional(id: string, active: boolean): Promise<R
   }
 
   const { error } = await supabase.from("professionals").update({ active }).eq("id", id).eq("business_id", business.id);
+  if (error?.message.includes("LIMITE_PLANO_GRATIS")) return { ok: false, error: FREE_LIMIT };
   if (error) return { ok: false, error: "Não foi possível atualizar." };
   refresh(business.slug);
   return { ok: true };

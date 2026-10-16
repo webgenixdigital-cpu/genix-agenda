@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminContext } from "@/lib/admin";
+import { getPlanContext } from "@/lib/plan";
+import { getOnboarding } from "@/lib/onboarding";
+import { OnboardingCard } from "@/components/admin/onboarding-card";
 import { monthStartISO, todayISO } from "@/lib/dates";
 import { brl, longDate } from "@/lib/format";
 import { StatusBadge } from "@/components/admin/status-badge";
@@ -69,9 +72,16 @@ async function loadDashboard(businessId: string) {
 // ---------------------------------------------------------------------
 // PARTE 2 — Página
 // ---------------------------------------------------------------------
-export default async function Dashboard() {
+type Props = { searchParams: { "bem-vindo"?: string } };
+
+export default async function Dashboard({ searchParams }: Props) {
   const { business } = await getAdminContext();
-  const { today, bookings, stats } = await loadDashboard(business.id);
+  const plan = await getPlanContext(business.id);
+  const [{ today, bookings, stats }, onboarding] = await Promise.all([
+    loadDashboard(business.id),
+    plan.internal ? Promise.resolve(null) : getOnboarding(business as never, plan),
+  ]);
+  const welcome = searchParams["bem-vindo"] === "1";
 
   const cards = [
     { label: "Faturamento hoje", value: brl(stats.revenueToday), hint: `${brl(stats.expectedToday)} previstos na agenda` },
@@ -86,6 +96,18 @@ export default async function Dashboard() {
         <p className="text-sm text-muted-foreground first-letter:uppercase">{longDate(today)}</p>
         <h1 className="mt-1 text-3xl md:text-4xl">Olá, {business.name}</h1>
       </header>
+
+      {onboarding && (
+        <OnboardingCard
+          items={onboarding.items}
+          doneCount={onboarding.doneCount}
+          total={onboarding.total}
+          dismissed={onboarding.dismissed}
+          slug={business.slug}
+          welcome={welcome}
+          ownerName={(business as { owner_name?: string | null }).owner_name}
+        />
+      )}
 
       {stats.pending > 0 && (
         <Link

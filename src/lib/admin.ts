@@ -10,6 +10,8 @@ export type AdminContext = {
   userId: string;
   email: string;
   role: "owner" | "staff" | "viewer";
+  /** e-mail confirmado pelo link enviado (confirmação posterior ao cadastro) */
+  emailVerified: boolean;
   business: Business & { id: string; timezone: string; is_published: boolean; is_demo: boolean };
 };
 
@@ -34,6 +36,7 @@ export const getAdminContext = cache(async (): Promise<AdminContext> => {
   return {
     userId: user.id,
     email: user.email ?? "",
+    emailVerified: !!user.user_metadata?.email_verified_at,
     role: data.role as AdminContext["role"],
     business: data.businesses as unknown as AdminContext["business"],
   };

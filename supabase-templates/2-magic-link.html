@@ -1,0 +1,14 @@
+<!-- Supabase → Authentication → Emails → Templates → "Magic Link" -->
+<!-- Assunto (Subject): Confirme seu e-mail no Genix Agenda -->
+<div style="font-family:Arial,Helvetica,sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#1C1917">
+  <h2 style="font-family:Georgia,serif;font-weight:normal;font-size:26px;margin:0 0 16px">Genix Agenda</h2>
+  <p style="font-size:16px;line-height:1.5">Falta só um toque para confirmar o e-mail da sua conta.</p>
+  <p style="margin:28px 0">
+    <a href="{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=email"
+       style="background:#99582A;color:#ffffff;text-decoration:none;padding:14px 24px;border-radius:10px;font-size:16px;font-weight:bold;display:inline-block">
+      Confirmar e-mail
+    </a>
+  </p>
+  <p style="font-size:14px;line-height:1.5;color:#57534E">O link vale por 1 hora e só pode ser usado uma vez.<br>
+  Se você não criou uma conta no Genix Agenda, ignore este e-mail.</p>
+</div>

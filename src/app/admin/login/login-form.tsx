@@ -60,7 +60,12 @@ export function LoginForm({ next }: { next: string }) {
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="password">Senha</Label>
+          <div className="flex items-center justify-between">
+            <Label htmlFor="password">Senha</Label>
+            <Link href="/esqueci-senha" className="text-sm font-semibold text-primary underline" data-testid="link-esqueci-senha">
+              Esqueci minha senha
+            </Link>
+          </div>
           <Input
             id="password"
             type="password"

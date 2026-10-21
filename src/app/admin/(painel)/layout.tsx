@@ -5,6 +5,7 @@ import { FREE_LOCKED_HREFS } from "@/lib/plan-features";
 import { AdminSidebar } from "@/components/admin/admin-sidebar";
 import { DemoBanner } from "@/components/admin/demo-banner";
 import { PlanBanner } from "@/components/admin/plan-banner";
+import { EmailConfirmedToast, EmailVerifyBanner } from "@/components/admin/email-verify-banner";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +29,11 @@ export default async function PainelLayout({ children }: { children: React.React
           lockedHrefs={plan.tier === "gratis" ? FREE_LOCKED_HREFS : []}
         />
         <div className="min-w-0 flex-1">
+          {!isDemo && !plan.internal && !ctx.emailVerified && <EmailVerifyBanner email={ctx.email} />}
           {!isDemo && <PlanBanner plan={plan} />}
+          <Suspense fallback={null}>
+            <EmailConfirmedToast />
+          </Suspense>
           {children}
         </div>
       </div>

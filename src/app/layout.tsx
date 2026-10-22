@@ -18,7 +18,7 @@ const sans = DM_Sans({
 export const metadata: Metadata = {
   title: "Genix Agenda — Vitrine Digital & Agenda Online",
   description:
-    "Vitrine digital e agenda online para salões, barbearias, clínicas de estética, terapeutas e profissionais que atendem pessoas. Agendamento online e WhatsApp.",
+    "Vitrine digital e agenda online para salões, barbearias, clínicas de estética e profissionais que atendem pessoas. Agendamento online e WhatsApp.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

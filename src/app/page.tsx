@@ -49,7 +49,7 @@ export default async function Home({ searchParams }: Props) {
               Encontre quem cuida de você e agende em poucos toques
             </h1>
             <p className="mt-4 max-w-xl text-lg text-muted-foreground">
-              Salões, barbearias, clínicas de estética e terapeutas com horários abertos agora.
+              Salões, barbearias, clínicas de estética e muito mais, com horários abertos agora.
             </p>
 
             <form action="/" className="mt-8 flex max-w-xl gap-2" role="search">

@@ -19,12 +19,8 @@ export const SERVICE_TEMPLATES: Record<Segment, ServiceTemplate[]> = {
     { name: "Massagem relaxante", category: "Corporal", duration_min: 60, price: 120, description: "Alívio de tensões e bem-estar." },
     { name: "Design de sobrancelhas", category: "Sobrancelhas", duration_min: 40, price: 50, description: "Design personalizado." },
   ],
-  psicologia_terapias: [
-    { name: "Primeira conversa", category: "Atendimentos", duration_min: 50, price: 150, description: "Encontro inicial para entender sua necessidade." },
-    { name: "Sessão individual", category: "Atendimentos", duration_min: 50, price: 150, description: "Sessão presencial." },
-    { name: "Sessão online", category: "Atendimentos", duration_min: 50, price: 150, description: "Sessão por videochamada." },
-    { name: "Sessão de casal", category: "Atendimentos", duration_min: 80, price: 220, description: "Atendimento para casais." },
-  ],
+  // Segmento não oferecido no momento (saúde fica para um projeto futuro)
+  psicologia_terapias: [],
   outros: [
     { name: "Avaliação inicial", category: "Atendimentos", duration_min: 30, price: 50, description: "Primeiro contato para entender o que você precisa." },
     { name: "Atendimento", category: "Atendimentos", duration_min: 60, price: 100, description: "Atendimento padrão." },

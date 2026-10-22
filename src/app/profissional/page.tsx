@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 export const metadata: Metadata = {
   title: "Genix Agenda para profissionais | Agenda online e vitrine digital",
   description:
-    "Agenda online, vitrine digital e lembretes por WhatsApp para salões, barbearias, clínicas de estética e terapeutas. Teste grátis por 15 dias.",
+    "Agenda online, vitrine digital e lembretes por WhatsApp para salões, barbearias, clínicas de estética e outros profissionais. Teste grátis por 15 dias.",
 };
 
 export const revalidate = 3600;
@@ -50,15 +50,11 @@ const FAQ = [
   },
   {
     q: "Quais formas de pagamento são aceitas?",
-      a: "Pix e cartão de crédito com cobrança recorrente.",
+    a: "Pix e cartão de crédito com cobrança recorrente.",
   },
   {
     q: "Tem fidelidade?",
     a: "No plano mensal, não: cancele quando quiser. O plano anual é pago uma vez por ano, com 2 meses de desconto.",
-  },
-  {
-    q: "Serve para psicólogos e terapeutas?",
-    a: "Sim. O Genix Agenda cuida da agenda, da vitrine e dos lembretes. Ele não guarda prontuários nem informações clínicas dos seus clientes.",
   },
 ];
 
@@ -94,7 +90,7 @@ export default async function ProfissionalPage() {
                 Sua agenda cheia, sem viver no WhatsApp.
               </h1>
               <p className="mt-5 max-w-xl text-lg text-muted-foreground">
-                Vitrine digital, agendamento online e lembretes para salões, barbearias, clínicas de estética e terapeutas.
+                Vitrine digital, agendamento online e lembretes para salões, barbearias, clínicas de estética e outros profissionais.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <Button asChild size="lg" className="h-12 px-7 text-base active:scale-95" data-testid="btn-hero-teste">

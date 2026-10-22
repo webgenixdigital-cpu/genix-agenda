@@ -1,0 +1,15 @@
+<!-- Supabase → Authentication → Emails → Templates → "Invite user" -->
+<!-- Assunto (Subject): Você foi convidado para o Genix Agenda -->
+<div style="font-family:Arial,Helvetica,sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#1C1917">
+  <h2 style="font-family:Georgia,serif;font-weight:normal;font-size:26px;margin:0 0 16px">Genix Agenda</h2>
+  <p style="font-size:16px;line-height:1.5">Você recebeu acesso ao painel de agenda do seu local de trabalho.</p>
+  <p style="font-size:16px;line-height:1.5">Toque no botão para criar sua senha e entrar.</p>
+  <p style="margin:28px 0">
+    <a href="{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=invite"
+       style="background:#99582A;color:#ffffff;text-decoration:none;padding:14px 24px;border-radius:10px;font-size:16px;font-weight:bold;display:inline-block">
+      Criar minha senha
+    </a>
+  </p>
+  <p style="font-size:14px;line-height:1.5;color:#57534E">O link vale por 24 horas e só pode ser usado uma vez.<br>
+  Se você não esperava este convite, pode ignorar este e-mail.</p>
+</div>

@@ -26,6 +26,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL("/redefinir-senha", request.url));
   }
 
+  // Convite da equipe → e-mail já comprovado + criar a primeira senha
+  if (type === "invite") {
+    await supabase.auth.updateUser({ data: { email_verified_at: new Date().toISOString() } });
+    return NextResponse.redirect(new URL("/redefinir-senha?novo=1", request.url));
+  }
+
   // Confirmação de e-mail → marca como confirmado e abre o painel
   await supabase.auth.updateUser({ data: { email_verified_at: new Date().toISOString() } });
   return NextResponse.redirect(new URL("/admin?email=confirmado", request.url));

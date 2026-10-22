@@ -88,6 +88,7 @@ export function AgendaToolbar({ date, today, status, professionalId, pendingMode
           </SelectContent>
         </Select>
 
+        {professionals.length > 1 && (
         <Select value={professionalId} onValueChange={(v) => go({ prof: v === "all" ? null : v })}>
           <SelectTrigger className="h-11 md:w-48" data-testid="filtro-profissional">
             <SelectValue />
@@ -99,6 +100,7 @@ export function AgendaToolbar({ date, today, status, professionalId, pendingMode
             ))}
           </SelectContent>
         </Select>
+        )}
       </div>
     </div>
   );

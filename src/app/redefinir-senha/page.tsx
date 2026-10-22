@@ -7,7 +7,7 @@ import { ResetForm } from "./reset-form";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Criar senha nova | Genix Agenda", robots: { index: false } };
 
-export default async function RedefinirSenhaPage() {
+export default async function RedefinirSenhaPage({ searchParams }: { searchParams: { novo?: string } }) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -23,7 +23,10 @@ export default async function RedefinirSenhaPage() {
   }
 
   return (
-    <AuthShell title="Criar senha nova" subtitle={`Conta: ${user.email}`}>
+    <AuthShell
+      title={searchParams.novo === "1" ? "Crie sua senha de acesso" : "Criar senha nova"}
+      subtitle={searchParams.novo === "1" ? `Bem-vindo(a)! Seu acesso: ${user.email}` : `Conta: ${user.email}`}
+    >
       <ResetForm />
     </AuthShell>
   );

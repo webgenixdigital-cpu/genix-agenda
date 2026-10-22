@@ -43,43 +43,23 @@ export async function updateBookingStatus(id: string, status: "confirmed" | "can
 // PARTE 2 — Concluir (e lançar no caixa)
 // ---------------------------------------------------------------------
 export async function completeBooking(id: string, method: Method | null): Promise<Result> {
-  const { business, userId } = await getEditorContext();
+  await getEditorContext();
   const supabase = createClient();
 
-  const { data: bk } = await supabase
-    .from("bookings")
-    .select("id, price, service_name, customer_name, booking_date")
-    .eq("id", id)
-    .eq("business_id", business.id)
-    .maybeSingle();
-  if (!bk) return { ok: false, error: "Agendamento não encontrado." };
-
-  const { error } = await supabase.from("bookings").update({ status: "completed" }).eq("id", id);
-  if (error) return { ok: false, error: "Não foi possível concluir o atendimento." };
-
-  if (method && Number(bk.price) > 0) {
-    const { count } = await supabase
-      .from("cash_entries")
-      .select("id", { count: "exact", head: true })
-      .eq("booking_id", id);
-
-    if (!count) {
-      await supabase.from("cash_entries").insert({
-        business_id: business.id,
-        booking_id: id,
-        kind: "income",
-        category: "atendimento",
-        method,
-        description: `${bk.service_name} — ${bk.customer_name}`,
-        amount: bk.price,
-        entry_date: bk.booking_date,
-        created_by: userId,
-      });
-    }
+  // status + lançamento no caixa juntos, com a permissão conferida no banco
+  const { error } = await supabase.rpc("complete_booking", { p_booking: id, p_method: method });
+  if (error) {
+    return {
+      ok: false,
+      error: error.message.includes("SEM_PERMISSAO")
+        ? "Você não tem permissão para concluir este atendimento."
+        : "Não foi possível concluir o atendimento.",
+    };
   }
 
   refresh();
   revalidatePath("/admin/financeiro");
+  revalidatePath("/admin/ganhos");
   return { ok: true };
 }
 

@@ -45,15 +45,18 @@ function rescheduleMessage(b: AffectedBooking, businessName: string, reason: str
 export function NewBlockDialog({
   professionals,
   businessName,
+  allowTeam = true,
 }: {
   professionals: { id: string; name: string }[];
   businessName: string;
+  /** profissional só bloqueia a própria agenda (sem "Toda a equipe") */
+  allowTeam?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
 
   const [mode, setMode] = useState<"dates" | "weekly">("dates");
-  const [who, setWho] = useState(ALL);
+  const [who, setWho] = useState(allowTeam ? ALL : professionals[0]?.id ?? ALL);
   const [range, setRange] = useState<DateRange | undefined>();
   const [weekdays, setWeekdays] = useState<number[]>([]);
   const [untilMonths, setUntilMonths] = useState("6");
@@ -69,7 +72,7 @@ export function NewBlockDialog({
 
   function openDialog() {
     setMode("dates");
-    setWho(ALL);
+    setWho(allowTeam ? ALL : professionals[0]?.id ?? ALL);
     setRange(undefined);
     setWeekdays([]);
     setFullDay(true);
@@ -152,7 +155,7 @@ export function NewBlockDialog({
               <Select value={who} onValueChange={setWho}>
                 <SelectTrigger className="h-11" data-testid="select-bloqueio-quem"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={ALL}>Toda a equipe</SelectItem>
+                  {allowTeam && <SelectItem value={ALL}>Toda a equipe</SelectItem>}
                   {professionals.map((p) => (
                     <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                   ))}

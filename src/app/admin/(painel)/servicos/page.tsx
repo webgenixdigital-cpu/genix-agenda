@@ -1,11 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
-import { getAdminContext } from "@/lib/admin";
+import { requireRoles } from "@/lib/admin";
 import { ServicesManager } from "@/components/admin/servicos/services-manager";
 
 export const dynamic = "force-dynamic";
 
 export default async function ServicosPage() {
-  const { business } = await getAdminContext();
+  const { business } = await requireRoles(["owner", "viewer"]);
   const supabase = createClient();
 
   const { data } = await supabase

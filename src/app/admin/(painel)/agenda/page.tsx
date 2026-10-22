@@ -1,6 +1,6 @@
 import { CalendarOff, Globe, Phone, StickyNote } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { getAdminContext } from "@/lib/admin";
+import { getAdminContext, seesWholeTeam } from "@/lib/admin";
 import { getPlanContext } from "@/lib/plan";
 import { todayISO } from "@/lib/dates";
 import { brl, longDate, maskPhone } from "@/lib/format";
@@ -21,14 +21,15 @@ const STATUSES = ["pending", "confirmed", "completed", "cancelled"];
 // PARTE 1 — Dados
 // ---------------------------------------------------------------------
 export default async function AgendaPage({ searchParams }: Props) {
-  const { business } = await getAdminContext();
+  const { business, role, professionalId } = await getAdminContext();
+  const wholeTeam = seesWholeTeam(role);
   const plan = await getPlanContext(business.id);
   const supabase = createClient();
 
   const today = todayISO();
   const date = /^\d{4}-\d{2}-\d{2}$/.test(searchParams.data ?? "") ? searchParams.data! : today;
   const status = STATUSES.includes(searchParams.status ?? "") ? searchParams.status! : "all";
-  const prof = searchParams.prof ?? "all";
+  const prof = wholeTeam ? searchParams.prof ?? "all" : professionalId ?? "00000000-0000-0000-0000-000000000000";
   // "Pendentes" sem data escolhida = todos os pedidos pendentes a partir de hoje
   const pendingMode = status === "pending" && !searchParams.data;
 
@@ -53,7 +54,7 @@ export default async function AgendaPage({ searchParams }: Props) {
   ]);
 
   const list = (bookings ?? []) as (AgendaBooking & { professional_id: string })[];
-  const pros = professionals ?? [];
+  const pros = (professionals ?? []).filter((p) => wholeTeam || p.id === professionalId);
   const weekday = new Date(`${date}T12:00:00`).getDay();
   const dayBlocks = pendingMode
     ? []

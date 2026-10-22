@@ -21,7 +21,7 @@ async function loadDashboard(businessId: string) {
   const today = todayISO();
   const monthStart = monthStartISO();
 
-  const [bookingsToday, cashMonth, pendingCount] = await Promise.all([
+  const [bookingsToday, cashMonth, pendingCount, doneMonth] = await Promise.all([
     supabase
       .from("bookings")
       .select("id, start_time, end_time, customer_name, service_name, professional_name, price, status, source")
@@ -40,6 +40,14 @@ async function loadDashboard(businessId: string) {
       .eq("business_id", businessId)
       .eq("status", "pending")
       .gte("booking_date", today),
+    // atendimentos concluídos no mês (o banco já limita ao que cada papel pode ver)
+    supabase
+      .from("bookings")
+      .select("price")
+      .eq("business_id", businessId)
+      .eq("status", "completed")
+      .gte("booking_date", monthStart)
+      .lte("booking_date", today),
   ]);
 
   const cash = cashMonth.data ?? [];
@@ -65,6 +73,9 @@ async function loadDashboard(businessId: string) {
       bookingsToday: activeToday.length,
       expectedToday: sum(activeToday.map((b) => ({ amount: b.price }))),
       pending: pendingCount.count ?? 0,
+      doneMonthCount: (doneMonth.data ?? []).length,
+      doneMonthValue: sum((doneMonth.data ?? []).map((b) => ({ amount: b.price }))),
+      doneToday: list.filter((b) => b.status === "completed").length,
     },
   };
 }
@@ -75,26 +86,53 @@ async function loadDashboard(businessId: string) {
 type Props = { searchParams: { "bem-vindo"?: string } };
 
 export default async function Dashboard({ searchParams }: Props) {
-  const { business } = await getAdminContext();
+  const { business, role, professionalId } = await getAdminContext();
   const plan = await getPlanContext(business.id);
+  const isOwner = role === "owner";
+  const supabase = createClient();
+  const { data: me } = professionalId
+    ? await supabase.from("professionals").select("name, commission_pct").eq("id", professionalId).maybeSingle()
+    : { data: null };
   const [{ today, bookings, stats }, onboarding] = await Promise.all([
     loadDashboard(business.id),
-    plan.internal ? Promise.resolve(null) : getOnboarding(business as never, plan),
+    plan.internal || !isOwner ? Promise.resolve(null) : getOnboarding(business as never, plan),
   ]);
   const welcome = searchParams["bem-vindo"] === "1";
 
-  const cards = [
-    { label: "Faturamento hoje", value: brl(stats.revenueToday), hint: `${brl(stats.expectedToday)} previstos na agenda` },
-    { label: "Faturamento do mês", value: brl(stats.revenueMonth), hint: `Saldo ${brl(stats.revenueMonth - stats.expensesMonth)}` },
-    { label: "Atendimentos hoje", value: String(stats.bookingsToday), hint: "sem contar cancelados" },
-    { label: "Ticket médio", value: brl(stats.avgTicket), hint: "no mês" },
-  ];
+  // Indicadores por papel
+  const commission = Number(me?.commission_pct ?? 0);
+  const cards =
+    role === "staff"
+      ? [
+          { label: "Meus atendimentos hoje", value: String(stats.bookingsToday), hint: `${brl(stats.expectedToday)} previstos` },
+          { label: "Concluídos hoje", value: String(stats.doneToday), hint: "atendimentos finalizados" },
+          { label: "Concluídos no mês", value: String(stats.doneMonthCount), hint: `${brl(stats.doneMonthValue)} em serviços` },
+          {
+            label: "Comissão estimada",
+            value: brl((stats.doneMonthValue * commission) / 100),
+            hint: commission ? `${String(commission).replace(".", ",")}% no mês` : "percentual não definido",
+          },
+        ]
+      : role === "reception"
+        ? [
+            { label: "Atendimentos hoje", value: String(stats.bookingsToday), hint: "toda a equipe" },
+            { label: "Previsto hoje", value: brl(stats.expectedToday), hint: "na agenda" },
+            { label: "Concluídos hoje", value: String(stats.doneToday), hint: "atendimentos finalizados" },
+            { label: "Pedidos pendentes", value: String(stats.pending), hint: "aguardando confirmação" },
+          ]
+        : [
+            { label: "Faturamento hoje", value: brl(stats.revenueToday), hint: `${brl(stats.expectedToday)} previstos na agenda` },
+            { label: "Faturamento do mês", value: brl(stats.revenueMonth), hint: `Saldo ${brl(stats.revenueMonth - stats.expensesMonth)}` },
+            { label: "Atendimentos hoje", value: String(stats.bookingsToday), hint: "sem contar cancelados" },
+            { label: "Ticket médio", value: brl(stats.avgTicket), hint: "no mês" },
+          ];
+  const greeting = role === "staff" && me?.name ? me.name.split(" ")[0] : business.name;
 
   return (
     <main className="mx-auto max-w-6xl space-y-8 p-4 md:p-8">
       <header>
         <p className="text-sm text-muted-foreground first-letter:uppercase">{longDate(today)}</p>
-        <h1 className="mt-1 text-3xl md:text-4xl">Olá, {business.name}</h1>
+        <h1 className="mt-1 text-3xl md:text-4xl">Olá, {greeting}</h1>
       </header>
 
       {onboarding && (

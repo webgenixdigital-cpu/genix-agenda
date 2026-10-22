@@ -5,28 +5,40 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BellRing, CalendarDays, CalendarHeart, CalendarOff, CreditCard, ExternalLink, LayoutDashboard,
-  Lock, LogOut, Menu, Scissors, Settings, Users, Wallet,
+  HandCoins, Lock, LogOut, Menu, Scissors, Settings, Users, Wallet,
 } from "lucide-react";
 import { signOut } from "@/app/admin/actions";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 
-const NAV = [
-  { href: "/admin", label: "Início", icon: LayoutDashboard },
-  { href: "/admin/agenda", label: "Agenda", icon: CalendarDays },
-  { href: "/admin/lembretes", label: "Lembretes", icon: BellRing },
-  { href: "/admin/bloqueios", label: "Bloqueios", icon: CalendarOff },
-  { href: "/admin/servicos", label: "Serviços", icon: Scissors },
-  { href: "/admin/profissionais", label: "Equipe", icon: Users },
-  { href: "/admin/financeiro", label: "Financeiro", icon: Wallet },
-  { href: "/admin/assinatura", label: "Assinatura", icon: CreditCard },
-  { href: "/admin/configuracoes", label: "Configurações", icon: Settings },
+type Role = "owner" | "reception" | "staff" | "viewer";
+const ALL: Role[] = ["owner", "reception", "staff", "viewer"];
+const OWNER: Role[] = ["owner", "viewer"];
+
+const NAV: { href: string; label: string; icon: typeof LayoutDashboard; roles: Role[] }[] = [
+  { href: "/admin", label: "Início", icon: LayoutDashboard, roles: ALL },
+  { href: "/admin/agenda", label: "Agenda", icon: CalendarDays, roles: ALL },
+  { href: "/admin/lembretes", label: "Lembretes", icon: BellRing, roles: ALL },
+  { href: "/admin/bloqueios", label: "Bloqueios", icon: CalendarOff, roles: ALL },
+  { href: "/admin/ganhos", label: "Meus ganhos", icon: HandCoins, roles: ["staff"] },
+  { href: "/admin/servicos", label: "Serviços", icon: Scissors, roles: OWNER },
+  { href: "/admin/profissionais", label: "Equipe", icon: Users, roles: OWNER },
+  { href: "/admin/financeiro", label: "Financeiro", icon: Wallet, roles: OWNER },
+  { href: "/admin/assinatura", label: "Assinatura", icon: CreditCard, roles: ["owner"] },
+  { href: "/admin/configuracoes", label: "Configurações", icon: Settings, roles: OWNER },
 ];
 
-type Props = { businessName: string; slug: string; email: string; lockedHrefs?: string[] };
+const ROLE_LABEL: Record<Role, string> = {
+  owner: "Matriz",
+  reception: "Recepção",
+  staff: "Profissional",
+  viewer: "Demonstração",
+};
 
-function NavContent({ businessName, slug, email, lockedHrefs = [], onNavigate }: Props & { onNavigate?: () => void }) {
+type Props = { businessName: string; slug: string; email: string; lockedHrefs?: string[]; role?: Role };
+
+function NavContent({ businessName, slug, email, lockedHrefs = [], role = "owner", onNavigate }: Props & { onNavigate?: () => void }) {
   const pathname = usePathname();
 
   return (
@@ -37,12 +49,12 @@ function NavContent({ businessName, slug, email, lockedHrefs = [], onNavigate }:
         </span>
         <div className="min-w-0">
           <p className="truncate font-heading text-lg leading-tight">{businessName}</p>
-          <p className="text-xs text-muted-foreground">Genix Agenda</p>
+          <p className="text-xs text-muted-foreground">Genix Agenda · {ROLE_LABEL[role]}</p>
         </div>
       </div>
 
       <nav className="flex-1 space-y-0.5 px-3">
-        {NAV.map(({ href, label, icon: Icon }) => {
+        {NAV.filter((i) => i.roles.includes(role)).map(({ href, label, icon: Icon }) => {
           const active = href === "/admin" ? pathname === "/admin" : pathname.startsWith(href);
           return (
             <Link

@@ -1,6 +1,6 @@
 import { CalendarOff, Repeat } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { getAdminContext } from "@/lib/admin";
+import { getAdminContext, seesWholeTeam } from "@/lib/admin";
 import { getPlanContext } from "@/lib/plan";
 import { LockedFeature } from "@/components/admin/locked-feature";
 import { todayISO } from "@/lib/dates";
@@ -19,7 +19,8 @@ function joinPt(list: string[]) {
 }
 
 export default async function BloqueiosPage() {
-  const { business } = await getAdminContext();
+  const { business, role, professionalId } = await getAdminContext();
+  const wholeTeam = seesWholeTeam(role);
   const plan = await getPlanContext(business.id);
   if (plan.tier === "gratis") return <LockedFeature feature="bloqueios" />;
 
@@ -36,7 +37,7 @@ export default async function BloqueiosPage() {
     supabase.from("professionals").select("id, name").eq("business_id", business.id).eq("active", true).order("sort_order"),
   ]);
 
-  const pros = professionals ?? [];
+  const pros = (professionals ?? []).filter((p) => wholeTeam || p.id === professionalId);
   const list = blocks ?? [];
 
   return (
@@ -48,7 +49,7 @@ export default async function BloqueiosPage() {
             Férias, folgas, cursos e manutenção. Nos períodos bloqueados a vitrine não oferece horários.
           </p>
         </div>
-        <NewBlockDialog professionals={pros} businessName={business.name} />
+        <NewBlockDialog professionals={pros} businessName={business.name} allowTeam={wholeTeam} />
       </header>
 
       {list.length === 0 ? (

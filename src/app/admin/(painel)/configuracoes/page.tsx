@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { getAdminContext } from "@/lib/admin";
+import { requireRoles } from "@/lib/admin";
 import { ProfileForm } from "@/components/admin/configuracoes/profile-form";
 import { LinkForm } from "@/components/admin/configuracoes/link-form";
 import { HoursForm } from "@/components/admin/configuracoes/hours-form";
@@ -28,7 +28,7 @@ type FullBusiness = {
 };
 
 export default async function ConfiguracoesPage() {
-  const { business, role } = await getAdminContext();
+  const { business, role } = await requireRoles(["owner", "viewer"]);
   const b = business as unknown as FullBusiness;
   const supabase = createClient();
 

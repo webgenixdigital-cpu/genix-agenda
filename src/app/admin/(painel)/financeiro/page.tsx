@@ -3,7 +3,7 @@ import { addMonths, endOfMonth, format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ArrowDownRight, ArrowUpRight, ChevronLeft, ChevronRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { getAdminContext } from "@/lib/admin";
+import { requireRoles } from "@/lib/admin";
 import { getPlanContext } from "@/lib/plan";
 import { LockedFeature } from "@/components/admin/locked-feature";
 import { todayISO } from "@/lib/dates";
@@ -34,7 +34,7 @@ type Entry = {
 // PARTE 1 — Dados
 // ---------------------------------------------------------------------
 export default async function FinanceiroPage({ searchParams }: Props) {
-  const { business } = await getAdminContext();
+  const { business } = await requireRoles(["owner", "viewer"]);
   const plan = await getPlanContext(business.id);
   if (plan.tier === "gratis") return <LockedFeature feature="financeiro" />;
 

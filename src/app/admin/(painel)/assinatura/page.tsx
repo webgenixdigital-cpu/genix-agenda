@@ -1,6 +1,6 @@
 import { Check, Clock, ExternalLink, Sparkles, XCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { getAdminContext } from "@/lib/admin";
+import { requireRoles } from "@/lib/admin";
 import { getPlanContext } from "@/lib/plan";
 import { brl } from "@/lib/format";
 import { Button } from "@/components/ui/button";
@@ -31,7 +31,7 @@ const FULL = [
 // PARTE 1 — Dados
 // ---------------------------------------------------------------------
 export default async function AssinaturaPage() {
-  const { business, role } = await getAdminContext();
+  const { business, role } = await requireRoles(["owner", "viewer"]);
   const plan = await getPlanContext(business.id);
   const supabase = createClient();
 

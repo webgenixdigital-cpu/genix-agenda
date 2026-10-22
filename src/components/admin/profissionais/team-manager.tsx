@@ -6,22 +6,30 @@ import { Lock, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { deleteProfessional, toggleProfessional } from "@/app/admin/(painel)/profissionais/actions";
 import { ProfessionalDialog, type EditablePro } from "@/components/admin/profissionais/professional-dialog";
+import { ProAccess, type AccessInfo } from "@/components/admin/profissionais/team-access";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 
-type Row = EditablePro & { active: boolean };
+type Row = EditablePro & { active: boolean; user_id?: string | null };
 type ServiceOption = { id: string; name: string; category: string | null };
 
 export function TeamManager({
   team,
   services,
   canAddMore = true,
+  access = {},
+  ownerUserId,
+  canInvite = false,
 }: {
   team: Row[];
   services: ServiceOption[];
   /** plano Grátis com 1 profissional ativo = false */
   canAddMore?: boolean;
+  /** acessos por id do profissional */
+  access?: Record<string, AccessInfo>;
+  ownerUserId?: string;
+  canInvite?: boolean;
 }) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<EditablePro | null>(null);
@@ -110,6 +118,16 @@ export function TeamManager({
                 ? "Faz todos os serviços"
                 : `Faz: ${p.serviceIds.map(serviceName).filter(Boolean).join(", ")}`}
             </p>
+
+            <div className="mt-3 border-t pt-3">
+              <ProAccess
+                professionalId={p.id}
+                professionalName={p.name}
+                info={access[p.id]}
+                isOwner={!!ownerUserId && p.user_id === ownerUserId}
+                canInvite={canInvite && p.active}
+              />
+            </div>
 
             <div className="mt-auto flex items-center justify-between border-t pt-3">
               <label className="flex cursor-pointer items-center gap-2 text-sm">

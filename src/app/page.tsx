@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Search } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { SiteHeader } from "@/components/site-header";
+import { SiteFooter } from "@/components/site-footer";
 import { BusinessCard } from "@/components/business-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -122,9 +123,7 @@ export default async function Home({ searchParams }: Props) {
         </section>
       </main>
 
-      <footer className="border-t py-8 text-center text-sm text-muted-foreground">
-        Genix Agenda, um produto Genix Sistemas Integrativos
-      </footer>
+      <SiteFooter />
     </>
   );
 }

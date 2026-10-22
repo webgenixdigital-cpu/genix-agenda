@@ -9,7 +9,8 @@ import { isValidCpfCnpj, onlyDigits } from "@/lib/cpf-cnpj";
 
 type Result = { ok: true; invoiceUrl?: string } | { ok: false; error: string };
 
-const BILLING: AsaasBillingType[] = ["PIX", "BOLETO", "CREDIT_CARD"];
+// Boleto desativado por enquanto (expõe o documento do recebedor)
+const BILLING: AsaasBillingType[] = ["PIX", "CREDIT_CARD"];
 const ONLY_OWNER = "Somente o dono do espaço pode alterar a assinatura.";
 
 const todayISO = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());

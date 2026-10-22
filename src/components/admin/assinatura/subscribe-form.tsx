@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Barcode, CreditCard, Loader2, Lock, QrCode } from "lucide-react";
+import { CreditCard, Loader2, Lock, QrCode } from "lucide-react";
 import { startSubscription } from "@/app/admin/(painel)/assinatura/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,7 +19,6 @@ type Props = {
 const METHODS = [
   { value: "PIX", label: "Pix", icon: QrCode, hint: "Confirmação em minutos" },
   { value: "CREDIT_CARD", label: "Cartão", icon: CreditCard, hint: "Renova sozinho" },
-  { value: "BOLETO", label: "Boleto", icon: Barcode, hint: "Até 3 dias úteis" },
 ] as const;
 
 export function SubscribeForm({ monthly, yearly, firstDueLabel }: Props) {
@@ -88,7 +87,7 @@ export function SubscribeForm({ monthly, yearly, firstDueLabel }: Props) {
       {/* 2. Forma de pagamento */}
       <fieldset>
         <legend className="mb-3 text-sm font-semibold text-primary">2. Forma de pagamento</legend>
-        <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-2">
           {METHODS.map(({ value, label, icon: Icon, hint }) => (
             <button
               key={value}

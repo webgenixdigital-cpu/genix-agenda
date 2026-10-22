@@ -50,7 +50,7 @@ const FAQ = [
   },
   {
     q: "Quais formas de pagamento são aceitas?",
-    a: "Pix, boleto e cartão de crédito com cobrança recorrente.",
+      a: "Pix e cartão de crédito com cobrança recorrente.",
   },
   {
     q: "Tem fidelidade?",

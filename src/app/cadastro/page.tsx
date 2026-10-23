@@ -15,7 +15,7 @@ const PERKS = [
   "Depois, assine ou continue no plano Grátis",
 ];
 
-export default async function CadastroPage() {
+export default async function CadastroPage({ searchParams }: { searchParams: { nicho?: string } }) {
   // Já logado? Se já tem espaço, vai para o painel; se não, termina o cadastro.
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -77,6 +77,7 @@ export default async function CadastroPage() {
             mode={mode}
             defaultName={(user?.user_metadata?.full_name as string | undefined) ?? ""}
             niches={await getActiveNiches()}
+            initialNiche={searchParams.nicho}
           />
 
           {mode === "full" && (

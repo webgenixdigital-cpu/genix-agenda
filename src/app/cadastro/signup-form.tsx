@@ -41,11 +41,15 @@ export function SignupForm({
   mode,
   defaultName,
   niches = [],
+  initialNiche,
 }: {
   mode: "full" | "business";
   defaultName?: string;
   niches?: NicheOption[];
+  /** vindo de /para/[nicho]: já começa selecionado */
+  initialNiche?: string;
 }) {
+  const preset = niches.find((n) => n.id === initialNiche);
   const router = useRouter();
 
   const [ownerName, setOwnerName] = useState(defaultName ?? "");
@@ -53,8 +57,8 @@ export function SignupForm({
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [businessName, setBusinessName] = useState("");
-  const [segment, setSegment] = useState("beleza");
-  const [niche, setNiche] = useState("");
+  const [segment, setSegment] = useState(preset?.segment ?? "beleza");
+  const [niche, setNiche] = useState(preset?.id ?? "");
   const [whatsapp, setWhatsapp] = useState("");
   const [terms, setTerms] = useState(false);
 

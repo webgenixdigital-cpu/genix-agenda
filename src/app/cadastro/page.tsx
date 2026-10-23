@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { CalendarHeart, Check } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { SignupForm } from "./signup-form";
+import { getActiveNiches } from "@/lib/niches";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Criar conta grátis | Genix Agenda" };
@@ -72,7 +73,11 @@ export default async function CadastroPage() {
               : "Sua conta foi criada. Agora conte sobre o seu espaço para concluir."}
           </p>
 
-          <SignupForm mode={mode} defaultName={(user?.user_metadata?.full_name as string | undefined) ?? ""} />
+          <SignupForm
+            mode={mode}
+            defaultName={(user?.user_metadata?.full_name as string | undefined) ?? ""}
+            niches={await getActiveNiches()}
+          />
 
           {mode === "full" && (
             <p className="mt-6 text-center text-sm text-muted-foreground">

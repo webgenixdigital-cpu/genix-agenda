@@ -18,6 +18,8 @@ export type DirectoryItem = {
   rating_count: number;
   min_price: number | null;
   service_count: number;
+  niche_name?: string | null;
+  niche_icon?: string | null;
 };
 
 export type Business = DirectoryItem & {
@@ -36,7 +38,7 @@ export type Service = {
   duration_min: number;
   image_url: string | null;
   sort_order: number;
-    bookable_online?: boolean;
+  bookable_online?: boolean;
 };
 
 export type Professional = {

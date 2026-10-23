@@ -7,7 +7,6 @@ import { BookTrigger } from "@/components/vitrine/book-trigger";
 import { BookingWizard } from "@/components/vitrine/booking-wizard";
 import { Button } from "@/components/ui/button";
 import { brl, duration, hhmm, whatsappLink, WEEKDAYS } from "@/lib/format";
-import { subcategoryLabel } from "@/lib/segments";
 import type { Business, BusinessHour, Professional, Service } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -30,7 +29,7 @@ async function loadVitrine(slug: string) {
 
   if (!business) return null;
 
-  const [services, professionals, hours, reviews, rating] = await Promise.all([
+  const [services, professionals, hours, reviews, rating, niche] = await Promise.all([
     supabase.from("services").select("id, name, description, category, price, duration_min, image_url, sort_order, bookable_online")
       .eq("business_id", business.id).eq("active", true).order("sort_order"),
     supabase.from("professionals").select("id, name, role, bio, photo_url, specialties")
@@ -40,10 +39,15 @@ async function loadVitrine(slug: string) {
     supabase.from("reviews").select("id, author_name, rating, comment, created_at")
       .eq("business_id", business.id).eq("visible", true).order("created_at", { ascending: false }).limit(6),
     supabase.from("public_directory").select("rating_avg, rating_count").eq("id", business.id).maybeSingle(),
+    supabase.from("niches").select("name").eq("id", business.subcategory ?? "").maybeSingle(),
   ]);
 
   return {
-    business: { ...business, ...(rating.data ?? { rating_avg: 0, rating_count: 0 }) } as Business,
+    business: {
+      ...business,
+      ...(rating.data ?? { rating_avg: 0, rating_count: 0 }),
+      niche_name: niche.data?.name ?? null,
+    } as Business,
     services: (services.data ?? []) as Service[],
     professionals: (professionals.data ?? []) as Professional[],
     hours: (hours.data ?? []) as BusinessHour[],
@@ -99,7 +103,7 @@ export default async function VitrinePage({ params }: Props) {
           <div className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,rgba(28,25,23,0.78)_0%,rgba(28,25,23,0.88)_100%)]" />
 
           <div className="mx-auto max-w-6xl px-4 py-14 text-white md:px-6 md:py-20">
-            <p className="text-sm font-medium text-[#F2C078]">{subcategoryLabel(b.subcategory)}</p>
+            <p className="text-sm font-medium text-[#F2C078]">{b.niche_name}</p>
             <h1 className="mt-2 max-w-3xl text-4xl leading-[1.08] md:text-[56px]">{b.name}</h1>
             {b.tagline && <p className="mt-4 max-w-xl text-lg text-stone-200">{b.tagline}</p>}
 

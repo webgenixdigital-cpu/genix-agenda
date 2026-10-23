@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { maskPhone, whatsappLink } from "@/lib/format";
-import { SEGMENTS, SUBCATEGORY_LABELS } from "@/lib/segments";
+import { SEGMENTS } from "@/lib/segments";
 
 type Initial = {
   name: string;
@@ -27,7 +27,9 @@ type Initial = {
   whatsapp_message: string | null;
 };
 
-export function ProfileForm({ initial }: { initial: Initial }) {
+export type NicheOption = { id: string; segment: string; name: string };
+
+export function ProfileForm({ initial, niches }: { initial: Initial; niches: NicheOption[] }) {
   const [pending, start] = useTransition();
   const [f, setF] = useState({
     name: initial.name,
@@ -69,7 +71,17 @@ export function ProfileForm({ initial }: { initial: Initial }) {
           <Input id="cf-name" className="h-11" value={f.name} onChange={(e) => set("name")(e.target.value.slice(0, 80))} data-testid="input-config-nome" />
         </Field>
         <Field label="Segmento" id="cf-seg">
-          <Select value={f.segment} onValueChange={set("segment")}>
+          <Select
+            value={f.segment}
+            onValueChange={(v) =>
+              setF((s) => ({
+                ...s,
+                segment: v,
+                // troca de segmento: limpa o tipo de espaço se ele não pertencer ao novo segmento
+                subcategory: niches.some((n) => n.id === s.subcategory && n.segment === v) ? s.subcategory : "",
+              }))
+            }
+          >
             <SelectTrigger id="cf-seg" className="h-11"><SelectValue /></SelectTrigger>
             <SelectContent>
               {SEGMENTS.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
@@ -83,7 +95,7 @@ export function ProfileForm({ initial }: { initial: Initial }) {
           <SelectTrigger id="cf-sub" className="h-11"><SelectValue /></SelectTrigger>
           <SelectContent className="max-h-64">
             <SelectItem value="none">Não informar</SelectItem>
-            {Object.entries(SUBCATEGORY_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+            {niches.filter((n) => n.segment === f.segment).map((n) => <SelectItem key={n.id} value={n.id}>{n.name}</SelectItem>)}
           </SelectContent>
         </Select>
       </Field>

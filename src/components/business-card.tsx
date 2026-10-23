@@ -2,7 +2,6 @@ import Link from "next/link";
 import { MapPin, MessageCircle, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { brl, whatsappLink } from "@/lib/format";
-import { subcategoryLabel } from "@/lib/segments";
 import type { DirectoryItem } from "@/lib/types";
 
 export function BusinessCard({ b }: { b: DirectoryItem }) {
@@ -28,7 +27,7 @@ export function BusinessCard({ b }: { b: DirectoryItem }) {
       </Link>
 
       <div className="flex flex-1 flex-col p-5">
-        <p className="text-sm font-medium text-primary">{subcategoryLabel(b.subcategory)}</p>
+        <p className="text-sm font-medium text-primary">{b.niche_name ?? ""}</p>
         <h3 className="mt-1 text-2xl leading-tight">
           <Link href={`/v/${b.slug}`} className="hover:underline">{b.name}</Link>
         </h3>

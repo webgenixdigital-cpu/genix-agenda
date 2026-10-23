@@ -35,7 +35,17 @@ const ERRORS: Record<string, string> = {
 // PARTE 2 — Componente
 // mode "full": cria login + espaço | mode "business": login já existe
 // ---------------------------------------------------------------------
-export function SignupForm({ mode, defaultName }: { mode: "full" | "business"; defaultName?: string }) {
+export type NicheOption = { id: string; segment: string; name: string };
+
+export function SignupForm({
+  mode,
+  defaultName,
+  niches = [],
+}: {
+  mode: "full" | "business";
+  defaultName?: string;
+  niches?: NicheOption[];
+}) {
   const router = useRouter();
 
   const [ownerName, setOwnerName] = useState(defaultName ?? "");
@@ -44,6 +54,7 @@ export function SignupForm({ mode, defaultName }: { mode: "full" | "business"; d
   const [showPass, setShowPass] = useState(false);
   const [businessName, setBusinessName] = useState("");
   const [segment, setSegment] = useState("beleza");
+  const [niche, setNiche] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
   const [terms, setTerms] = useState(false);
 
@@ -105,6 +116,7 @@ export function SignupForm({ mode, defaultName }: { mode: "full" | "business"; d
       p_segment: segment,
       p_whatsapp: phoneDigits,
       p_slug_base: slug,
+      p_niche: niche || null,
     });
 
     if (rpcError) {
@@ -196,10 +208,30 @@ export function SignupForm({ mode, defaultName }: { mode: "full" | "business"; d
           )}
         </div>
 
+        <div className="space-y-1.5">
+          <Label>Tipo de espaço</Label>
+          <Select value={niche || "none"} onValueChange={(v) => setNiche(v === "none" ? "" : v)}>
+            <SelectTrigger className="h-12 text-base" data-testid="select-cadastro-nicho"><SelectValue /></SelectTrigger>
+            <SelectContent className="max-h-72">
+              <SelectItem value="none">Escolher depois</SelectItem>
+              {niches.filter((n) => n.segment === segment).map((n) => (
+                <SelectItem key={n.id} value={n.id}>{n.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">Usamos para sugerir os serviços mais comuns do seu tipo de espaço.</p>
+        </div>
+
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label>Segmento</Label>
-            <Select value={segment} onValueChange={setSegment}>
+            <Select
+              value={segment}
+              onValueChange={(v) => {
+                setSegment(v);
+                setNiche("");
+              }}
+            >
               <SelectTrigger className="h-12 text-base" data-testid="select-cadastro-segmento"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {SEGMENTS.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}

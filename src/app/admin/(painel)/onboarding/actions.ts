@@ -3,8 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getEditorContext } from "@/lib/admin";
-import { SERVICE_TEMPLATES } from "@/lib/service-templates";
-import type { Segment } from "@/lib/types";
 
 type Result = { ok: true; message?: string } | { ok: false; error: string };
 
@@ -48,7 +46,21 @@ export async function addSuggestedServices(): Promise<Result> {
   const { business } = await getEditorContext();
   const supabase = createClient();
 
-  const templates = SERVICE_TEMPLATES[(business.segment as Segment) ?? "outros"] ?? SERVICE_TEMPLATES.outros;
+  // nicho do espaço; sem nicho, usa o primeiro nicho do mesmo segmento
+  let nicheId = business.subcategory;
+  if (!nicheId) {
+    const { data: first } = await supabase
+      .from("niches").select("id").eq("segment", business.segment).eq("active", true)
+      .order("sort_order").limit(1).maybeSingle();
+    nicheId = first?.id ?? null;
+  }
+  const { data: tpl } = await supabase
+    .from("niche_service_templates")
+    .select("name, category, description, duration_min, price")
+    .eq("niche_id", nicheId ?? "")
+    .order("sort_order");
+  const templates = tpl ?? [];
+  if (templates.length === 0) return { ok: true, message: "Ainda não há serviços sugeridos para o seu tipo de espaço." };
 
   const { data: existing } = await supabase.from("services").select("name, sort_order").eq("business_id", business.id);
   const names = new Set((existing ?? []).map((s) => s.name.toLowerCase()));

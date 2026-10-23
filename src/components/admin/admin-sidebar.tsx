@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BellRing, CalendarDays, CalendarHeart, CalendarOff, CreditCard, ExternalLink, LayoutDashboard,
-  HandCoins, Lock, LogOut, Menu, Scissors, Settings, Users, Wallet,
+  HandCoins, Lock, LogOut, Menu, Scissors, Settings, UserRound, Users, Wallet,
 } from "lucide-react";
 import { signOut } from "@/app/admin/actions";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,7 @@ const OWNER: Role[] = ["owner", "viewer"];
 const NAV: { href: string; label: string; icon: typeof LayoutDashboard; roles: Role[] }[] = [
   { href: "/admin", label: "Início", icon: LayoutDashboard, roles: ALL },
   { href: "/admin/agenda", label: "Agenda", icon: CalendarDays, roles: ALL },
+  { href: "/admin/clientes", label: "Clientes", icon: UserRound, roles: ALL },
   { href: "/admin/lembretes", label: "Lembretes", icon: BellRing, roles: ALL },
   { href: "/admin/bloqueios", label: "Bloqueios", icon: CalendarOff, roles: ALL },
   { href: "/admin/ganhos", label: "Meus ganhos", icon: HandCoins, roles: ["staff"] },

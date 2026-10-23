@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { CalendarOff, Globe, Phone, StickyNote } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminContext, seesWholeTeam } from "@/lib/admin";
@@ -35,7 +36,7 @@ export default async function AgendaPage({ searchParams }: Props) {
 
   let q = supabase
     .from("bookings")
-    .select("id, booking_date, start_time, end_time, customer_name, customer_phone, customer_notes, service_name, professional_name, professional_id, price, status, source")
+    .select("id, booking_date, start_time, end_time, customer_name, customer_phone, customer_notes, customer_id, service_name, professional_name, professional_id, price, status, source")
     .eq("business_id", business.id)
     .order("booking_date")
     .order("start_time");
@@ -53,7 +54,7 @@ export default async function AgendaPage({ searchParams }: Props) {
       .eq("business_id", business.id).lte("date_start", date).gte("date_end", date),
   ]);
 
-  const list = (bookings ?? []) as (AgendaBooking & { professional_id: string })[];
+  const list = (bookings ?? []) as (AgendaBooking & { professional_id: string; customer_id: string | null })[];
   const pros = (professionals ?? []).filter((p) => wholeTeam || p.id === professionalId);
   const weekday = new Date(`${date}T12:00:00`).getDay();
   const dayBlocks = pendingMode
@@ -144,7 +145,13 @@ export default async function AgendaPage({ searchParams }: Props) {
 
                   <div className="min-w-0 flex-1 space-y-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="font-semibold">{b.customer_name}</p>
+                      {b.customer_id ? (
+                        <Link href={`/admin/clientes/${b.customer_id}`} className="font-semibold hover:underline" data-testid={`link-cliente-${b.id}`}>
+                          {b.customer_name}
+                        </Link>
+                      ) : (
+                        <p className="font-semibold">{b.customer_name}</p>
+                      )}
                       <StatusBadge status={b.status} />
                       <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
                         <Globe className="h-3 w-3" /> {SOURCE[b.source] ?? b.source}

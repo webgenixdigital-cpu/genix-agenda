@@ -1,0 +1,136 @@
+# Genix Agenda — manual do projeto
+
+> Leia este arquivo inteiro antes de qualquer tarefa. Ele registra as decisões de produto,
+> as regras de segurança e os padrões do código. Em caso de dúvida, **pergunte antes de mudar**.
+
+## 1. O que é
+
+SaaS brasileiro (pt-BR) de **vitrine digital + agenda online + gestão** para quem atende com hora marcada:
+beleza, estética e outros profissionais. Produto da Genix Sistemas Integrativos (Web Genix Digital).
+
+- Produção: https://genixagenda.com.br (Vercel) · Repositório: github.com/webgenixdigital-cpu/genix-agenda
+- Posicionamento: "Sua agenda cheia, sem viver no WhatsApp."
+- Dono do produto: Leonardo. Prefere instruções passo a passo, uma etapa por vez, com aprovação antes de seguir.
+
+## 2. Stack (não mudar sem justificativa e aprovação)
+
+| Item | Versão / detalhe |
+|---|---|
+| Next.js | **14.2.x**, App Router, `src/` (migração para versão mais nova é etapa futura planejada) |
+| React / TS | React 18, TypeScript strict |
+| UI | Tailwind **3**, shadcn **2.3.0** (componentes em `src/components/ui`), lucide-react **1.x** |
+| Banco/Auth | Supabase (Postgres + RLS + Auth), `@supabase/ssr` |
+| Outros | recharts, sonner, date-fns, qrcode.react |
+| Pagamentos | Asaas (assinaturas: Pix e cartão; boleto desativado por decisão) |
+| E-mail | Resend via SMTP do Supabase, remetente `agenda@genixagenda.com.br` |
+| Hospedagem | Vercel, domínio `genixagenda.com.br` (o `www` redireciona para o domínio sem www) |
+
+Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run build`.
+**Antes de todo commit:** `tsc` e `lint` sem erros.
+
+## 3. Variáveis de ambiente
+
+| Variável | Onde | Observação |
+|---|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` | navegador + servidor | públicas |
+| `SUPABASE_SERVICE_ROLE_KEY` | **só servidor** | usada em `src/lib/supabase/admin.ts` (webhook, convites) |
+| `DEMO_EMAIL` / `DEMO_PASSWORD` | só servidor | login da demonstração pública (`/demo`) |
+| `ASAAS_API_URL` / `ASAAS_API_KEY` / `ASAAS_WEBHOOK_TOKEN` | só servidor | local = **sandbox**; Vercel = produção |
+
+- Nunca prefixar segredos com `NEXT_PUBLIC_`. Nunca importar `lib/supabase/admin.ts` em componente `"use client"`.
+- No `.env.local`, a chave do Asaas começa com `$`: escrever `ASAAS_API_KEY=\$aact_...` (na Vercel, sem a barra).
+- Local e produção usam **o mesmo banco Supabase**: testar assinatura no localhost só com contas próprias.
+
+## 4. Decisões de produto (respeitar sempre)
+
+- **Freemium:** toda conta nova ganha **15 dias do Completo**; sem pagamento, cai no **Grátis** (nada é apagado).
+  - Grátis: vitrine + pedidos, **10 agendamentos online/dia**, **1 profissional**, selo "Feito com Genix Agenda";
+    Bloqueios, Lembretes, Financeiro e acessos de equipe ficam com cadeado + CTA.
+  - Completo: R$ 98,70/mês ou R$ 987,00/ano até 3 profissionais; +R$ 35/mês (R$ 350/ano) por profissional extra.
+  - Valores vêm da tabela `plans` e da função `subscription_quote` (não fixar no código).
+- **Sem área da saúde nesta fase:** nada de prontuário, anamnese, alergias, medicamentos, gestação, dados clínicos.
+  O segmento `psicologia_terapias` existe no banco mas **não é oferecido**. Campos de ficha técnica nunca de saúde.
+  Os Termos/Privacidade publicados afirmam isso.
+- **Segmentos fixos** (`beleza`, `estetica`, `outros`) e **nichos administrados pela Genix** (tabela `niches`, tela `/genix`).
+  Categorias de **serviço** são livres por espaço.
+- **Papéis** (`business_members.role`):
+  - `owner` (Matriz): tudo.
+  - `reception` (Recepção): agenda e clientes de todos; **sem** financeiro, serviços, equipe, configurações, assinatura.
+  - `staff` (Profissional): só a própria agenda, bloqueios, clientes que já atendeu e "Meus ganhos". Preço/duração definidos pela matriz.
+  - `viewer` (Demonstração): só leitura.
+  - **1 login = 1 espaço** (índice único em `business_members.user_id`). Acessos individuais são recurso do Completo.
+- **Demo pública** (`/demo`) entra no Lumina como `viewer`; ao salvar, o servidor redireciona com `?demo=bloqueado`.
+- **Avaliações** próprias pós-atendimento (link único por atendimento concluído), não Google.
+- **WhatsApp:** hoje via links `wa.me` (fila de um toque). Envio automático (API oficial) será incluso no Completo com cota mensal — etapa futura.
+- Recebimento de **sinal via Pix** do cliente final: decisão adiada (avaliar subcontas Asaas).
+
+## 5. Segurança e banco
+
+- **RLS é a fonte da verdade.** Toda regra de permissão deve existir no banco, não só na tela.
+- Funções de apoio: `member_role_of`, `my_professional_id`, `sees_whole_agenda`, `can_manage_booking`,
+  `is_business_owner`, `access_tier` (`completo`|`gratis`), `can_use_full_features`, `is_platform_admin`.
+- Operações sensíveis via funções `security definer`: `get_available_slots`, `create_public_booking`,
+  `complete_booking` (status + caixa), `create_business_for_user`, `submit_review`, `public_plan_info`.
+- Trava de conflito de horário: constraint `no_overlap` em `bookings`. Caixa: 1 lançamento por atendimento.
+- Clientes (`customers`) identificados por WhatsApp normalizado; trigger liga cada agendamento ao cliente.
+  `booking_events` registra o histórico automaticamente (criado, confirmado, remarcado...).
+- Webhook Asaas: `/api/asaas/webhook`, valida header `asaas-access-token`, idempotente (`asaas_webhook_events`).
+- Migrations em `supabase/migrations` (01→17, já aplicadas). Novas: `18_...` em diante, **aditivas e reversíveis**.
+  Nada destrutivo sem autorização. **Nunca rodar `supabase/seed` em produção.**
+
+## 6. Padrões do código
+
+- Textos da interface **em pt-BR**; moeda `brl()`, telefone `maskPhone()`, datas no fuso `America/Sao_Paulo` (`lib/dates.ts`).
+- Todo botão, link, input e aba interativo com `data-testid` em kebab-case.
+- Painel: páginas leem com `getAdminContext()`; páginas exclusivas usam `requireRoles([...])`;
+  **server actions de escrita usam `getEditorContext()`** (bloqueia a demo).
+- Server actions retornam `{ ok: true } | { ok: false; error: string }` com mensagem amigável em pt-BR.
+- No cliente, depois de `await` de uma action: `if (!r) return;` (a demo redireciona e a action devolve `undefined`).
+- Toque mínimo de 44 px; mobile-first; diálogos com `max-h-[92svh] overflow-y-auto`.
+- Design: fundo `#FAF7F2`, texto `#1C1917`, primária terracota `#99582A`, destaque `#C47B47`/`#F2C078`;
+  títulos Playfair Display, texto DM Sans (via `next/font`). WhatsApp verde `bg-whatsapp`.
+- Em JSX, aspas no texto devem ser tipográficas (“ ”) — o lint barra aspas retas.
+
+## 7. Armadilhas já conhecidas
+
+- **lucide-react 1.x removeu ícones de marcas** (ex.: `Instagram`) e alguns aliases. Confirmar que o ícone existe.
+- Asaas não segue redirecionamentos: webhook sempre em `https://genixagenda.com.br/...` (sem `www`).
+- Asaas: sem chave Pix ativa, cobrança Pix vira boleto. Produção precisa da chave Pix cadastrada.
+- Supabase Auth: "Confirm email" desligado (acesso livre); confirmação posterior via `signInWithOtp` + `/auth/confirm`.
+  Templates (Reset, Magic Link, Invite) usam `{{ .RedirectTo }}?token_hash=...&type=...`.
+- Variáveis novas na Vercel só valem após **redeploy**.
+
+## 8. Mapa rápido
+
+```
+src/app/                     páginas públicas (/, /explorar/[nicho], /para/[nicho], /profissional, /v/[slug], /cadastro...)
+src/app/admin/(painel)/      painel (agenda, clientes, lembretes, bloqueios, servicos, profissionais, financeiro,
+                             ganhos, assinatura, configuracoes) — cada pasta com page.tsx e actions.ts
+src/app/genix/               administração da plataforma (nichos, sugestões, fichas técnicas)
+src/app/api/asaas/webhook/   webhook de pagamento
+src/lib/                     admin.ts, plan.ts, niches.ts, asaas.ts, format.ts, dates.ts, supabase/{client,server,admin,middleware}
+supabase/                    migrations, seed (não rodar em produção), manual
+supabase-templates/          modelos de e-mail do Supabase
+```
+
+## 9. Roadmap pendente (em ordem)
+
+1. **N3.2 Retornos:** prazo de retorno por serviço (`services.return_after_days`) e fila "hora de voltar" com WhatsApp pronto.
+2. **N4 Pacotes e recorrência:** pacotes de sessões (ex.: 10 drenagens) e agendamentos recorrentes.
+3. **Agenda 2.0:** visão semanal/grade, **Remarcar** (botão com horários livres; arrastar só no desktop),
+   busca de cliente no agendamento manual, proteção da vitrine contra robôs (Cloudflare Turnstile + limite por telefone).
+4. **Confirmação automática:** 3 opções prontas (tudo automático / só clientes recorrentes / tudo manual), com motivo visível.
+5. **Otimização e responsividade:**
+   - `next/image` no lugar de `<img>` + upload de fotos no Supabase Storage (redimensionadas, WebP/AVIF);
+   - carregar sob demanda bibliotecas pesadas (recharts no Financeiro ~297 kB, calendário, diálogos);
+   - cache/ISR nas páginas públicas que hoje são `force-dynamic`; `loading.tsx` com skeletons no painel;
+   - testes E2E (Playwright) em iPhone/Safari, Android, tablet e desktop; meta alta no Lighthouse;
+   - avaliar atualização do Next.js com os testes já existentes.
+6. Depois: WhatsApp API oficial (cota no Completo), comanda/comissões, lista de espera, sinal via Pix.
+
+## 10. Como trabalhar neste projeto
+
+1. Inspecionar antes de alterar; reutilizar componentes e funções existentes; evitar duplicidade.
+2. Uma etapa por vez: explicar o plano, implementar, rodar `tsc` + `lint` (+ `build` em mudanças grandes), testar, resumir.
+3. Mudança de banco = nova migration numerada + instruções para rodar no SQL Editor.
+4. Não simular integrações como reais. Não expor segredos. Não criar dados fictícios em produção.

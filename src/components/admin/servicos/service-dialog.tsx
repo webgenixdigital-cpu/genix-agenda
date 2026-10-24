@@ -19,7 +19,10 @@ export type EditableService = {
   category: string | null;
   price: number;
   duration_min: number;
+  return_after_days: number | null;
 };
+
+const RETURN_PRESETS = [15, 21, 30, 45, 60];
 
 const DURATIONS = [10, 15, 20, 30, 40, 45, 50, 60, 75, 90, 105, 120, 150, 180, 210, 240, 300];
 
@@ -48,6 +51,7 @@ export function ServiceDialog({
   const [category, setCategory] = useState("");
   const [price, setPrice] = useState("0,00");
   const [dur, setDur] = useState("60");
+  const [ret, setRet] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loadedId, setLoadedId] = useState<string | null | undefined>(undefined);
 
@@ -59,6 +63,7 @@ export function ServiceDialog({
     setCategory(service?.category ?? "");
     setPrice(maskMoney(String(Math.round((service?.price ?? 0) * 100))));
     setDur(String(service?.duration_min ?? 60));
+    setRet(service?.return_after_days ? String(service.return_after_days) : "");
     setError(null);
   }
   if (!open && loadedId !== undefined) setLoadedId(undefined);
@@ -75,6 +80,7 @@ export function ServiceDialog({
         category,
         price: parseMoney(price),
         duration_min: Number(dur),
+        return_after_days: ret ? Number(ret) : null,
       });
       if (!r) return; // demonstração: o servidor redirecionou
       if (r.ok) {
@@ -144,6 +150,39 @@ export function ServiceDialog({
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="sv-ret">Retorno sugerido (opcional)</Label>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="relative w-28">
+                <Input
+                  id="sv-ret"
+                  className="h-11 pr-12"
+                  inputMode="numeric"
+                  placeholder="—"
+                  value={ret}
+                  onChange={(e) => setRet(e.target.value.replace(/\D/g, "").slice(0, 3))}
+                  data-testid="input-servico-retorno"
+                />
+                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">dias</span>
+              </div>
+              {RETURN_PRESETS.map((d) => (
+                <Button
+                  key={d}
+                  type="button"
+                  variant={ret === String(d) ? "default" : "outline"}
+                  className="h-11 px-3"
+                  onClick={() => setRet(ret === String(d) ? "" : String(d))}
+                  data-testid={`btn-servico-retorno-${d}`}
+                >
+                  {d}
+                </Button>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Depois desse prazo, o cliente entra na fila “Hora de voltar” com a mensagem de WhatsApp pronta.
+            </p>
           </div>
 
           <div className="space-y-1.5">

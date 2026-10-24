@@ -13,6 +13,7 @@ export type ServiceInput = {
   category: string;
   price: number;
   duration_min: number;
+  return_after_days: number | null;
 };
 
 function refresh(slug: string) {
@@ -32,6 +33,9 @@ export async function saveService(input: ServiceInput): Promise<Result> {
   if (name.length < 2) return { ok: false, error: "Dê um nome ao serviço." };
   if (!(input.price >= 0)) return { ok: false, error: "Preço inválido." };
   if (!(input.duration_min >= 5 && input.duration_min <= 600)) return { ok: false, error: "Escolha a duração." };
+  const ret = input.return_after_days;
+  if (ret !== null && !(Number.isInteger(ret) && ret >= 1 && ret <= 365))
+    return { ok: false, error: "O retorno deve ser entre 1 e 365 dias." };
 
   const row = {
     name,
@@ -39,6 +43,7 @@ export async function saveService(input: ServiceInput): Promise<Result> {
     category: input.category.trim() || null,
     price: Math.round(input.price * 100) / 100,
     duration_min: input.duration_min,
+    return_after_days: ret,
   };
 
   if (input.id) {

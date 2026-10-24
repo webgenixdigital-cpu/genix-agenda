@@ -10,7 +10,7 @@ export default async function ServicosPage() {
 
   const { data } = await supabase
     .from("services")
-    .select("id, name, description, category, price, duration_min, active, bookable_online, show_in_catalog, sort_order")
+    .select("id, name, description, category, price, duration_min, return_after_days, active, bookable_online, show_in_catalog, sort_order")
     .eq("business_id", business.id)
     .order("active", { ascending: false })
     .order("sort_order");

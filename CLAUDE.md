@@ -103,12 +103,21 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
 ## 8. Mapa rápido
 
 ```
-src/app/                     páginas públicas (/, /explorar/[nicho], /para/[nicho], /profissional, /v/[slug], /cadastro...)
-src/app/admin/(painel)/      painel (agenda, clientes, lembretes, bloqueios, servicos, profissionais, financeiro,
-                             ganhos, assinatura, configuracoes) — cada pasta com page.tsx e actions.ts
-src/app/genix/               administração da plataforma (nichos, sugestões, fichas técnicas)
+src/app/                     páginas públicas: /, /explorar/[nicho], /para/[nicho], /profissional, /v/[slug],
+                             /v/[slug]/avaliar/[id], /cadastro, /esqueci-senha, /redefinir-senha, /termos, /privacidade
+                             rotas: /demo, /demo/sair, /auth/confirm (route.ts)
+src/app/admin/login/         login do painel (page.tsx, login-form.tsx); admin/actions.ts na raiz
+src/app/admin/(painel)/      layout.tsx e page.tsx (Início) na raiz; pastas com page.tsx + actions.ts:
+                             agenda, clientes (+ [id]/page.tsx), lembretes, bloqueios, servicos, financeiro,
+                             assinatura, configuracoes; profissionais (+ access-actions.ts);
+                             ganhos (só page.tsx); onboarding (só actions.ts)
+src/app/genix/               administração da plataforma (page.tsx, actions.ts, field-actions.ts)
 src/app/api/asaas/webhook/   webhook de pagamento
-src/lib/                     admin.ts, plan.ts, niches.ts, asaas.ts, format.ts, dates.ts, supabase/{client,server,admin,middleware}
+src/components/              admin/* (por tela do painel), genix/, vitrine/, marketing/, auth/, ui/ (shadcn)
+                             + componentes soltos (site-header, site-footer, business-card, niche-*...)
+src/lib/                     admin, asaas, cash, cpf-cnpj, dates, format, legal, messages, niches, onboarding,
+                             plan, plan-features, segments, types, utils; supabase/{client,server,admin,middleware}
+src/middleware.ts            sessão do Supabase e proteção das rotas
 supabase/                    migrations, seed (não rodar em produção), manual
 supabase-templates/          modelos de e-mail do Supabase
 ```
@@ -125,7 +134,7 @@ supabase-templates/          modelos de e-mail do Supabase
    - carregar sob demanda bibliotecas pesadas (recharts no Financeiro ~297 kB, calendário, diálogos);
    - cache/ISR nas páginas públicas que hoje são `force-dynamic`; `loading.tsx` com skeletons no painel;
    - testes E2E (Playwright) em iPhone/Safari, Android, tablet e desktop; meta alta no Lighthouse;
-   - avaliar atualização do Next.js com os testes já existentes.
+   - avaliar atualização do Next.js depois que os testes E2E existirem.
 6. Depois: WhatsApp API oficial (cota no Completo), comanda/comissões, lista de espera, sinal via Pix.
 
 ## 10. Como trabalhar neste projeto
@@ -134,3 +143,11 @@ supabase-templates/          modelos de e-mail do Supabase
 2. Uma etapa por vez: explicar o plano, implementar, rodar `tsc` + `lint` (+ `build` em mudanças grandes), testar, resumir.
 3. Mudança de banco = nova migration numerada + instruções para rodar no SQL Editor.
 4. Não simular integrações como reais. Não expor segredos. Não criar dados fictícios em produção.
+
+## 11. Fluxo de Git
+
+1. Nunca fazer push direto no main nem fazer merge de PR — o merge é sempre do Leonardo.
+2. Uma etapa = um branch (feat/..., fix/..., docs/...) = um PR.
+3. Antes de abrir o PR: npx tsc --noEmit, npm run lint e npm run build sem erros.
+4. Migration nova: SQL completo na descrição do PR, com aviso "rodar ANTES do merge".
+5. Nunca commitar .env*, chaves ou dados de clientes.

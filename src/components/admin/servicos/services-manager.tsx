@@ -75,6 +75,9 @@ export function ServicesManager({ services }: { services: Row[] }) {
                     <p className="text-sm">
                       <strong>{brl(s.price)}</strong>
                       <span className="text-muted-foreground"> · {duration(s.duration_min)}</span>
+                      {s.return_after_days && (
+                        <span className="text-muted-foreground"> · retorno em {s.return_after_days} dias</span>
+                      )}
                     </p>
                     {s.description && <p className="mt-1 text-sm text-muted-foreground">{s.description}</p>}
                   </div>

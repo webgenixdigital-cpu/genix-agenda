@@ -8,6 +8,7 @@ import { todayISO } from "@/lib/dates";
 import { longDate, maskPhone, whatsappLink } from "@/lib/format";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { SendReminderButton, UndoReminderButton } from "@/components/admin/lembretes/reminder-actions";
+import { ReturnQueue } from "@/components/admin/lembretes/return-queue";
 import type { BookingStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -31,6 +32,7 @@ export default async function LembretesPage({ searchParams }: Props) {
 
   const supabase = createClient();
 
+  const isReturns = searchParams.dia === "retornos";
   const isToday = searchParams.dia === "hoje";
   const date = todayISO(isToday ? 0 : 1);
 
@@ -47,8 +49,9 @@ export default async function LembretesPage({ searchParams }: Props) {
   const sent = list.filter((b) => b.reminder_sent_at);
 
   const tabs = [
-    { key: "amanha", label: "Amanhã", href: "/admin/lembretes", active: !isToday },
+    { key: "amanha", label: "Amanhã", href: "/admin/lembretes", active: !isToday && !isReturns },
     { key: "hoje", label: "Hoje", href: "/admin/lembretes?dia=hoje", active: isToday },
+    { key: "retornos", label: "Retornos", href: "/admin/lembretes?dia=retornos", active: isReturns },
   ];
 
   return (
@@ -75,6 +78,11 @@ export default async function LembretesPage({ searchParams }: Props) {
           </Link>
         ))}
       </nav>
+
+      {isReturns ? (
+        <ReturnQueue business={business} />
+      ) : (
+      <>
 
       <p className="text-sm font-semibold first-letter:uppercase">
         {longDate(date)} · {queue.length} na fila, {sent.length} {sent.length === 1 ? "lembrado" : "lembrados"}
@@ -140,6 +148,8 @@ export default async function LembretesPage({ searchParams }: Props) {
             ))}
           </ul>
         </section>
+      )}
+      </>
       )}
     </main>
   );

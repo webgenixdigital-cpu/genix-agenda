@@ -39,3 +39,13 @@ export function customerMessage(b: B, businessName: string, reviewUrl?: string) 
       );
   }
 }
+/** Convite de retorno ("hora de voltar"), com link da vitrine para reagendar */
+export function returnMessage(name: string, service: string, lastDate: string, businessName: string, bookingUrl: string) {
+  const first = name.split(" ")[0];
+  return (
+    `Olá, ${first}! Tudo bem? 💛\n\n` +
+    `Seu último ${service} foi em ${longDate(lastDate)} e já está na hora de renovar.\n\n` +
+    `Escolha o melhor horário por aqui:\n${bookingUrl}\n\n` +
+    `Ou responda esta mensagem que a gente agenda pra você.\n${businessName}`
+  );
+}

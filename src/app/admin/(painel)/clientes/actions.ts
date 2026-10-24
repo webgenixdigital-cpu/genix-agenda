@@ -96,3 +96,48 @@ export async function deleteCustomer(id: string): Promise<Result> {
   revalidatePath("/admin/clientes");
   return { ok: true };
 }
+
+// ---------------------------------------------------------------------
+// PARTE 4 — Ficha técnica (campos do nicho do espaço)
+// ---------------------------------------------------------------------
+export async function updateCustomerProfile(id: string, values: Record<string, string>): Promise<Result> {
+  const { business } = await getEditorContext();
+  const supabase = createClient();
+
+  // só aceita chaves que existem (e estão ativas) no nicho do espaço
+  const { data: fields } = await supabase
+    .from("niche_profile_fields")
+    .select("key, type, options")
+    .eq("niche_id", business.subcategory ?? "")
+    .eq("active", true);
+  const allowed = new Map((fields ?? []).map((f) => [f.key, f]));
+
+  const { data: current } = await supabase
+    .from("customers")
+    .select("profile")
+    .eq("id", id)
+    .eq("business_id", business.id)
+    .maybeSingle();
+  if (!current) return { ok: false, error: "Cliente não encontrado." };
+
+  const profile: Record<string, string> = { ...((current.profile as Record<string, string>) ?? {}) };
+  for (const [key, raw] of Object.entries(values)) {
+    const field = allowed.get(key);
+    if (!field) continue;
+    const value = String(raw ?? "").trim().slice(0, 1000);
+    if (field.type === "select" && value && !(field.options as string[]).includes(value)) continue;
+    if (value) profile[key] = value;
+    else delete profile[key];
+  }
+
+  const { data, error } = await supabase
+    .from("customers")
+    .update({ profile })
+    .eq("id", id)
+    .eq("business_id", business.id)
+    .select("id");
+  if (error || !data?.length) return { ok: false, error: "Não foi possível salvar a ficha técnica." };
+
+  revalidatePath(`/admin/clientes/${id}`);
+  return { ok: true };
+}

@@ -6,6 +6,7 @@ import { getAdminContext } from "@/lib/admin";
 import { brl, maskPhone, whatsappLink } from "@/lib/format";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { CustomerDialog, DeleteCustomerButton } from "@/components/admin/clientes/customer-dialog";
+import { ProfileCard, type ProfileField } from "@/components/admin/clientes/profile-card";
 import { Button } from "@/components/ui/button";
 import type { BookingStatus } from "@/lib/types";
 
@@ -44,7 +45,7 @@ export default async function ClientePage({ params }: Props) {
 
   const { data: c } = await supabase
     .from("customers")
-    .select("id, name, phone, email, notes, created_at")
+    .select("id, name, phone, email, notes, created_at, profile")
     .eq("id", params.id)
     .eq("business_id", business.id)
     .maybeSingle();
@@ -59,6 +60,17 @@ export default async function ClientePage({ params }: Props) {
     .limit(100);
 
   const list = bookings ?? [];
+
+  // ficha técnica: campos ativos do nicho do espaço
+  const [{ data: fields }, { data: niche }] = await Promise.all([
+    supabase
+      .from("niche_profile_fields")
+      .select("key, label, type, options, help")
+      .eq("niche_id", business.subcategory ?? "")
+      .eq("active", true)
+      .order("sort_order"),
+    supabase.from("niches").select("name").eq("id", business.subcategory ?? "").maybeSingle(),
+  ]);
   const { data: events } = list.length
     ? await supabase
         .from("booking_events")
@@ -134,6 +146,23 @@ export default async function ClientePage({ params }: Props) {
         <p className="flex gap-2 whitespace-pre-line rounded-2xl bg-secondary p-4 text-sm">
           <StickyNote className="mt-0.5 h-4 w-4 shrink-0 text-primary" /> {c.notes}
         </p>
+      )}
+
+      {/* Ficha técnica */}
+      {(fields ?? []).length > 0 ? (
+        <ProfileCard
+          customerId={c.id}
+          nicheName={niche?.name ?? ""}
+          fields={(fields ?? []) as ProfileField[]}
+          profile={(c.profile as Record<string, string>) ?? {}}
+        />
+      ) : (
+        role === "owner" && (
+          <p className="rounded-2xl border border-dashed bg-white p-4 text-sm text-muted-foreground">
+            Escolha o <strong>tipo de espaço</strong> em{" "}
+            <Link href="/admin/configuracoes" className="underline">Configurações</Link> para liberar a ficha técnica dos clientes.
+          </p>
+        )
       )}
 
       {/* Histórico */}

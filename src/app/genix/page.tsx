@@ -4,11 +4,15 @@ import Link from "next/link";
 import { ShieldCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { NicheManager, type AdminNiche } from "@/components/genix/niche-manager";
+import { ProfileFieldsManager, type AdminField } from "@/components/genix/profile-fields-manager";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Administração | Genix Agenda", robots: { index: false, follow: false } };
 
-export default async function GenixAdminPage() {
+type Props = { searchParams: { aba?: string } };
+
+export default async function GenixAdminPage({ searchParams }: Props) {
+  const aba = searchParams.aba === "fichas" ? "fichas" : "nichos";
   const supabase = createClient();
 
   // Só administradores da plataforma. Para os demais, a página "não existe".
@@ -17,13 +21,17 @@ export default async function GenixAdminPage() {
   const { data: isAdmin } = await supabase.rpc("is_platform_admin");
   if (!isAdmin) notFound();
 
-  const [{ data: niches }, { data: templates }, { data: usage }] = await Promise.all([
+  const [{ data: niches }, { data: templates }, { data: usage }, { data: fields }] = await Promise.all([
     supabase.from("niches").select("id, segment, name, description, icon, sort_order, active").order("sort_order"),
     supabase
       .from("niche_service_templates")
       .select("id, niche_id, name, category, description, duration_min, price, sort_order")
       .order("sort_order"),
     supabase.rpc("niche_usage_summary"),
+    supabase
+      .from("niche_profile_fields")
+      .select("id, niche_id, key, label, type, options, help, sort_order, active")
+      .order("sort_order"),
   ]);
 
   const usageMap = new Map(((usage ?? []) as { niche_id: string; businesses: number }[]).map((u) => [u.niche_id, u.businesses]));
@@ -51,13 +59,37 @@ export default async function GenixAdminPage() {
 
       <main className="mx-auto max-w-6xl space-y-6 p-4 md:p-8">
         <div>
-          <h1 className="text-3xl md:text-4xl">Nichos de atendimento</h1>
+          <h1 className="text-3xl md:text-4xl">Catálogo de nichos</h1>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            Os nichos aparecem no cadastro, nas Configurações dos espaços e na página inicial. Os serviços sugeridos
-                        entram com um clique no “Primeiros passos” de cada conta nova.
+            Os nichos aparecem no cadastro, nas Configurações dos espaços e na página inicial.
           </p>
         </div>
-        <NicheManager niches={list} />
+
+        {/* Abas */}
+        <nav className="inline-flex rounded-xl border bg-white p-1" aria-label="Seções">
+          {[
+            { key: "nichos", label: "Nichos e serviços", href: "/genix" },
+            { key: "fichas", label: "Fichas técnicas", href: "/genix?aba=fichas" },
+          ].map((t) => (
+            <Link
+              key={t.key}
+              href={t.href}
+              className={
+                "inline-flex h-10 items-center rounded-lg px-4 text-sm font-medium transition-colors " +
+                (aba === t.key ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")
+              }
+              data-testid={`aba-${t.key}`}
+            >
+              {t.label}
+            </Link>
+          ))}
+        </nav>
+
+        {aba === "nichos" ? (
+          <NicheManager niches={list} />
+        ) : (
+          <ProfileFieldsManager niches={list} fields={(fields ?? []) as AdminField[]} />
+        )}
       </main>
     </div>
   );

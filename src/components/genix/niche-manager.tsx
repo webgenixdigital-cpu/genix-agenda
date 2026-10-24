@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Loader2, Pencil, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { deleteNiche, deleteTemplate, saveNiche, saveTemplate, toggleNiche } from "@/app/genix/actions";
 import { NICHE_ICONS, NicheIcon } from "@/components/niche-icon";
@@ -68,10 +68,27 @@ export function NicheManager({ niches }: { niches: AdminNiche[] }) {
     nicheId: "",
     tpl: null,
   });
+  // cards minimizados por padrão
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const toggle = (id: string) =>
+    setExpanded((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
 
   return (
     <>
-      <div className="flex justify-end">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" className="h-10" onClick={() => setExpanded(new Set(niches.map((n) => n.id)))}>
+            Abrir todos
+          </Button>
+          <Button variant="outline" size="sm" className="h-10" onClick={() => setExpanded(new Set())}>
+            Recolher todos
+          </Button>
+        </div>
         <Button className="h-11" onClick={() => setNicheDialog({ open: true, niche: null })} data-testid="btn-novo-nicho">
           <Plus className="mr-1.5 h-4 w-4" /> Novo nicho
         </Button>
@@ -83,15 +100,34 @@ export function NicheManager({ niches }: { niches: AdminNiche[] }) {
         return (
           <section key={seg} className="space-y-3">
             <h2 className="text-2xl">{SEGMENT_LABEL[seg]}</h2>
-            <ul className="grid gap-4 lg:grid-cols-2">
+            <ul className="grid items-start gap-3 lg:grid-cols-2">
               {list.map((n) => (
-                <li key={n.id} className={cn("rounded-2xl border bg-card p-5", !n.active && "bg-stone-100")} data-testid={`nicho-${n.id}`}>
-                  <div className="flex items-start gap-3">
-                    <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-secondary text-primary">
+                <li key={n.id} className={cn("rounded-2xl border bg-card", !n.active && "bg-stone-100")} data-testid={`nicho-${n.id}`}>
+                  {/* Linha compacta (clique para abrir/fechar) */}
+                  <button
+                    type="button"
+                    onClick={() => toggle(n.id)}
+                    aria-expanded={expanded.has(n.id)}
+                    className="flex w-full items-center gap-3 p-4 text-left"
+                    data-testid={`toggle-nicho-${n.id}`}
+                  >
+                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-secondary text-primary">
                       <NicheIcon name={n.icon} className="h-5 w-5" />
                     </span>
+                    <span className="min-w-0 flex-1">
+                      <span className={cn("block font-semibold", !n.active && "text-muted-foreground")}>{n.name}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {n.templates.length} {n.templates.length === 1 ? "sugestão" : "sugestões"} · {n.usage}{" "}
+                        {n.usage === 1 ? "espaço" : "espaços"} · {n.active ? "Ativo" : "Desativado"}
+                      </span>
+                    </span>
+                    <ChevronDown className={cn("h-5 w-5 shrink-0 text-muted-foreground transition-transform", expanded.has(n.id) && "rotate-180")} />
+                  </button>
+
+                  {expanded.has(n.id) && (
+                  <div className="border-t p-5">
+                  <div className="flex items-start gap-3">
                     <div className="min-w-0 flex-1">
-                      <p className={cn("font-semibold", !n.active && "text-muted-foreground")}>{n.name}</p>
                       <p className="font-mono text-xs text-muted-foreground">
                         {n.id} · ordem {n.sort_order} · {n.usage} {n.usage === 1 ? "espaço" : "espaços"}
                       </p>
@@ -149,6 +185,8 @@ export function NicheManager({ niches }: { niches: AdminNiche[] }) {
                       <Trash2 className="mr-1.5 h-4 w-4" /> Excluir
                     </Button>
                   </div>
+                  </div>
+                  )}
                 </li>
               ))}
             </ul>

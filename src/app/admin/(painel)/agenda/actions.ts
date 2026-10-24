@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminContext, getEditorContext } from "@/lib/admin";
+import { customerSearchFilter } from "@/lib/customer-search";
 
 type Result = { ok: true } | { ok: false; error: string };
 type Method = "pix" | "dinheiro" | "credito" | "debito";
@@ -345,4 +346,45 @@ export async function rescheduleBooking(input: {
   revalidatePath("/admin/clientes");
   const r = data as { date: string; time: string; professional: string };
   return { ok: true, date: r.date, time: r.time, professional: r.professional };
+}
+
+// ---------------------------------------------------------------------
+// PARTE 7 — Busca de cliente no novo agendamento
+// Cliente normal (sem service role): a RLS de customers/bookings vale,
+// então o profissional só encontra quem já atendeu.
+// ---------------------------------------------------------------------
+export type CustomerHit = { id: string; name: string; phone: string; lastVisit: string | null };
+
+export async function searchCustomers(q: string): Promise<CustomerHit[]> {
+  const { business } = await getAdminContext();
+  const term = q.trim();
+  const digits = term.replace(/\D/g, "");
+  if (term.replace(/\d/g, "").trim().length < 2 && digits.length < 3) return [];
+
+  const filter = customerSearchFilter(term, 3);
+  if (!filter) return [];
+
+  const supabase = createClient();
+  const { data: customers } = await supabase
+    .from("customers")
+    .select("id, name, phone")
+    .eq("business_id", business.id)
+    .ilike(filter.column, filter.pattern)
+    .order("name")
+    .limit(8);
+  const list = customers ?? [];
+  if (list.length === 0) return [];
+
+  // última visita concluída de cada um (a primeira de cada cliente na ordem decrescente)
+  const { data: visits } = await supabase
+    .from("bookings")
+    .select("customer_id, booking_date")
+    .in("customer_id", list.map((c) => c.id))
+    .eq("status", "completed")
+    .order("booking_date", { ascending: false })
+    .limit(200);
+  const last = new Map<string, string>();
+  for (const v of visits ?? []) if (v.customer_id && !last.has(v.customer_id)) last.set(v.customer_id, v.booking_date);
+
+  return list.map((c) => ({ id: c.id, name: c.name, phone: c.phone, lastVisit: last.get(c.id) ?? null }));
 }

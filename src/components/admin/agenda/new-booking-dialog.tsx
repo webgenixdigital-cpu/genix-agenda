@@ -17,6 +17,7 @@ import {
   type SeriesInput,
 } from "@/app/admin/(painel)/agenda/actions";
 import { FREQUENCY_LABEL, SKIP_REASON } from "@/lib/series";
+import { CustomerSearch } from "@/components/admin/agenda/customer-search";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -243,7 +244,24 @@ export function NewBookingDialog({ defaultDate, services, professionals, fullAcc
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor="nb-name">Nome do cliente</Label>
-                <Input id="nb-name" className="h-11" value={name} onChange={(e) => setName(e.target.value)} data-testid="input-nome-manual" />
+                <CustomerSearch
+                  id="nb-name"
+                  value={name}
+                  onChange={setName}
+                  // escolher preenche nome + WhatsApp; a busca de pacote dispara pelo efeito do WhatsApp
+                  onPick={(c) => {
+                    setName(c.name);
+                    setPhone(maskPhone(c.phone));
+                  }}
+                  onDigitsOnly={(digits) => {
+                    setPhone(maskPhone(digits));
+                    setName("");
+                  }}
+                  onClear={() => {
+                    setName("");
+                    setPhone("");
+                  }}
+                />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="nb-phone">WhatsApp</Label>

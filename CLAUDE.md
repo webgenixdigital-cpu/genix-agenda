@@ -135,7 +135,8 @@ supabase-templates/          modelos de e-mail do Supabase
    - cache/ISR nas páginas públicas que hoje são `force-dynamic`; `loading.tsx` com skeletons no painel;
    - testes E2E (Playwright) em iPhone/Safari, Android, tablet e desktop; meta alta no Lighthouse;
    - avaliar atualização do Next.js depois que os testes E2E existirem.
-6. Depois: WhatsApp API oficial (cota no Completo), comanda/comissões, lista de espera, sinal via Pix.
+6. Depois: WhatsApp API oficial (cota no Completo), comanda/comissões, lista de espera, sinal via Pix,
+   busca de clientes sem acentos (unaccent + coluna name_search).
 
 ## 10. Como trabalhar neste projeto
 

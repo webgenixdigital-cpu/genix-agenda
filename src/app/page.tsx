@@ -5,12 +5,12 @@ import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { BusinessCard } from "@/components/business-card";
 import { NicheIcon } from "@/components/niche-icon";
+import { NicheHighlights } from "@/components/niche-highlights";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getActiveNiches } from "@/lib/niches";
 import { SEGMENTS } from "@/lib/segments";
 import type { DirectoryItem } from "@/lib/types";
-import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -53,13 +53,6 @@ export default async function Home({ searchParams }: Props) {
   for (const r of all ?? []) if (r.subcategory) counts.set(r.subcategory, (counts.get(r.subcategory) ?? 0) + 1);
 
   const activeNiche = niches.find((n) => n.id === nicho);
-  const chipHref = (id?: string) => {
-    const p = new URLSearchParams();
-    if (id) p.set("nicho", id);
-    if (q) p.set("q", q);
-    const s = p.toString();
-    return s ? `/?${s}#resultados` : "/#resultados";
-  };
 
   // -------------------------------------------------------------------
   // PARTE 2 — Página
@@ -94,33 +87,8 @@ export default async function Home({ searchParams }: Props) {
               <Button type="submit" className="h-12 px-6" data-testid="btn-buscar">Buscar</Button>
             </form>
 
-            {/* Atalhos por nicho */}
-            <nav className="-mx-4 mt-6 flex gap-2 overflow-x-auto px-4 pb-2 md:mx-0 md:flex-wrap md:px-0" aria-label="Filtrar por tipo de atendimento">
-              <Link
-                href={chipHref()}
-                className={cn(
-                  "inline-flex h-11 shrink-0 items-center rounded-full border px-4 text-sm font-medium transition-colors",
-                  !nicho ? "border-primary bg-primary text-primary-foreground" : "bg-white hover:border-primary/50"
-                )}
-                data-testid="filtro-nicho-todos"
-              >
-                Todos
-              </Link>
-              {niches.map((n) => (
-                <Link
-                  key={n.id}
-                  href={chipHref(n.id)}
-                  className={cn(
-                    "inline-flex h-11 shrink-0 items-center gap-2 rounded-full border px-4 text-sm font-medium transition-colors",
-                    nicho === n.id ? "border-primary bg-primary text-primary-foreground" : "bg-white hover:border-primary/50"
-                  )}
-                  data-testid={`filtro-nicho-${n.id}`}
-                >
-                  <NicheIcon name={n.icon} className="h-4 w-4" />
-                  {n.name}
-                </Link>
-              ))}
-            </nav>
+            {/* Destaques circulares (estilo Instagram) */}
+            <NicheHighlights niches={niches} activeId={nicho} className="mt-8" />
           </div>
         </section>
 
@@ -204,7 +172,7 @@ export default async function Home({ searchParams }: Props) {
                   </div>
                   <div className="mt-auto flex flex-wrap gap-2 pt-5">
                     <Button asChild size="sm" className="h-10" variant={c > 0 ? "default" : "outline"}>
-                      <Link href={chipHref(n.id)}>
+                      <Link href={`/explorar/${n.id}`}>
                         {c > 0 ? `Ver ${c} ${c === 1 ? "espaço" : "espaços"}` : "Ver espaços"}
                       </Link>
                     </Button>

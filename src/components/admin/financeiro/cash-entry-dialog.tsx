@@ -112,7 +112,8 @@ export function CashEntryDialog({ defaultDate }: { defaultDate: string }) {
                 <Select value={category} onValueChange={(v) => setCategory(v as CashInput["category"])}>
                   <SelectTrigger className="h-11" data-testid="select-categoria-lancamento"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {(Object.keys(CATEGORY_LABEL) as CashInput["category"][]).map((c) => (
+                    {/* "pacote" só entra pela venda do pacote na ficha do cliente */}
+                    {(Object.keys(CATEGORY_LABEL).filter((c) => c !== "pacote") as CashInput["category"][]).map((c) => (
                       <SelectItem key={c} value={c}>{CATEGORY_LABEL[c]}</SelectItem>
                     ))}
                   </SelectContent>

@@ -7,7 +7,9 @@ import { brl, maskPhone, whatsappLink } from "@/lib/format";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { CustomerDialog, DeleteCustomerButton } from "@/components/admin/clientes/customer-dialog";
 import { ProfileCard, type ProfileField } from "@/components/admin/clientes/profile-card";
+import { PackagesCard, type CustomerPackage } from "@/components/admin/clientes/packages-card";
 import { Button } from "@/components/ui/button";
+import { getPlanContext } from "@/lib/plan";
 import type { BookingStatus } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -26,6 +28,7 @@ const ACTION_LABEL: Record<string, string> = {
   pending: "Voltou para pendente",
   rescheduled: "Remarcado",
   reminder: "Lembrete enviado",
+  return_contact: "Chamado para voltar",
 };
 const ROLE_LABEL: Record<string, string> = {
   online: "pela vitrine",
@@ -53,7 +56,7 @@ export default async function ClientePage({ params }: Props) {
 
   const { data: bookings } = await supabase
     .from("bookings")
-    .select("id, booking_date, start_time, service_name, professional_name, price, status")
+    .select("id, booking_date, start_time, service_name, professional_name, price, status, customer_package_id")
     .eq("customer_id", c.id)
     .order("booking_date", { ascending: false })
     .order("start_time", { ascending: false })
@@ -86,8 +89,39 @@ export default async function ClientePage({ params }: Props) {
     byBooking.set(e.booking_id, arr);
   }
 
+  // pacotes do cliente (saldo calculado no banco) e modelos à venda
+  const canSell = role === "owner" || role === "reception";
+  const [{ data: pkgs }, { data: templates }, plan] = await Promise.all([
+    supabase
+      .from("customer_package_balance")
+      .select("id, name, service_name, sessions_total, used, remaining, price, sold_at, expires_at, effective_status")
+      .eq("customer_id", c.id)
+      .order("sold_at", { ascending: false }),
+    canSell
+      ? supabase
+          .from("package_templates")
+          .select("id, name, sessions, price, validity_days")
+          .eq("business_id", business.id)
+          .eq("active", true)
+          .order("sort_order")
+      : Promise.resolve({ data: [] }),
+    getPlanContext(business.id),
+  ]);
+  const packages: CustomerPackage[] = (pkgs ?? []).map((p) => ({
+    ...p,
+    price: Number(p.price),
+    sessions: list
+      .filter((b) => b.customer_package_id === p.id)
+      .sort((a, b) => (a.booking_date + a.start_time).localeCompare(b.booking_date + b.start_time)),
+  })) as CustomerPackage[];
+  const pkgById = new Map(packages.map((p) => [p.id, p]));
+
+  // total gasto: sessão de pacote conta pelo valor proporcional (igual a customer_summary)
   const done = list.filter((b) => b.status === "completed");
-  const total = done.reduce((s, b) => s + Number(b.price), 0);
+  const total = done.reduce((s, b) => {
+    const p = b.customer_package_id ? pkgById.get(b.customer_package_id) : undefined;
+    return s + (p ? p.price / p.sessions_total : Number(b.price));
+  }, 0);
   const wa = whatsappLink(c.phone, `Olá, ${c.name.split(" ")[0]}! Aqui é do ${business.name}.`);
 
   // -------------------------------------------------------------------
@@ -148,6 +182,17 @@ export default async function ClientePage({ params }: Props) {
         </p>
       )}
 
+      {/* Pacotes: no Grátis só aparece se já houver pacote vendido */}
+      {(plan.tier === "completo" || packages.length > 0) && (
+        <PackagesCard
+          customerId={c.id}
+          packages={packages}
+          templates={(templates ?? []).map((t) => ({ ...t, price: Number(t.price) }))}
+          canSell={canSell}
+          locked={plan.tier !== "completo"}
+        />
+      )}
+
       {/* Ficha técnica */}
       {(fields ?? []).length > 0 ? (
         <ProfileCard
@@ -178,7 +223,8 @@ export default async function ClientePage({ params }: Props) {
                   <div>
                     <p className="font-semibold">{b.service_name}</p>
                     <p className="text-sm text-muted-foreground">
-                      {br(b.booking_date)} às {b.start_time.slice(0, 5)} · {b.professional_name} · {brl(b.price)}
+                      {br(b.booking_date)} às {b.start_time.slice(0, 5)} · {b.professional_name} ·{" "}
+                      {b.customer_package_id ? `pacote ${pkgById.get(b.customer_package_id)?.name ?? ""}`.trim() : brl(b.price)}
                     </p>
                   </div>
                   <StatusBadge status={b.status as BookingStatus} />

@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { CalendarDays, Loader2, Plus } from "lucide-react";
 import { toast } from "sonner";
-import { createManualBooking } from "@/app/admin/(painel)/agenda/actions";
+import { createManualBooking, findCustomerPackages, type PackageOption } from "@/app/admin/(painel)/agenda/actions";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -41,6 +42,25 @@ export function NewBookingDialog({ defaultDate, services, professionals }: Props
   const [phone, setPhone] = useState("");
   const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [packages, setPackages] = useState<PackageOption[]>([]);
+  const [packageId, setPackageId] = useState<string | null>(null);
+
+  // cliente com pacote ativo deste serviço? (busca pelo WhatsApp digitado)
+  const phoneDigits = phone.replace(/\D/g, "");
+  useEffect(() => {
+    setPackageId(null);
+    if (!open || !serviceId || phoneDigits.length < 10) {
+      setPackages([]);
+      return;
+    }
+    let alive = true;
+    findCustomerPackages(phoneDigits, serviceId).then((list) => {
+      if (alive) setPackages(list ?? []);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [open, serviceId, phoneDigits]);
 
   function openDialog() {
     setDate(defaultDate);
@@ -56,7 +76,7 @@ export function NewBookingDialog({ defaultDate, services, professionals }: Props
     setError(null);
     start(async () => {
       const r = await createManualBooking({
-        serviceId, professionalId, date, time, customerName: name, customerPhone: phone, notes,
+        serviceId, professionalId, date, time, customerName: name, customerPhone: phone, notes, packageId,
       });
       if (!r) return; // demonstração: o servidor redirecionou
       if (r.ok) {
@@ -169,6 +189,39 @@ export function NewBookingDialog({ defaultDate, services, professionals }: Props
                 />
               </div>
             </div>
+
+            {packages.length > 0 && (
+              <div className="space-y-2 rounded-xl border border-primary/30 bg-secondary/40 p-3" data-testid="opcoes-pacote-manual">
+                <p className="text-sm font-semibold">Este cliente tem pacote deste serviço</p>
+                {packages.map((p) => {
+                  const expired = !!p.expires_at && p.expires_at < date;
+                  return (
+                    <label
+                      key={p.id}
+                      className={cn("flex min-h-11 cursor-pointer items-center gap-3 text-sm", expired && "cursor-not-allowed opacity-60")}
+                    >
+                      <input
+                        type="checkbox"
+                        className="h-5 w-5 accent-primary"
+                        disabled={expired}
+                        checked={packageId === p.id}
+                        onChange={(e) => setPackageId(e.target.checked ? p.id : null)}
+                        data-testid={`check-usar-pacote-${p.id}`}
+                      />
+                      <span>
+                        Usar pacote {p.name} (restam {p.remaining})
+                        {p.expires_at && (
+                          <span className="text-muted-foreground">
+                            {" · "}
+                            {expired ? "vence antes desta data" : `vale até ${p.expires_at.split("-").reverse().join("/")}`}
+                          </span>
+                        )}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
 
             <div className="space-y-1.5">
               <Label htmlFor="nb-notes">Observações (opcional)</Label>

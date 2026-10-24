@@ -1,9 +1,10 @@
 // Rótulos do caixa (usados no servidor e no navegador)
-export type CashCategory = "atendimento" | "comissao" | "produtos" | "aluguel" | "outros";
+export type CashCategory = "atendimento" | "pacote" | "comissao" | "produtos" | "aluguel" | "outros";
 export type CashMethod = "pix" | "dinheiro" | "credito" | "debito";
 
 export const CATEGORY_LABEL: Record<CashCategory, string> = {
   atendimento: "Atendimento",
+  pacote: "Pacote",
   comissao: "Comissão",
   produtos: "Produtos",
   aluguel: "Aluguel e contas",

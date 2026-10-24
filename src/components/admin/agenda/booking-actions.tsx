@@ -23,6 +23,8 @@ export type AgendaBooking = {
   price: number;
   status: BookingStatus;
   source: string;
+  /** sessão de pacote: já foi paga na venda do pacote */
+  customer_package_id?: string | null;
 };
 
 const METHODS = [
@@ -78,7 +80,19 @@ export function BookingActions({
       )}
 
       {b.status === "confirmed" && (
-        <Button size="sm" className="h-10" disabled={pending} onClick={() => (fullAccess ? setCompleteOpen(true) : run(() => completeBooking(b.id, null), "Atendimento concluído"))} data-testid={`btn-concluir-${b.id}`}>
+        <Button
+          size="sm"
+          className="h-10"
+          disabled={pending}
+          onClick={() =>
+            b.customer_package_id
+              ? run(() => completeBooking(b.id, null), "Sessão do pacote concluída")
+              : fullAccess
+                ? setCompleteOpen(true)
+                : run(() => completeBooking(b.id, null), "Atendimento concluído")
+          }
+          data-testid={`btn-concluir-${b.id}`}
+        >
           <CheckCheck className="mr-1.5 h-4 w-4" /> Concluir
         </Button>
       )}
@@ -99,7 +113,8 @@ export function BookingActions({
           className="h-10 text-destructive hover:bg-red-50 hover:text-destructive"
           disabled={pending}
           onClick={() => {
-            if (confirm(`Cancelar o horário de ${b.customer_name}?`)) {
+            const note = b.customer_package_id ? "\n\nA sessão volta para o saldo do pacote." : "";
+            if (confirm(`Cancelar o horário de ${b.customer_name}?${note}`)) {
               run(() => updateBookingStatus(b.id, "cancelled"), "Agendamento cancelado");
             }
           }}

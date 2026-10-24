@@ -3,6 +3,21 @@ import { Check, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LOCKED_FEATURES, type LockedFeatureKey } from "@/lib/plan-features";
 
+/** Versão em card, para um trecho de página (ex.: Pacotes dentro de Serviços) */
+export function LockedFeatureCard({ feature }: { feature: LockedFeatureKey }) {
+  const f = LOCKED_FEATURES[feature];
+  return (
+    <div className="rounded-2xl border border-dashed bg-card p-5 text-center" data-testid={`recurso-bloqueado-${feature}`}>
+      <Lock className="mx-auto h-6 w-6 text-primary" />
+      <p className="mt-2 font-semibold">{f.title} · plano Completo</p>
+      <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">{f.description}</p>
+      <Button asChild className="mt-4 h-11" data-testid={`btn-liberar-${feature}`}>
+        <Link href="/admin/assinatura">Liberar acesso completo</Link>
+      </Button>
+    </div>
+  );
+}
+
 export function LockedFeature({ feature }: { feature: LockedFeatureKey }) {
   const f = LOCKED_FEATURES[feature];
 

@@ -3,6 +3,7 @@ import { ChevronRight, Search } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminContext } from "@/lib/admin";
 import { brl, maskPhone } from "@/lib/format";
+import { customerSearchFilter } from "@/lib/customer-search";
 import { CustomerDialog } from "@/components/admin/clientes/customer-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,10 +22,10 @@ export default async function ClientesPage({ searchParams }: Props) {
   const { business, role } = await getAdminContext();
   const supabase = createClient();
   const q = (searchParams.q ?? "").replace(/[,()%]/g, " ").trim().slice(0, 60);
-  const qDigits = q.replace(/\D/g, "");
+  const filter = customerSearchFilter(q, 4);
 
   let query = supabase.from("customers").select("id, name, phone").eq("business_id", business.id).order("name").limit(300);
-  if (q) query = qDigits.length >= 4 ? query.ilike("phone", `%${qDigits}%`) : query.ilike("name", `%${q}%`);
+  if (filter) query = query.ilike(filter.column, filter.pattern);
 
   const [{ data: customers }, { data: summary }] = await Promise.all([
     query,

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarOff, Globe, Phone, StickyNote } from "lucide-react";
+import { CalendarOff, Globe, Package, Phone, StickyNote } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminContext, seesWholeTeam } from "@/lib/admin";
 import { getPlanContext } from "@/lib/plan";
@@ -36,7 +36,7 @@ export default async function AgendaPage({ searchParams }: Props) {
 
   let q = supabase
     .from("bookings")
-    .select("id, booking_date, start_time, end_time, customer_name, customer_phone, customer_notes, customer_id, service_name, professional_name, professional_id, price, status, source")
+    .select("id, booking_date, start_time, end_time, customer_name, customer_phone, customer_notes, customer_id, service_name, professional_name, professional_id, price, status, source, customer_package_id")
     .eq("business_id", business.id)
     .order("booking_date")
     .order("start_time");
@@ -55,6 +55,18 @@ export default async function AgendaPage({ searchParams }: Props) {
   ]);
 
   const list = (bookings ?? []) as (AgendaBooking & { professional_id: string; customer_id: string | null })[];
+  // sessões de pacote: "Pacote 3/10"
+  const packageIds = list.filter((b) => b.customer_package_id).map((b) => b.id);
+  const { data: pkgInfo } = packageIds.length
+    ? await supabase.rpc("booking_package_info", { p_business: business.id, p_bookings: packageIds })
+    : { data: [] };
+  const sessionLabel = new Map<string, string>(
+    ((pkgInfo ?? []) as { booking_id: string; session_no: number; sessions_total: number }[]).map((i) => [
+      i.booking_id,
+      `Pacote ${i.session_no}/${i.sessions_total}`,
+    ])
+  );
+
   const pros = (professionals ?? []).filter((p) => wholeTeam || p.id === professionalId);
   const weekday = new Date(`${date}T12:00:00`).getDay();
   const dayBlocks = pendingMode
@@ -68,7 +80,10 @@ export default async function AgendaPage({ searchParams }: Props) {
   }, {});
 
   const activeCount = list.filter((b) => b.status !== "cancelled").length;
-  const expected = list.filter((b) => b.status !== "cancelled").reduce((s, b) => s + Number(b.price), 0);
+  // sessão de pacote já foi paga na venda: não entra no previsto do dia
+  const expected = list
+    .filter((b) => b.status !== "cancelled" && !b.customer_package_id)
+    .reduce((s, b) => s + Number(b.price), 0);
 
   // -------------------------------------------------------------------
   // PARTE 2 — Página
@@ -159,7 +174,16 @@ export default async function AgendaPage({ searchParams }: Props) {
                     </div>
                     <p className="text-sm">
                       {b.service_name} com {b.professional_name}
-                      <span className="text-muted-foreground"> · {brl(b.price)}</span>
+                      {b.customer_package_id ? (
+                        <span
+                          className="ml-2 inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-primary"
+                          data-testid={`selo-pacote-${b.id}`}
+                        >
+                          <Package className="h-3 w-3" /> {sessionLabel.get(b.id) ?? "Pacote"}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground"> · {brl(b.price)}</span>
+                      )}
                     </p>
                     <p className="inline-flex items-center gap-1 text-sm text-muted-foreground">
                       <Phone className="h-3.5 w-3.5" /> {maskPhone(b.customer_phone)}

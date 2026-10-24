@@ -27,12 +27,12 @@ const RETURN_PRESETS = [15, 21, 30, 45, 60];
 const DURATIONS = [10, 15, 20, 30, 40, 45, 50, 60, 75, 90, 105, 120, 150, 180, 210, 240, 300];
 
 /** "12345" → "123,45" (digita só números, vírgula automática) */
-function maskMoney(raw: string) {
+export function maskMoney(raw: string) {
   const digits = raw.replace(/\D/g, "").slice(0, 8);
   const cents = Number(digits || "0");
   return (cents / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
-const parseMoney = (v: string) => Number(v.replace(/\./g, "").replace(",", ".")) || 0;
+export const parseMoney = (v: string) => Number(v.replace(/\./g, "").replace(",", ".")) || 0;
 
 export function ServiceDialog({
   open,

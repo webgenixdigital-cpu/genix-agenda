@@ -91,6 +91,8 @@ export async function deleteCustomer(id: string): Promise<Result> {
 
   const supabase = createClient();
   const { error } = await supabase.from("customers").delete().eq("id", id).eq("business_id", business.id);
+  // 23503 = chave estrangeira: customer_packages.customer_id é "on delete restrict"
+  if (error?.code === "23503") return { ok: false, error: "Este cliente tem pacotes. Cancele-os antes de excluir." };
   if (error) return { ok: false, error: "Não foi possível excluir." };
 
   revalidatePath("/admin/clientes");
@@ -139,5 +141,44 @@ export async function updateCustomerProfile(id: string, values: Record<string, s
   if (error || !data?.length) return { ok: false, error: "Não foi possível salvar a ficha técnica." };
 
   revalidatePath(`/admin/clientes/${id}`);
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------
+// PARTE 5 — Pacotes (venda e cancelamento passam por funções do banco)
+// ---------------------------------------------------------------------
+const PACKAGE_ERRORS: Record<string, string> = {
+  MODELO_INVALIDO: "Esse modelo de pacote não está mais disponível.",
+  CLIENTE_INVALIDO: "Cliente não encontrado.",
+  SEM_PERMISSAO: "Somente a matriz e a recepção podem vender ou cancelar pacotes.",
+  PLANO_GRATIS: "Pacotes são um recurso do plano Completo.",
+  FORMA_INVALIDA: "Escolha a forma de pagamento.",
+  NAO_ENCONTRADO: "Pacote não encontrado.",
+};
+const packageError = (message: string, fallback: string) =>
+  PACKAGE_ERRORS[Object.keys(PACKAGE_ERRORS).find((k) => message.includes(k)) ?? ""] ?? fallback;
+
+export async function sellPackage(
+  customerId: string,
+  templateId: string,
+  method: "pix" | "dinheiro" | "credito" | "debito" | null
+): Promise<Result> {
+  await getEditorContext();
+  const supabase = createClient();
+  const { error } = await supabase.rpc("sell_package", { p_customer: customerId, p_template: templateId, p_method: method });
+  if (error) return { ok: false, error: packageError(error.message, "Não foi possível vender o pacote.") };
+
+  revalidatePath(`/admin/clientes/${customerId}`);
+  revalidatePath("/admin/financeiro");
+  return { ok: true };
+}
+
+export async function cancelPackage(customerId: string, packageId: string): Promise<Result> {
+  await getEditorContext();
+  const supabase = createClient();
+  const { error } = await supabase.rpc("cancel_customer_package", { p_package: packageId });
+  if (error) return { ok: false, error: packageError(error.message, "Não foi possível cancelar o pacote.") };
+
+  revalidatePath(`/admin/clientes/${customerId}`);
   return { ok: true };
 }

@@ -2,12 +2,21 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { getEditorContext } from "@/lib/admin";
+import { getAdminContext, getEditorContext } from "@/lib/admin";
 
 type Result = { ok: true } | { ok: false; error: string };
 type Method = "pix" | "dinheiro" | "credito" | "debito";
 
 const OVERLAP = "23P01"; // exclusion_violation (trava no_overlap)
+
+// erros do trigger trg_validate_package (19_pacotes.sql)
+const PACKAGE_ERRORS: Record<string, string> = {
+  PACOTE_SEM_SALDO: "Esse pacote não tem mais sessões disponíveis.",
+  PACOTE_VENCIDO: "Esse pacote vence antes da data escolhida.",
+  PACOTE_INVALIDO: "Esse pacote não pode ser usado aqui (cancelado, de outro cliente ou de outro serviço).",
+};
+const packageError = (message?: string) =>
+  PACKAGE_ERRORS[Object.keys(PACKAGE_ERRORS).find((k) => message?.includes(k)) ?? ""];
 
 function refresh() {
   revalidatePath("/admin/agenda");
@@ -32,7 +41,7 @@ export async function updateBookingStatus(id: string, status: "confirmed" | "can
       ok: false,
       error: error.code === OVERLAP
         ? "Esse profissional já tem outro atendimento nesse horário."
-        : "Não foi possível atualizar o agendamento.",
+        : packageError(error.message) ?? "Não foi possível atualizar o agendamento.",
     };
   }
   refresh();
@@ -74,6 +83,7 @@ export async function createManualBooking(input: {
   customerName: string;
   customerPhone: string;
   notes?: string;
+  packageId?: string | null;
 }): Promise<Result> {
   const { business } = await getEditorContext();
   const supabase = createClient();
@@ -124,6 +134,8 @@ export async function createManualBooking(input: {
     end_time: end,
     status: "confirmed",
     source: "manual",
+    // o banco valida cliente, serviço, validade e saldo (trg_validate_package)
+    customer_package_id: input.packageId || null,
   });
 
   if (error) {
@@ -131,9 +143,35 @@ export async function createManualBooking(input: {
       ok: false,
       error: error.code === OVERLAP
         ? `${pro.name} já tem atendimento nesse horário.`
-        : "Não foi possível salvar o agendamento.",
+        : packageError(error.message) ?? "Não foi possível salvar o agendamento.",
     };
   }
   refresh();
+  if (input.packageId) revalidatePath("/admin/clientes");
   return { ok: true };
+}
+
+// ---------------------------------------------------------------------
+// PARTE 4 — Pacotes ativos do cliente (pelo WhatsApp digitado) para o serviço
+// ---------------------------------------------------------------------
+export type PackageOption = { id: string; name: string; remaining: number; sessions_total: number; expires_at: string | null };
+
+export async function findCustomerPackages(phone: string, serviceId: string): Promise<PackageOption[]> {
+  const { business } = await getAdminContext();
+  const digits = phone.replace(/\D/g, "");
+  if (!/^\d{10,11}$/.test(digits) || !serviceId) return [];
+
+  const supabase = createClient();
+  const { data: customer } = await supabase
+    .from("customers").select("id").eq("business_id", business.id).eq("phone", digits).maybeSingle();
+  if (!customer) return [];
+
+  const { data } = await supabase
+    .from("customer_package_balance")
+    .select("id, name, remaining, sessions_total, expires_at")
+    .eq("customer_id", customer.id)
+    .eq("service_id", serviceId)
+    .eq("effective_status", "active")
+    .order("sold_at");
+  return (data ?? []) as PackageOption[];
 }

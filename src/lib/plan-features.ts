@@ -2,7 +2,7 @@
 
 export const FREE_LOCKED_HREFS = ["/admin/bloqueios", "/admin/lembretes", "/admin/financeiro"];
 
-export type LockedFeatureKey = "bloqueios" | "lembretes" | "financeiro";
+export type LockedFeatureKey = "bloqueios" | "lembretes" | "financeiro" | "pacotes";
 
 export const LOCKED_FEATURES: Record<
   LockedFeatureKey,
@@ -33,6 +33,15 @@ export const LOCKED_FEATURES: Record<
       "Atendimentos concluídos entram no caixa automaticamente",
       "Gráfico dos últimos 6 meses",
       "Entradas por Pix, cartão e dinheiro",
+    ],
+  },
+  pacotes: {
+    title: "Pacotes de sessões",
+    description: "Venda pacotes como “10 drenagens” e acompanhe o saldo de cada cliente sem caderno.",
+    bullets: [
+      "Modelos de pacote com preço e validade",
+      "Saldo de sessões na ficha do cliente",
+      "Venda lançada no caixa uma vez só",
     ],
   },
 };

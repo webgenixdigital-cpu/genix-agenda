@@ -36,7 +36,7 @@ export default async function AgendaPage({ searchParams }: Props) {
 
   let q = supabase
     .from("bookings")
-    .select("id, booking_date, start_time, end_time, customer_name, customer_phone, customer_notes, customer_id, service_name, professional_name, professional_id, price, status, source, customer_package_id, series_id")
+    .select("id, booking_date, start_time, end_time, customer_name, customer_phone, customer_notes, customer_id, service_name, professional_name, professional_id, service_id, price, status, source, customer_package_id, series_id")
     .eq("business_id", business.id)
     .order("booking_date")
     .order("start_time");
@@ -68,6 +68,20 @@ export default async function AgendaPage({ searchParams }: Props) {
   );
 
   const pros = (professionals ?? []).filter((p) => wholeTeam || p.id === professionalId);
+
+  // remarcar: profissionais com os serviços que fazem (sem vínculo = fazem todos)
+  const { data: links } = await supabase
+    .from("professional_services")
+    .select("professional_id, service_id")
+    .in("professional_id", pros.map((p) => p.id));
+  const reschedule = {
+    professionals: pros.map((p) => {
+      const ids = (links ?? []).filter((l) => l.professional_id === p.id).map((l) => l.service_id as string);
+      return { id: p.id, name: p.name, serviceIds: ids.length ? ids : null };
+    }),
+    canChooseProfessional: role === "owner" || role === "reception",
+    today,
+  };
   const weekday = new Date(`${date}T12:00:00`).getDay();
   const dayBlocks = pendingMode
     ? []
@@ -205,7 +219,7 @@ export default async function AgendaPage({ searchParams }: Props) {
                 </div>
 
                 <div className="mt-4 border-t pt-3">
-                  <BookingActions booking={b} businessName={business.name} slug={business.slug} fullAccess={plan.tier === "completo"} />
+                  <BookingActions booking={b} businessName={business.name} slug={business.slug} fullAccess={plan.tier === "completo"} reschedule={reschedule} />
                 </div>
               </li>
             ))}

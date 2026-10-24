@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { Check, CheckCheck, Loader2, MessageCircle, Repeat, Star, X } from "lucide-react";
+import { CalendarClock, Check, CheckCheck, Loader2, MessageCircle, Repeat, Star, X } from "lucide-react";
 import { toast } from "sonner";
 import { cancelSeriesFuture, completeBooking, updateBookingStatus } from "@/app/admin/(painel)/agenda/actions";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { brl, whatsappLink } from "@/lib/format";
 import { customerMessage } from "@/lib/messages";
+import { RescheduleDialog, type ProOption } from "@/components/admin/agenda/reschedule-dialog";
 import type { BookingStatus } from "@/lib/types";
 
 export type AgendaBooking = {
@@ -27,6 +28,16 @@ export type AgendaBooking = {
   customer_package_id?: string | null;
   /** faz parte de uma série recorrente */
   series_id?: string | null;
+  professional_id: string;
+  service_id: string | null;
+};
+
+/** Dados para o botão "Remarcar" (opcional: sem ele, o botão não aparece) */
+export type RescheduleProps = {
+  professionals: ProOption[];
+  /** matriz e recepção: trocam o profissional e podem encaixar */
+  canChooseProfessional: boolean;
+  today: string;
 };
 
 const METHODS = [
@@ -41,15 +52,18 @@ export function BookingActions({
   businessName,
   slug,
   fullAccess = true,
+  reschedule,
 }: {
   booking: AgendaBooking;
   businessName: string;
   slug: string;
   /** plano Completo: pergunta a forma de pagamento e lança no caixa */
   fullAccess?: boolean;
+  reschedule?: RescheduleProps;
 }) {
   const [pending, start] = useTransition();
   const [completeOpen, setCompleteOpen] = useState(false);
+  const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [origin, setOrigin] = useState("");
 
   useEffect(() => setOrigin(window.location.origin), []);
@@ -96,6 +110,19 @@ export function BookingActions({
           data-testid={`btn-concluir-${b.id}`}
         >
           <CheckCheck className="mr-1.5 h-4 w-4" /> Concluir
+        </Button>
+      )}
+
+      {reschedule && (b.status === "pending" || b.status === "confirmed") && (
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-10"
+          disabled={pending}
+          onClick={() => setRescheduleOpen(true)}
+          data-testid={`btn-remarcar-${b.id}`}
+        >
+          <CalendarClock className="mr-1.5 h-4 w-4" /> Remarcar
         </Button>
       )}
 
@@ -150,6 +177,18 @@ export function BookingActions({
         >
           <Repeat className="mr-1.5 h-4 w-4" /> Cancelar as próximas desta série
         </Button>
+      )}
+
+      {reschedule && (
+        <RescheduleDialog
+          open={rescheduleOpen}
+          onOpenChange={setRescheduleOpen}
+          booking={b}
+          businessName={businessName}
+          professionals={reschedule.professionals}
+          canChooseProfessional={reschedule.canChooseProfessional}
+          today={reschedule.today}
+        />
       )}
 
       {/* Concluir: escolher forma de pagamento */}

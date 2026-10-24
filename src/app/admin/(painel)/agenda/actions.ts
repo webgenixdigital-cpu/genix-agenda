@@ -278,3 +278,71 @@ export async function cancelSeriesFuture(seriesId: string): Promise<{ ok: true; 
   revalidatePath("/admin/clientes");
   return { ok: true, cancelled: Number(data ?? 0) };
 }
+
+// ---------------------------------------------------------------------
+// PARTE 6 — Remarcar (mesmo agendamento; regras em 21_remarcar.sql)
+// ---------------------------------------------------------------------
+const RESCHEDULE_ERRORS: Record<string, string> = {
+  PASSADO: "Escolha uma data e horário a partir de agora.",
+  FECHADO: "O espaço não abre nesse dia.",
+  FORA_EXPEDIENTE: "Esse horário fica fora do expediente.",
+  PROFISSIONAL_INDISPONIVEL: "Esse profissional não está disponível para este serviço.",
+  BLOQUEIO: "Esse horário está bloqueado na agenda desse profissional.",
+  OCUPADO: "Esse horário acabou de ser ocupado. Escolha outro.",
+  PACOTE_VENCIDO: "Esse pacote vence antes da nova data.",
+  PACOTE_INVALIDO: "O pacote desta sessão foi cancelado. Cancele a sessão ou agende um horário avulso.",
+  PACOTE_SEM_SALDO: "O pacote não tem saldo para esta sessão.",
+  STATUS_INVALIDO: "Só dá para remarcar agendamentos pendentes ou confirmados.",
+  SEM_PERMISSAO: "Você não pode remarcar este agendamento para essa agenda.",
+  NAO_ENCONTRADO: "Agendamento não encontrado.",
+  DADOS_INVALIDOS: "Escolha a data e o horário.",
+};
+const rescheduleError = (message?: string) =>
+  RESCHEDULE_ERRORS[Object.keys(RESCHEDULE_ERRORS).find((k) => message?.includes(k)) ?? ""] ??
+  "Não foi possível remarcar.";
+
+/** Horários livres do dia para remarcar (ignora o próprio agendamento) */
+export async function listRescheduleSlots(
+  bookingId: string,
+  professionalId: string,
+  date: string
+): Promise<{ ok: true; slots: string[] } | { ok: false; error: string }> {
+  await getAdminContext();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return { ok: false, error: "Escolha a data." };
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("reschedule_slots", {
+    p_booking: bookingId,
+    p_professional: professionalId,
+    p_date: date,
+  });
+  if (error) return { ok: false, error: rescheduleError(error.message) };
+  return { ok: true, slots: ((data ?? []) as { slot_time: string }[]).map((s) => s.slot_time) };
+}
+
+export async function rescheduleBooking(input: {
+  bookingId: string;
+  professionalId: string;
+  date: string; // YYYY-MM-DD
+  time: string; // HH:MM
+  fit: boolean; // encaixe (matriz e recepção)
+}): Promise<{ ok: true; date: string; time: string; professional: string } | { ok: false; error: string }> {
+  await getEditorContext();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.date) || !/^\d{2}:\d{2}$/.test(input.time)) {
+    return { ok: false, error: "Escolha a data e o horário." };
+  }
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("reschedule_booking", {
+    p_booking: input.bookingId,
+    p_professional: input.professionalId,
+    p_date: input.date,
+    p_time: input.time,
+    p_fit: input.fit,
+  });
+  if (error) return { ok: false, error: rescheduleError(error.message) };
+
+  refresh();
+  revalidatePath("/admin/lembretes");
+  revalidatePath("/admin/clientes");
+  const r = data as { date: string; time: string; professional: string };
+  return { ok: true, date: r.date, time: r.time, professional: r.professional };
+}

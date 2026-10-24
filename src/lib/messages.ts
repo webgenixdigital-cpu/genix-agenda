@@ -49,3 +49,16 @@ export function returnMessage(name: string, service: string, lastDate: string, b
     `Ou responda esta mensagem que a gente agenda pra você.\n${businessName}`
   );
 }
+
+/** Aviso de remarcação com a nova data, hora e profissional */
+export function rescheduleMessage(
+  b: { customer_name: string; service_name: string; professional_name: string; booking_date: string; start_time: string },
+  businessName: string
+) {
+  const first = b.customer_name.split(" ")[0];
+  return (
+    `Olá, ${first}! Seu horário foi remarcado ✅\n\n` +
+    `• ${b.service_name}\n• Com ${b.professional_name}\n• ${longDate(b.booking_date)}, às ${b.start_time.slice(0, 5)}\n\n` +
+    `Se esse horário não for bom, é só responder esta mensagem.\n${businessName}`
+  );
+}

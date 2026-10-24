@@ -3,9 +3,20 @@
 import { useEffect, useState, useTransition } from "react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarDays, Loader2, Plus } from "lucide-react";
+import { CalendarDays, Check, Loader2, Lock, Plus, Repeat, X } from "lucide-react";
 import { toast } from "sonner";
-import { createManualBooking, findCustomerPackages, type PackageOption } from "@/app/admin/(painel)/agenda/actions";
+import Link from "next/link";
+import {
+  createManualBooking,
+  createSeries,
+  findCustomerPackages,
+  previewSeries,
+  type PackageOption,
+  type SeriesDate,
+  type SeriesFrequency,
+  type SeriesInput,
+} from "@/app/admin/(painel)/agenda/actions";
+import { FREQUENCY_LABEL, SKIP_REASON } from "@/lib/series";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -21,7 +32,13 @@ type Props = {
   defaultDate: string;
   services: { id: string; name: string; price: number; duration_min: number }[];
   professionals: { id: string; name: string }[];
+  /** plano Completo: libera "Repetir" (agendamentos recorrentes) */
+  fullAccess?: boolean;
 };
+
+type Preview = { dates: SeriesDate[]; packageFit: number | null; packageExpires: string | null };
+
+const shortDate = (iso: string) => format(parseISO(iso), "EEE, dd/MM/yyyy", { locale: ptBR });
 
 // 06:00 até 22:00, de 15 em 15 minutos
 const TIMES = Array.from({ length: 65 }, (_, i) => {
@@ -29,7 +46,7 @@ const TIMES = Array.from({ length: 65 }, (_, i) => {
   return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 });
 
-export function NewBookingDialog({ defaultDate, services, professionals }: Props) {
+export function NewBookingDialog({ defaultDate, services, professionals, fullAccess = false }: Props) {
   const [open, setOpen] = useState(false);
   const [calOpen, setCalOpen] = useState(false);
   const [pending, start] = useTransition();
@@ -62,6 +79,19 @@ export function NewBookingDialog({ defaultDate, services, professionals }: Props
     };
   }, [open, serviceId, phoneDigits]);
 
+  // recorrência: qualquer mudança nos dados invalida a prévia
+  const [repeat, setRepeat] = useState(false);
+  const [frequency, setFrequency] = useState<SeriesFrequency>("weekly");
+  const [count, setCount] = useState("4");
+  const [preview, setPreview] = useState<Preview | null>(null);
+  useEffect(() => {
+    setPreview(null);
+  }, [serviceId, professionalId, date, time, phoneDigits, packageId, repeat, frequency, count]);
+
+  const n = Math.min(Math.max(Number(count) || 0, 0), 52);
+  const okDates = preview?.dates.filter((d) => !d.issue) ?? [];
+  const packageShort = preview && packageId && preview.packageFit !== null && preview.packageFit < n ? preview.packageFit : null;
+
   function openDialog() {
     setDate(defaultDate);
     setTime("");
@@ -69,11 +99,50 @@ export function NewBookingDialog({ defaultDate, services, professionals }: Props
     setPhone("");
     setNotes("");
     setError(null);
+    setRepeat(false);
+    setPreview(null);
     setOpen(true);
+  }
+
+  function seriesInput(): SeriesInput {
+    return {
+      serviceId, professionalId, date, time, frequency, count: n,
+      customerName: name, customerPhone: phone, notes, packageId,
+    };
+  }
+
+  function submitSeries() {
+    if (n < 1) return setError("Escolha de 1 a 52 vezes.");
+    if (name.trim().length < 2) return setError("Informe o nome do cliente.");
+    if (phoneDigits.length < 10) return setError("Informe o WhatsApp com DDD.");
+    start(async () => {
+      // 1º toque: prévia das datas
+      if (!preview) {
+        const r = await previewSeries(seriesInput());
+        if (!r) return;
+        if (r.ok) setPreview({ dates: r.dates, packageFit: r.packageFit, packageExpires: r.packageExpires });
+        else setError(r.error);
+        return;
+      }
+      // 2º toque: cria as datas livres e pula as recusadas
+      const r = await createSeries(seriesInput());
+      if (!r) return; // demonstração: o servidor redirecionou
+      if (!r.ok) return setError(r.error);
+      const msg = `${r.created} ${r.created === 1 ? "criado" : "criados"}, ${r.skipped.length} ${r.skipped.length === 1 ? "pulado" : "pulados"}`;
+      if (r.skipped.length > 0) {
+        toast.warning(msg, {
+          description: r.skipped.map((s) => `${shortDate(s.date)}: ${SKIP_REASON[s.issue ?? ""] ?? s.issue}`).join("\n"),
+          duration: 10000,
+        });
+      } else toast.success(msg);
+      if (r.created > 0) setOpen(false);
+      else setPreview(null);
+    });
   }
 
   function submit() {
     setError(null);
+    if (repeat) return submitSeries();
     start(async () => {
       const r = await createManualBooking({
         serviceId, professionalId, date, time, customerName: name, customerPhone: phone, notes, packageId,
@@ -228,15 +297,113 @@ export function NewBookingDialog({ defaultDate, services, professionals }: Props
               <Textarea id="nb-notes" rows={2} value={notes} onChange={(e) => setNotes(e.target.value.slice(0, 500))} />
             </div>
 
+            {/* Repetir (recorrência) — recurso do Completo */}
+            {fullAccess ? (
+              <div className="space-y-3 rounded-xl border p-3">
+                <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm font-semibold">
+                  <input
+                    type="checkbox"
+                    className="h-5 w-5 accent-primary"
+                    checked={repeat}
+                    onChange={(e) => setRepeat(e.target.checked)}
+                    data-testid="check-repetir"
+                  />
+                  <Repeat className="h-4 w-4 text-primary" /> Repetir este horário
+                </label>
+
+                {repeat && (
+                  <div className="grid grid-cols-[1fr_auto] items-end gap-3">
+                    <div className="space-y-1.5">
+                      <Label>Frequência</Label>
+                      <Select value={frequency} onValueChange={(v) => setFrequency(v as SeriesFrequency)}>
+                        <SelectTrigger className="h-11" data-testid="select-frequencia"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {(Object.keys(FREQUENCY_LABEL) as SeriesFrequency[]).map((f) => (
+                            <SelectItem key={f} value={f}>{FREQUENCY_LABEL[f]}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="nb-count">Vezes</Label>
+                      <Input
+                        id="nb-count"
+                        className="h-11 w-20"
+                        inputMode="numeric"
+                        value={count}
+                        onChange={(e) => setCount(e.target.value.replace(/\D/g, "").slice(0, 2))}
+                        data-testid="input-vezes"
+                      />
+                    </div>
+                    {frequency === "monthly" && Number(date.slice(8)) >= 29 && (
+                      <p className="col-span-2 text-xs text-muted-foreground">
+                        Nos meses sem esse dia, o horário cai no último dia do mês.
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {repeat && preview && (
+                  <div className="space-y-2" data-testid="previa-recorrencia">
+                    {packageShort !== null && (
+                      <div className="flex flex-wrap items-center gap-2 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
+                        <span>
+                          Só cabem {packageShort} {packageShort === 1 ? "sessão" : "sessões"} no pacote
+                          {preview.packageExpires ? ` até ${preview.packageExpires.split("-").reverse().join("/")}` : ""}.
+                        </span>
+                        {packageShort > 0 && (
+                          <Button type="button" size="sm" variant="outline" className="h-10" onClick={() => setCount(String(packageShort))} data-testid="btn-ajustar-vezes">
+                            Usar {packageShort}
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                    <ul className="max-h-56 space-y-1 overflow-y-auto rounded-lg bg-secondary/40 p-2 text-sm">
+                      {preview.dates.map((d) => (
+                        <li key={d.seq} className="flex items-center gap-2" data-testid={`previa-data-${d.seq}`}>
+                          {d.issue ? <X className="h-4 w-4 shrink-0 text-destructive" /> : <Check className="h-4 w-4 shrink-0 text-green-700" />}
+                          <span className={cn(d.issue && "text-muted-foreground line-through")}>{shortDate(d.date)} às {time}</span>
+                          {d.issue && <span className="text-xs text-destructive">{SKIP_REASON[d.issue] ?? d.issue}</span>}
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="text-xs text-muted-foreground">
+                      Datas com ✕ serão puladas (sem data extra no fim).
+                      {packageId ? " Sessão pulada não usa o saldo do pacote." : ""}
+                    </p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <Link
+                href="/admin/assinatura"
+                className="flex min-h-11 items-center gap-2 rounded-xl border border-dashed p-3 text-sm text-muted-foreground hover:text-foreground"
+                data-testid="link-repetir-bloqueado"
+              >
+                <Lock className="h-4 w-4 text-primary" /> Repetir este horário · recurso do plano Completo
+              </Link>
+            )}
+
             {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-destructive">{error}</p>}
 
             <Button
               type="submit"
               className="h-12 w-full text-base"
-              disabled={pending || !serviceId || !professionalId || !time}
+              disabled={
+                pending || !serviceId || !professionalId || !time ||
+                (repeat && !!preview && (okDates.length === 0 || packageShort !== null))
+              }
               data-testid="btn-salvar-agendamento-manual"
             >
-              {pending ? <Loader2 className="h-5 w-5 animate-spin" /> : "Salvar agendamento"}
+              {pending ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : !repeat ? (
+                "Salvar agendamento"
+              ) : !preview ? (
+                "Ver datas"
+              ) : (
+                `Criar ${okDates.length} ${okDates.length === 1 ? "agendamento" : "agendamentos"}`
+              )}
             </Button>
           </form>
         </DialogContent>

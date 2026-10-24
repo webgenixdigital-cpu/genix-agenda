@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarOff, Globe, Package, Phone, StickyNote } from "lucide-react";
+import { CalendarOff, Globe, Package, Phone, Repeat, StickyNote } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminContext, seesWholeTeam } from "@/lib/admin";
 import { getPlanContext } from "@/lib/plan";
@@ -36,7 +36,7 @@ export default async function AgendaPage({ searchParams }: Props) {
 
   let q = supabase
     .from("bookings")
-    .select("id, booking_date, start_time, end_time, customer_name, customer_phone, customer_notes, customer_id, service_name, professional_name, professional_id, price, status, source, customer_package_id")
+    .select("id, booking_date, start_time, end_time, customer_name, customer_phone, customer_notes, customer_id, service_name, professional_name, professional_id, price, status, source, customer_package_id, series_id")
     .eq("business_id", business.id)
     .order("booking_date")
     .order("start_time");
@@ -99,7 +99,7 @@ export default async function AgendaPage({ searchParams }: Props) {
               : `${activeCount} ${activeCount === 1 ? "atendimento" : "atendimentos"}, ${brl(expected)} previstos`}
           </p>
         </div>
-        <NewBookingDialog defaultDate={date} services={services ?? []} professionals={pros} />
+        <NewBookingDialog defaultDate={date} services={services ?? []} professionals={pros} fullAccess={plan.tier === "completo"} />
       </header>
 
       <AgendaToolbar
@@ -168,6 +168,14 @@ export default async function AgendaPage({ searchParams }: Props) {
                         <p className="font-semibold">{b.customer_name}</p>
                       )}
                       <StatusBadge status={b.status} />
+                      {b.series_id && (
+                        <span
+                          className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-primary"
+                          data-testid={`selo-recorrente-${b.id}`}
+                        >
+                          <Repeat className="h-3 w-3" /> Recorrente
+                        </span>
+                      )}
                       <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
                         <Globe className="h-3 w-3" /> {SOURCE[b.source] ?? b.source}
                       </span>

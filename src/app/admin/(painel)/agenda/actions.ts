@@ -175,3 +175,106 @@ export async function findCustomerPackages(phone: string, serviceId: string): Pr
     .order("sold_at");
   return (data ?? []) as PackageOption[];
 }
+
+// ---------------------------------------------------------------------
+// PARTE 5 — Agendamentos recorrentes (regras no banco: 20_recorrencia.sql)
+// ---------------------------------------------------------------------
+export type SeriesFrequency = "weekly" | "biweekly" | "monthly";
+
+export type SeriesInput = {
+  serviceId: string;
+  professionalId: string;
+  date: string; // primeira data, YYYY-MM-DD
+  time: string; // HH:MM
+  frequency: SeriesFrequency;
+  count: number;
+  customerName: string;
+  customerPhone: string;
+  notes?: string;
+  packageId?: string | null;
+};
+
+export type SeriesDate = { seq: number; date: string; issue: string | null };
+
+const SERIES_ERRORS: Record<string, string> = {
+  PLANO_GRATIS: "Agendamentos recorrentes são um recurso do plano Completo.",
+  SEM_PERMISSAO: "Você só pode agendar na sua própria agenda.",
+  FREQUENCIA_INVALIDA: "Escolha a frequência.",
+  QUANTIDADE_INVALIDA: "Escolha de 1 a 52 vezes.",
+  DADOS_INVALIDOS: "Confira serviço, profissional, data, horário, nome e WhatsApp.",
+  PACOTE_INVALIDO: "Esse pacote não pode ser usado aqui (cancelado, de outro cliente ou de outro serviço).",
+  NAO_ENCONTRADO: "Série não encontrada.",
+};
+const seriesError = (message: string, fallback: string) =>
+  SERIES_ERRORS[Object.keys(SERIES_ERRORS).find((k) => message.includes(k)) ?? ""] ?? fallback;
+
+function seriesArgs(input: SeriesInput, businessId: string) {
+  return {
+    p_business: businessId,
+    p_professional: input.professionalId,
+    p_service: input.serviceId,
+    p_date: input.date,
+    p_time: input.time,
+    p_frequency: input.frequency,
+    p_count: input.count,
+    p_package: input.packageId || null,
+  };
+}
+
+/** Prévia: cada data com ✓ (issue null) ou o motivo. packageFit = sessões que cabem no pacote. */
+export async function previewSeries(
+  input: SeriesInput
+): Promise<{ ok: true; dates: SeriesDate[]; packageFit: number | null; packageExpires: string | null } | { ok: false; error: string }> {
+  const { business } = await getAdminContext();
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("preview_booking_series", {
+    ...seriesArgs(input, business.id),
+    p_phone: input.customerPhone.replace(/\D/g, ""),
+  });
+  if (error) return { ok: false, error: seriesError(error.message, "Não foi possível montar a prévia.") };
+
+  const rows = (data ?? []) as { seq: number; occurs_on: string; issue: string | null; package_fit: number | null; package_expires: string | null }[];
+  return {
+    ok: true,
+    dates: rows.map((r) => ({ seq: r.seq, date: r.occurs_on, issue: r.issue })),
+    packageFit: rows[0]?.package_fit ?? null,
+    packageExpires: rows[0]?.package_expires ?? null,
+  };
+}
+
+export async function createSeries(
+  input: SeriesInput
+): Promise<{ ok: true; created: number; skipped: SeriesDate[] } | { ok: false; error: string }> {
+  const { business } = await getEditorContext();
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("create_booking_series", {
+    ...seriesArgs(input, business.id),
+    p_customer_name: input.customerName.trim(),
+    p_customer_phone: input.customerPhone.replace(/\D/g, ""),
+    p_notes: input.notes?.trim() || null,
+  });
+  if (error) {
+    const fit = /PACOTE_NAO_CABE:(\d+)/.exec(error.message);
+    if (fit) return { ok: false, error: `O pacote só tem ${fit[1]} ${fit[1] === "1" ? "sessão disponível" : "sessões disponíveis"} para essas datas.` };
+    return { ok: false, error: seriesError(error.message, "Não foi possível criar a série.") };
+  }
+
+  const rows = (data ?? []) as { seq: number; occurs_on: string; booking_id: string | null; issue: string | null }[];
+  refresh();
+  if (input.packageId) revalidatePath("/admin/clientes");
+  return {
+    ok: true,
+    created: rows.filter((r) => r.booking_id).length,
+    skipped: rows.filter((r) => !r.booking_id).map((r) => ({ seq: r.seq, date: r.occurs_on, issue: r.issue ?? "RECUSADO" })),
+  };
+}
+
+export async function cancelSeriesFuture(seriesId: string): Promise<{ ok: true; cancelled: number } | { ok: false; error: string }> {
+  await getEditorContext();
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("cancel_series_future", { p_series: seriesId });
+  if (error) return { ok: false, error: seriesError(error.message, "Não foi possível cancelar a série.") };
+  refresh();
+  revalidatePath("/admin/clientes");
+  return { ok: true, cancelled: Number(data ?? 0) };
+}

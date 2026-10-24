@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { Check, CheckCheck, Loader2, MessageCircle, Star, X } from "lucide-react";
+import { Check, CheckCheck, Loader2, MessageCircle, Repeat, Star, X } from "lucide-react";
 import { toast } from "sonner";
-import { completeBooking, updateBookingStatus } from "@/app/admin/(painel)/agenda/actions";
+import { cancelSeriesFuture, completeBooking, updateBookingStatus } from "@/app/admin/(painel)/agenda/actions";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { brl, whatsappLink } from "@/lib/format";
@@ -25,6 +25,8 @@ export type AgendaBooking = {
   source: string;
   /** sessão de pacote: já foi paga na venda do pacote */
   customer_package_id?: string | null;
+  /** faz parte de uma série recorrente */
+  series_id?: string | null;
 };
 
 const METHODS = [
@@ -121,6 +123,32 @@ export function BookingActions({
           data-testid={`btn-cancelar-${b.id}`}
         >
           <X className="mr-1.5 h-4 w-4" /> Cancelar
+        </Button>
+      )}
+
+      {b.series_id && (b.status === "pending" || b.status === "confirmed") && (
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-10 text-muted-foreground hover:bg-red-50 hover:text-destructive"
+          disabled={pending}
+          onClick={() => {
+            const note = b.customer_package_id ? "\n\nAs sessões voltam para o saldo do pacote." : "";
+            if (!confirm(`Cancelar este e os próximos horários desta série de ${b.customer_name}?\nOs que já passaram não mudam.${note}`)) return;
+            start(async () => {
+              const r = await cancelSeriesFuture(b.series_id!);
+              if (!r) return; // demonstração: o servidor redirecionou
+              if (!r.ok) return void toast.error(r.error);
+              toast.success(
+                r.cancelled === 0
+                  ? "Nenhum horário futuro desta série para cancelar"
+                  : `${r.cancelled} ${r.cancelled === 1 ? "horário cancelado" : "horários cancelados"}`
+              );
+            });
+          }}
+          data-testid={`btn-cancelar-serie-${b.id}`}
+        >
+          <Repeat className="mr-1.5 h-4 w-4" /> Cancelar as próximas desta série
         </Button>
       )}
 

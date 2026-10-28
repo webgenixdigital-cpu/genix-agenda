@@ -11,3 +11,15 @@ export function todayISO(offsetDays = 0) {
 export function monthStartISO() {
   return todayISO().slice(0, 8) + "01";
 }
+/** "2026-10-07" + n dias (aritmética de calendário, sem fuso) */
+export function addDaysISO(iso: string, n: number) {
+  const d = new Date(`${iso}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+/** Segunda-feira da semana de uma data "yyyy-mm-dd" */
+export function mondayOf(iso: string) {
+  const weekday = new Date(`${iso}T12:00:00Z`).getUTCDay(); // 0 = domingo
+  return addDaysISO(iso, -((weekday + 6) % 7));
+}

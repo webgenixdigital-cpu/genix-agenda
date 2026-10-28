@@ -35,6 +35,11 @@ type Props = {
   professionals: { id: string; name: string }[];
   /** plano Completo: libera "Repetir" (agendamentos recorrentes) */
   fullAccess?: boolean;
+  /** modo controlado (grade semanal): abre por fora, sem o botão próprio */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  /** pré-preenchimento ao abrir (clique num horário vazio da grade) */
+  initial?: { date: string; time: string; professionalId?: string | null };
 };
 
 type Preview = { dates: SeriesDate[]; packageFit: number | null; packageExpires: string | null };
@@ -47,8 +52,19 @@ const TIMES = Array.from({ length: 65 }, (_, i) => {
   return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 });
 
-export function NewBookingDialog({ defaultDate, services, professionals, fullAccess = false }: Props) {
-  const [open, setOpen] = useState(false);
+export function NewBookingDialog({
+  defaultDate,
+  services,
+  professionals,
+  fullAccess = false,
+  open: openProp,
+  onOpenChange,
+  initial,
+}: Props) {
+  const controlled = openProp !== undefined;
+  const [innerOpen, setInnerOpen] = useState(false);
+  const open = controlled ? openProp : innerOpen;
+  const setOpen = (v: boolean) => (controlled ? onOpenChange?.(v) : setInnerOpen(v));
   const [calOpen, setCalOpen] = useState(false);
   const [pending, start] = useTransition();
 
@@ -93,17 +109,31 @@ export function NewBookingDialog({ defaultDate, services, professionals, fullAcc
   const okDates = preview?.dates.filter((d) => !d.issue) ?? [];
   const packageShort = preview && packageId && preview.packageFit !== null && preview.packageFit < n ? preview.packageFit : null;
 
-  function openDialog() {
-    setDate(defaultDate);
-    setTime("");
+  function fill(init?: Props["initial"]) {
+    setDate(init?.date ?? defaultDate);
+    setTime(init?.time ?? "");
+    if (init?.professionalId) setProfessionalId(init.professionalId);
     setName("");
     setPhone("");
     setNotes("");
     setError(null);
     setRepeat(false);
     setPreview(null);
+  }
+
+  function openDialog() {
+    fill();
     setOpen(true);
   }
+
+  // modo controlado: preenche a cada abertura
+  useEffect(() => {
+    if (controlled && openProp) fill(initial);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [controlled, openProp, initial]);
+
+  // horário vindo da grade fora da lista de 15 em 15 (ex.: passo de 10 min)
+  const times = !time || TIMES.includes(time) ? TIMES : [...TIMES, time].sort();
 
   function seriesInput(): SeriesInput {
     return {
@@ -160,9 +190,11 @@ export function NewBookingDialog({ defaultDate, services, professionals, fullAcc
 
   return (
     <>
-      <Button className="h-11" onClick={openDialog} data-testid="btn-novo-agendamento">
-        <Plus className="mr-1.5 h-4 w-4" /> Novo agendamento
-      </Button>
+      {!controlled && (
+        <Button className="h-11" onClick={openDialog} data-testid="btn-novo-agendamento">
+          <Plus className="mr-1.5 h-4 w-4" /> Novo agendamento
+        </Button>
+      )}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-h-[92svh] w-[calc(100%-1.5rem)] max-w-lg overflow-y-auto rounded-2xl">
@@ -233,7 +265,7 @@ export function NewBookingDialog({ defaultDate, services, professionals, fullAcc
                 <Select value={time} onValueChange={setTime}>
                   <SelectTrigger className="h-11" data-testid="select-horario-manual"><SelectValue placeholder="--:--" /></SelectTrigger>
                   <SelectContent className="max-h-64">
-                    {TIMES.map((t) => (
+                    {times.map((t) => (
                       <SelectItem key={t} value={t}>{t}</SelectItem>
                     ))}
                   </SelectContent>

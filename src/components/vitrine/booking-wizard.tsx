@@ -341,25 +341,7 @@ export function BookingWizard({ slug, businessName, whatsapp, services, professi
               {/* ---------- PASSO 3: DATA E HORÁRIO ---------- */}
               {step === 2 && (
                 <div className="space-y-5">
-                  <TurnstileWidget onToken={setToken} />
-
-                  {error && (
-                    <div className="space-y-3 rounded-lg bg-red-50 p-3 text-sm text-destructive" data-testid="booking-error">
-                      <p>{error}</p>
-                      {limitHit && whatsapp && (
-                        <Button asChild className="h-11 w-full bg-whatsapp text-white hover:bg-whatsapp-hover">
-                          <a
-                            href={whatsappLink(whatsapp, `Olá, ${businessName}! Quero marcar mais um horário.`) ?? undefined}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            data-testid="btn-whatsapp-limite"
-                          >
-                            <MessageCircle className="h-5 w-5" /> Falar com o espaço no WhatsApp
-                          </a>
-                        </Button>
-                      )}
-                    </div>
-                  )}
+                  {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-destructive">{error}</p>}
                   <div className="flex justify-center rounded-xl border bg-card">
                     <Calendar
                       mode="single"
@@ -467,7 +449,25 @@ export function BookingWizard({ slug, businessName, whatsapp, services, professi
                     />
                   </div>
 
-                  {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-destructive">{error}</p>}
+                  <TurnstileWidget onToken={setToken} />
+
+                  {error && (
+                    <div className="space-y-3 rounded-lg bg-red-50 p-3 text-sm text-destructive" data-testid="booking-error">
+                      <p>{error}</p>
+                      {limitHit && whatsapp && (
+                        <Button asChild className="h-11 w-full bg-whatsapp text-white hover:bg-whatsapp-hover">
+                          <a
+                            href={whatsappLink(whatsapp, `Olá, ${businessName}! Quero marcar mais um horário.`) ?? undefined}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            data-testid="btn-whatsapp-limite"
+                          >
+                            <MessageCircle className="h-5 w-5" /> Falar com o espaço no WhatsApp
+                          </a>
+                        </Button>
+                      )}
+                    </div>
+                  )}
 
                   <Button type="submit" className="h-12 w-full text-base" disabled={!canSubmit} data-testid="btn-confirm-booking">
                     {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : "Confirmar agendamento"}
@@ -541,7 +541,10 @@ function TurnstileWidget({ onToken }: { onToken: (t: string) => void }) {
       sitekey: TURNSTILE_SITE_KEY,
       language: "pt-br",
       callback: (t: string) => onToken(t),
+      // token vale 5 min: ao expirar, trava o botão e o widget renova sozinho
+      "refresh-expired": "auto",
       "expired-callback": () => onToken(""),
+      "timeout-callback": () => onToken(""),
       "error-callback": () => onToken(""),
     });
   }, [onToken]);
@@ -557,8 +560,9 @@ function TurnstileWidget({ onToken }: { onToken: (t: string) => void }) {
       window.removeEventListener(TURNSTILE_RESET, reset);
       if (widgetId.current) window.turnstile?.remove(widgetId.current);
       widgetId.current = null;
+      onToken("");
     };
-  }, []);
+  }, [onToken]);
 
   if (!TURNSTILE_SITE_KEY) {
     return (

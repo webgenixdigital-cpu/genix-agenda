@@ -36,6 +36,8 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
 | `SUPABASE_SERVICE_ROLE_KEY` | **só servidor** | usada em `src/lib/supabase/admin.ts` (webhook, convites) |
 | `DEMO_EMAIL` / `DEMO_PASSWORD` | só servidor | login da demonstração pública (`/demo`) |
 | `ASAAS_API_URL` / `ASAAS_API_KEY` / `ASAAS_WEBHOOK_TOKEN` | só servidor | local = **sandbox**; Vercel = produção |
+| `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | navegador | Cloudflare Turnstile (site key pública); local usa as chaves de teste da Cloudflare |
+| `TURNSTILE_SECRET_KEY` | **só servidor** | valida o token na server action da vitrine; local usa a secret de teste da Cloudflare |
 
 - Nunca prefixar segredos com `NEXT_PUBLIC_`. Nunca importar `lib/supabase/admin.ts` em componente `"use client"`.
 - No `.env.local`, a chave do Asaas começa com `$`: escrever `ASAAS_API_KEY=\$aact_...` (na Vercel, sem a barra).
@@ -150,5 +152,5 @@ supabase-templates/          modelos de e-mail do Supabase
 1. Nunca fazer push direto no main nem fazer merge de PR — o merge é sempre do Leonardo.
 2. Uma etapa = um branch (feat/..., fix/..., docs/...) = um PR.
 3. Antes de abrir o PR: npx tsc --noEmit, npm run lint e npm run build sem erros.
-4. Migration nova: SQL completo na descrição do PR, com aviso "rodar ANTES do merge".
+4. Migration nova: SQL completo na descrição do PR. Regra geral: rodar ANTES do merge. Exceção: migration que REMOVE permissão usada pelo código atual (revoke) roda DEPOIS do deploy do código novo — o PR deve dizer isso em destaque.
 5. Nunca commitar .env*, chaves ou dados de clientes.

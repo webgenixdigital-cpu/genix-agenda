@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Script from "next/script";
 import { format, addDays, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ArrowLeft, Check, Loader2, MessageCircle, UserRound } from "lucide-react";
@@ -16,6 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { brl, duration, longDate, maskPhone, whatsappLink } from "@/lib/format";
 import type { BusinessHour, Professional, Service } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { createPublicBooking } from "@/app/v/[slug]/actions";
 
 // ---------------------------------------------------------------------
 // PARTE 1 — Tipos e constantes
@@ -45,12 +47,18 @@ type Confirmation = {
 const STEPS = ["Serviço", "Profissional", "Data e horário", "Seus dados"];
 const ANY = "any";
 
-const ERRORS: Record<string, string> = {
-  HORARIO_INDISPONIVEL: "Esse horário acabou de ser reservado. Escolha outro horário.",
-  DADOS_INVALIDOS: "Confira seu nome e um WhatsApp com DDD.",
-  SERVICO_INVALIDO: "Este serviço não está disponível para agendamento online.",
-  ESTABELECIMENTO_NAO_ENCONTRADO: "Este espaço não está recebendo agendamentos online.",
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+
+type TurnstileApi = {
+  render: (el: HTMLElement, opts: Record<string, unknown>) => string;
+  reset: (id?: string) => void;
+  remove: (id: string) => void;
 };
+declare global {
+  interface Window {
+    turnstile?: TurnstileApi;
+  }
+}
 
 // ---------------------------------------------------------------------
 // PARTE 2 — Componente
@@ -74,6 +82,8 @@ export function BookingWizard({ slug, businessName, whatsapp, services, professi
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<Confirmation | null>(null);
+  const [limitHit, setLimitHit] = useState(false);
+  const [token, setToken] = useState("");
 
   const service = services.find((s) => s.id === serviceId) ?? null;
   const closedDays = hours.filter((h) => h.closed).map((h) => h.weekday);
@@ -145,38 +155,46 @@ export function BookingWizard({ slug, businessName, whatsapp, services, professi
     setSlots([]);
     setError(null);
     setDone(null);
+    setLimitHit(false);
+    setToken("");
   }
 
   async function submit() {
     if (!service || !date || !time) return;
     setSending(true);
     setError(null);
-    const { data, error } = await supabase.rpc("create_public_booking", {
-      p_slug: slug,
-      p_service_id: service.id,
-      p_date: format(date, "yyyy-MM-dd"),
-      p_time: time,
-      p_customer_name: name,
-      p_customer_phone: phone,
-      p_customer_notes: notes || null,
-      p_professional_id: proId === ANY ? null : proId,
+    setLimitHit(false);
+    const r = await createPublicBooking({
+      slug,
+      serviceId: service.id,
+      date: format(date, "yyyy-MM-dd"),
+      time,
+      name,
+      phone,
+      notes: notes || null,
+      professionalId: proId === ANY ? null : proId,
+      token,
     });
     setSending(false);
+    if (!r) return;
 
-    if (error) {
-      const code = Object.keys(ERRORS).find((k) => error.message.includes(k));
-      setError(code ? ERRORS[code] : "Não foi possível concluir o agendamento. Tente novamente.");
-      if (code === "HORARIO_INDISPONIVEL") {
+    if (!r.ok) {
+      // o token do Turnstile é de uso único: pede outro
+      setToken("");
+      window.dispatchEvent(new Event(TURNSTILE_RESET));
+      setError(r.error);
+      if (r.code === "LIMITE_ESPACO" || r.code === "LIMITE_DIARIO") setLimitHit(true);
+      if (r.code === "HORARIO_INDISPONIVEL") {
         setStep(2);
         setDate(new Date(date)); // força recarregar os horários
       }
       return;
     }
-    setDone(data as Confirmation);
+    setDone(r.booking);
   }
 
   const phoneDigits = phone.replace(/\D/g, "");
-  const canSubmit = name.trim().length >= 2 && phoneDigits.length >= 10 && !sending;
+  const canSubmit = name.trim().length >= 2 && phoneDigits.length >= 10 && !!token && !sending;
 
   const waText = done
     ? `Olá, ${businessName}! Acabei de agendar pelo site:\n\n` +
@@ -431,7 +449,25 @@ export function BookingWizard({ slug, businessName, whatsapp, services, professi
                     />
                   </div>
 
-                  {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-destructive">{error}</p>}
+                  <TurnstileWidget onToken={setToken} />
+
+                  {error && (
+                    <div className="space-y-3 rounded-lg bg-red-50 p-3 text-sm text-destructive" data-testid="booking-error">
+                      <p>{error}</p>
+                      {limitHit && whatsapp && (
+                        <Button asChild className="h-11 w-full bg-whatsapp text-white hover:bg-whatsapp-hover">
+                          <a
+                            href={whatsappLink(whatsapp, `Olá, ${businessName}! Quero marcar mais um horário.`) ?? undefined}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            data-testid="btn-whatsapp-limite"
+                          >
+                            <MessageCircle className="h-5 w-5" /> Falar com o espaço no WhatsApp
+                          </a>
+                        </Button>
+                      )}
+                    </div>
+                  )}
 
                   <Button type="submit" className="h-12 w-full text-base" disabled={!canSubmit} data-testid="btn-confirm-booking">
                     {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : "Confirmar agendamento"}
@@ -487,5 +523,65 @@ function ProOption(props: {
         {props.subtitle && <span className="text-sm text-muted-foreground">{props.subtitle}</span>}
       </span>
     </button>
+  );
+}
+// ---------------------------------------------------------------------
+// PARTE 5 — Cloudflare Turnstile (modo Managed)
+// ---------------------------------------------------------------------
+const TURNSTILE_RESET = "genix:turnstile-reset";
+
+function TurnstileWidget({ onToken }: { onToken: (t: string) => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const widgetId = useRef<string | null>(null);
+  const [ready, setReady] = useState(typeof window !== "undefined" && !!window.turnstile);
+
+  const mount = useCallback(() => {
+    if (!TURNSTILE_SITE_KEY || !ref.current || !window.turnstile || widgetId.current) return;
+    widgetId.current = window.turnstile.render(ref.current, {
+      sitekey: TURNSTILE_SITE_KEY,
+      language: "pt-br",
+      callback: (t: string) => onToken(t),
+      // token vale 5 min: ao expirar, trava o botão e o widget renova sozinho
+      "refresh-expired": "auto",
+      "expired-callback": () => onToken(""),
+      "timeout-callback": () => onToken(""),
+      "error-callback": () => onToken(""),
+    });
+  }, [onToken]);
+
+  useEffect(() => {
+    if (ready) mount();
+  }, [ready, mount]);
+
+  useEffect(() => {
+    const reset = () => widgetId.current && window.turnstile?.reset(widgetId.current);
+    window.addEventListener(TURNSTILE_RESET, reset);
+    return () => {
+      window.removeEventListener(TURNSTILE_RESET, reset);
+      if (widgetId.current) window.turnstile?.remove(widgetId.current);
+      widgetId.current = null;
+      onToken("");
+    };
+  }, [onToken]);
+
+  if (!TURNSTILE_SITE_KEY) {
+    return (
+      <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900" data-testid="turnstile-sem-chave">
+        {process.env.NODE_ENV === "production"
+          ? "Agendamento online indisponível no momento. Fale com o espaço pelo WhatsApp."
+          : "Turnstile não configurado: defina NEXT_PUBLIC_TURNSTILE_SITE_KEY no .env.local."}
+      </p>
+    );
+  }
+
+  return (
+    <>
+      <Script
+        src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
+        strategy="afterInteractive"
+        onReady={() => setReady(true)}
+      />
+      <div ref={ref} className="min-h-[65px]" data-testid="turnstile-widget" />
+    </>
   );
 }

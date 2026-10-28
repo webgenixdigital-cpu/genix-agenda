@@ -1,91 +1,114 @@
 import Link from "next/link";
 import { CalendarOff, Globe, Package, Phone, Repeat, StickyNote } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
 import { getAdminContext, seesWholeTeam } from "@/lib/admin";
 import { getPlanContext } from "@/lib/plan";
-import { todayISO } from "@/lib/dates";
+import { addDaysISO, mondayOf, todayISO } from "@/lib/dates";
+import { agendaProfessional, blockAppliesOn, loadAgenda } from "@/lib/agenda-data";
 import { brl, longDate, maskPhone } from "@/lib/format";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { AgendaToolbar } from "@/components/admin/agenda/agenda-toolbar";
-import { BookingActions, type AgendaBooking } from "@/components/admin/agenda/booking-actions";
+import { BookingActions } from "@/components/admin/agenda/booking-actions";
+import { ViewPreference } from "@/components/admin/agenda/view-preference";
+import { WeekGrid } from "@/components/admin/agenda/week-grid";
 import { NewBookingDialog } from "@/components/admin/agenda/new-booking-dialog";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
-type Props = { searchParams: { data?: string; status?: string; prof?: string } };
+type Props = { searchParams: { data?: string; status?: string; prof?: string; visao?: string; cancelados?: string } };
 
 const SOURCE: Record<string, string> = { online: "Vitrine", whatsapp: "WhatsApp", manual: "Manual" };
 const STATUSES = ["pending", "confirmed", "completed", "cancelled"];
+const shortISO = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
 
 // ---------------------------------------------------------------------
 // PARTE 1 — Dados
 // ---------------------------------------------------------------------
 export default async function AgendaPage({ searchParams }: Props) {
-  const { business, role, professionalId } = await getAdminContext();
+  const ctx = await getAdminContext();
+  const { business, role, professionalId } = ctx;
   const wholeTeam = seesWholeTeam(role);
   const plan = await getPlanContext(business.id);
-  const supabase = createClient();
 
   const today = todayISO();
   const date = /^\d{4}-\d{2}-\d{2}$/.test(searchParams.data ?? "") ? searchParams.data! : today;
+  const view = searchParams.visao === "semana" ? "semana" : "dia";
+  const prof = agendaProfessional(wholeTeam, searchParams.prof, professionalId);
+
+  // ------------------------- VISÃO SEMANA -------------------------
+  if (view === "semana") {
+    const showCancelled = searchParams.cancelados === "1";
+    const weekStart = mondayOf(date);
+    const weekEnd = addDaysISO(weekStart, 6);
+    const data = await loadAgenda(ctx, wholeTeam, {
+      from: weekStart,
+      to: weekEnd,
+      status: "all",
+      prof,
+      withHours: true,
+      hideCancelled: !showCancelled,
+    });
+    const activeCount = data.list.filter((b) => b.status !== "cancelled").length;
+
+    return (
+      <main className="mx-auto max-w-7xl space-y-6 p-4 md:p-8">
+        <ViewPreference view={view} />
+        <header className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <h1 className="text-3xl md:text-4xl">Agenda da semana</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {activeCount} {activeCount === 1 ? "atendimento" : "atendimentos"} de {shortISO(weekStart)} a {shortISO(weekEnd)}
+            </p>
+          </div>
+          <NewBookingDialog defaultDate={date} services={data.services} professionals={data.pros} fullAccess={plan.tier === "completo"} />
+        </header>
+
+        <AgendaToolbar
+          view="semana"
+          date={weekStart}
+          today={today}
+          status="all"
+          professionalId={prof}
+          pendingMode={false}
+          professionals={data.pros}
+          showCancelled={showCancelled}
+        />
+
+        <WeekGrid
+          weekStart={weekStart}
+          today={today}
+          bookings={data.list}
+          sessionLabel={data.sessionLabel}
+          blocks={data.blocks}
+          hours={data.hours}
+          slotStep={(business as { slot_step_min?: number }).slot_step_min ?? 30}
+          professionals={data.pros}
+          showProfessionalColors={wholeTeam && prof === "all" && data.pros.length > 1}
+          selectedProfessional={prof === "all" ? null : prof}
+          services={data.services}
+          canEdit={role !== "viewer"}
+          fullAccess={plan.tier === "completo"}
+          businessName={business.name}
+          slug={business.slug}
+          reschedule={data.reschedule}
+        />
+      </main>
+    );
+  }
+
+  // ------------------------- VISÃO DIA -------------------------
   const status = STATUSES.includes(searchParams.status ?? "") ? searchParams.status! : "all";
-  const prof = wholeTeam ? searchParams.prof ?? "all" : professionalId ?? "00000000-0000-0000-0000-000000000000";
   // "Pendentes" sem data escolhida = todos os pedidos pendentes a partir de hoje
   const pendingMode = status === "pending" && !searchParams.data;
 
-  let q = supabase
-    .from("bookings")
-    .select("id, booking_date, start_time, end_time, customer_name, customer_phone, customer_notes, customer_id, service_name, professional_name, professional_id, service_id, price, status, source, customer_package_id, series_id")
-    .eq("business_id", business.id)
-    .order("booking_date")
-    .order("start_time");
-  q = pendingMode ? q.gte("booking_date", today) : q.eq("booking_date", date);
-  if (status !== "all") q = q.eq("status", status);
-  if (prof !== "all") q = q.eq("professional_id", prof);
-
-  const [{ data: bookings }, { data: services }, { data: professionals }, { data: blocks }] = await Promise.all([
-    q,
-    supabase.from("services").select("id, name, price, duration_min")
-      .eq("business_id", business.id).eq("active", true).order("sort_order"),
-    supabase.from("professionals").select("id, name")
-      .eq("business_id", business.id).eq("active", true).order("sort_order"),
-    supabase.from("schedule_blocks").select("professional_id, time_start, time_end, reason, recurring, weekdays")
-      .eq("business_id", business.id).lte("date_start", date).gte("date_end", date),
-  ]);
-
-  const list = (bookings ?? []) as (AgendaBooking & { professional_id: string; customer_id: string | null })[];
-  // sessões de pacote: "Pacote 3/10"
-  const packageIds = list.filter((b) => b.customer_package_id).map((b) => b.id);
-  const { data: pkgInfo } = packageIds.length
-    ? await supabase.rpc("booking_package_info", { p_business: business.id, p_bookings: packageIds })
-    : { data: [] };
-  const sessionLabel = new Map<string, string>(
-    ((pkgInfo ?? []) as { booking_id: string; session_no: number; sessions_total: number }[]).map((i) => [
-      i.booking_id,
-      `Pacote ${i.session_no}/${i.sessions_total}`,
-    ])
-  );
-
-  const pros = (professionals ?? []).filter((p) => wholeTeam || p.id === professionalId);
-
-  // remarcar: profissionais com os serviços que fazem (sem vínculo = fazem todos)
-  const { data: links } = await supabase
-    .from("professional_services")
-    .select("professional_id, service_id")
-    .in("professional_id", pros.map((p) => p.id));
-  const reschedule = {
-    professionals: pros.map((p) => {
-      const ids = (links ?? []).filter((l) => l.professional_id === p.id).map((l) => l.service_id as string);
-      return { id: p.id, name: p.name, serviceIds: ids.length ? ids : null };
-    }),
-    canChooseProfessional: role === "owner" || role === "reception",
-    today,
-  };
-  const weekday = new Date(`${date}T12:00:00`).getDay();
-  const dayBlocks = pendingMode
-    ? []
-    : (blocks ?? []).filter((k) => !k.recurring || (k.weekdays as number[]).includes(weekday));
+  const { list, sessionLabel, services, pros, blocks, reschedule } = await loadAgenda(ctx, wholeTeam, {
+    from: pendingMode ? today : date,
+    to: date,
+    status,
+    prof,
+    pendingMode,
+  });
+  const dayBlocks = pendingMode ? [] : blocks.filter((k) => blockAppliesOn(k, date));
 
   // agrupa por dia (só faz diferença no modo "pendentes")
   const byDay = list.reduce<Record<string, typeof list>>((acc, b) => {
@@ -113,10 +136,13 @@ export default async function AgendaPage({ searchParams }: Props) {
               : `${activeCount} ${activeCount === 1 ? "atendimento" : "atendimentos"}, ${brl(expected)} previstos`}
           </p>
         </div>
-        <NewBookingDialog defaultDate={date} services={services ?? []} professionals={pros} fullAccess={plan.tier === "completo"} />
+        <NewBookingDialog defaultDate={date} services={services} professionals={pros} fullAccess={plan.tier === "completo"} />
       </header>
 
+      <ViewPreference view={view} />
+
       <AgendaToolbar
+        view="dia"
         date={date}
         today={today}
         status={status}
@@ -201,7 +227,7 @@ export default async function AgendaPage({ searchParams }: Props) {
                           className="ml-2 inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-primary"
                           data-testid={`selo-pacote-${b.id}`}
                         >
-                          <Package className="h-3 w-3" /> {sessionLabel.get(b.id) ?? "Pacote"}
+                          <Package className="h-3 w-3" /> {sessionLabel[b.id] ?? "Pacote"}
                         </span>
                       ) : (
                         <span className="text-muted-foreground"> · {brl(b.price)}</span>

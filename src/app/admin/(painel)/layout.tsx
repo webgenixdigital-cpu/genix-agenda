@@ -1,5 +1,7 @@
 import { Suspense } from "react";
-import { PauseCircle } from "lucide-react";
+import Link from "next/link";
+import { PauseCircle, WifiOff } from "lucide-react";
+import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/admin/actions";
 import { Button } from "@/components/ui/button";
 import { getAdminContext } from "@/lib/admin";
@@ -18,6 +20,14 @@ export default async function PainelLayout({ children }: { children: React.React
   const isDemo = ctx.role === "viewer";
   const isOwner = ctx.role === "owner";
   const isTeam = ctx.role === "staff" || ctx.role === "reception";
+
+  // WhatsApp automático ligado mas desconectado: aviso só para a matriz
+  let waDisconnected = false;
+  if (isOwner && plan.tier === "completo") {
+    const { data: wa } = await createClient().rpc("whatsapp_panel_status", { p_business: ctx.business.id });
+    const w = wa as { genix_enabled: boolean; auto_enabled: boolean; status: string } | null;
+    waDisconnected = !!w?.genix_enabled && w.auto_enabled && w.status === "disconnected";
+  }
 
   // No plano Grátis só a matriz usa o painel: equipe fica pausada até o espaço assinar
   if (isTeam && plan.tier === "gratis") {
@@ -55,6 +65,15 @@ export default async function PainelLayout({ children }: { children: React.React
         <div className="min-w-0 flex-1">
           {!isDemo && !plan.internal && !ctx.emailVerified && <EmailVerifyBanner email={ctx.email} />}
           {isOwner && <PlanBanner plan={plan} />}
+          {waDisconnected && (
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900 md:px-8" data-testid="aviso-whatsapp-desconectado">
+              <WifiOff className="h-4 w-4 shrink-0" />
+              <span className="font-medium">WhatsApp desconectado — lembretes automáticos pausados.</span>
+              <Link href="/admin/configuracoes#whatsapp" className="inline-flex min-h-11 items-center font-semibold underline" data-testid="link-whatsapp-reconectar">
+                Reconectar
+              </Link>
+            </div>
+          )}
           <Suspense fallback={null}>
             <EmailConfirmedToast />
           </Suspense>

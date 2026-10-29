@@ -50,6 +50,24 @@ export function returnMessage(name: string, service: string, lastDate: string, b
   );
 }
 
+/** Lembrete manual de véspera/do dia (base dos textos automáticos em lib/whatsapp/templates.ts) */
+export function reminderMessage(
+  name: string,
+  service: string,
+  pro: string,
+  date: string,
+  time: string,
+  business: string,
+  isToday: boolean
+) {
+  const first = name.split(" ")[0];
+  return (
+    `Olá, ${first}! Passando para lembrar do seu horário ${isToday ? "hoje" : "amanhã"} ⏰\n\n` +
+    `• ${service}\n• Com ${pro}\n• ${longDate(date)}, às ${time.slice(0, 5)}\n\n` +
+    `Pode confirmar sua presença respondendo esta mensagem? Se precisar remarcar, é só avisar.\n${business}`
+  );
+}
+
 /** Aviso de remarcação com a nova data, hora e profissional */
 export function rescheduleMessage(
   b: { customer_name: string; service_name: string; professional_name: string; booking_date: string; start_time: string },

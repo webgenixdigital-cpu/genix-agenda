@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getEditorContext } from "@/lib/admin";
+import { removeReplacedImage } from "@/lib/images";
 
 type Result = { ok: true } | { ok: false; error: string };
 
@@ -58,8 +59,12 @@ export async function saveProfessional(input: ProfessionalInput): Promise<Result
 
   let id = input.id;
   if (id) {
+    const { data: before } = await supabase
+      .from("professionals").select("photo_url").eq("id", id).eq("business_id", business.id).maybeSingle();
     const { error } = await supabase.from("professionals").update(row).eq("id", id).eq("business_id", business.id);
     if (error) return { ok: false, error: "Não foi possível salvar." };
+    // foto trocada ou removida: apaga a antiga do Storage (só se for nossa)
+    await removeReplacedImage(supabase, business.id, before?.photo_url, row.photo_url);
   } else {
     const { data: last } = await supabase
       .from("professionals").select("sort_order").eq("business_id", business.id)

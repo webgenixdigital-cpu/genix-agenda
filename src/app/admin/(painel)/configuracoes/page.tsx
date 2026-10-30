@@ -62,7 +62,7 @@ export default async function ConfiguracoesPage() {
       )}
 
       <Section title="Perfil e WhatsApp" description="Informações exibidas na vitrine e no diretório.">
-        <ProfileForm key={`p-${b.slug}`} initial={b} niches={await getActiveNiches()} />
+        <ProfileForm key={`p-${b.slug}`} initial={b} niches={await getActiveNiches()} readOnly={role !== "owner"} />
       </Section>
 
       <Section title="Link da vitrine" description="O endereço que você divulga no Instagram e no WhatsApp.">

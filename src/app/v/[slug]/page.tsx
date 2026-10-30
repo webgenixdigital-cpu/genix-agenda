@@ -8,6 +8,7 @@ import { BookingWizard } from "@/components/vitrine/booking-wizard";
 import { Button } from "@/components/ui/button";
 import { brl, duration, hhmm, whatsappLink, WEEKDAYS } from "@/lib/format";
 import type { Business, BusinessHour, Professional, Service } from "@/lib/types";
+import { IMAGE_SIZES } from "@/lib/images";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -98,7 +99,16 @@ export default async function VitrinePage({ params }: Props) {
         <section className="relative isolate overflow-hidden">
           {b.hero_image && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={b.hero_image} alt="" className="absolute inset-0 -z-10 h-full w-full object-cover" />
+            <img
+              src={b.hero_image}
+              alt=""
+              width={IMAGE_SIZES.capa.width}
+              height={IMAGE_SIZES.capa.height}
+              className="absolute inset-0 -z-10 h-full w-full object-cover"
+              decoding="async"
+              // React 18 não conhece a prop fetchPriority: atributo em minúsculas
+              {...{ fetchpriority: "high" }}
+            />
           )}
           <div className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,rgba(28,25,23,0.78)_0%,rgba(28,25,23,0.88)_100%)]" />
 
@@ -215,7 +225,15 @@ export default async function VitrinePage({ params }: Props) {
                       <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-full bg-secondary font-heading text-xl text-primary">
                         {p.photo_url ? (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img src={p.photo_url} alt={p.name} className="h-full w-full object-cover" />
+                          <img
+                            src={p.photo_url}
+                            alt={p.name}
+                            width={IMAGE_SIZES.profissional.width}
+                            height={IMAGE_SIZES.profissional.height}
+                            className="h-full w-full object-cover"
+                            loading="lazy"
+                            decoding="async"
+                          />
                         ) : (
                           p.name.charAt(0)
                         )}

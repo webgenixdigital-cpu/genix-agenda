@@ -92,6 +92,8 @@ export default async function ProfissionaisPage() {
         ownerUserId={isOwner ? userId : undefined}
         canInvite={canInvite}
         partnerSalon={fiscal.partner_salon}
+        businessId={business.id}
+        readOnly={!isOwner}
       />
       {isOwner && <ReceptionSection members={reception} canInvite={canInvite} />}
     </main>

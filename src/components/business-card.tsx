@@ -2,6 +2,7 @@ import Link from "next/link";
 import { MapPin, MessageCircle, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { brl, whatsappLink } from "@/lib/format";
+import { coverThumb, IMAGE_SIZES } from "@/lib/images";
 import type { DirectoryItem } from "@/lib/types";
 
 export function BusinessCard({ b }: { b: DirectoryItem }) {
@@ -15,7 +16,15 @@ export function BusinessCard({ b }: { b: DirectoryItem }) {
       <Link href={`/v/${b.slug}`} className="relative block aspect-[16/10] overflow-hidden bg-muted">
         {b.hero_image && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={b.hero_image} alt={b.name} className="h-full w-full object-cover" loading="lazy" />
+          <img
+            src={coverThumb(b.hero_image) ?? b.hero_image}
+            alt={b.name}
+            width={IMAGE_SIZES.capaMini.width}
+            height={IMAGE_SIZES.capaMini.height}
+            className="h-full w-full object-cover"
+            loading="lazy"
+            decoding="async"
+          />
         )}
         {b.rating_count > 0 && (
           <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-white/95 px-2.5 py-1 text-xs font-semibold">

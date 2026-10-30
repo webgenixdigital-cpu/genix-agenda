@@ -39,6 +39,7 @@ export type AdminNiche = {
   active: boolean;
   featured: boolean;
   featured_order: number | null;
+  keywords: string[] | null;
   usage: number;
   templates: AdminTemplate[];
 };
@@ -211,6 +212,7 @@ function NicheDialog({ state, onClose }: { state: { open: boolean; niche: AdminN
   const n = state.niche;
   const [f, setF] = useState({
     id: "", segment: "beleza", name: "", description: "", icon: "sparkles", sort_order: "0", featured: false, featured_order: "",
+    keywords: "",
   });
   const [loaded, setLoaded] = useState<string | null | undefined>(undefined);
 
@@ -225,6 +227,7 @@ function NicheDialog({ state, onClose }: { state: { open: boolean; niche: AdminN
       sort_order: String(n?.sort_order ?? 0),
       featured: n?.featured ?? false,
       featured_order: n?.featured_order != null ? String(n.featured_order) : "",
+      keywords: (n?.keywords ?? []).join(", "),
     });
   }
   if (!state.open && loaded !== undefined) setLoaded(undefined);
@@ -295,6 +298,15 @@ function NicheDialog({ state, onClose }: { state: { open: boolean; niche: AdminN
           <div className="space-y-1.5">
             <Label htmlFor="nc-desc">Descrição curta</Label>
             <Textarea id="nc-desc" rows={2} value={f.description} onChange={(e) => setF({ ...f, description: e.target.value.slice(0, 160) })} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="nc-keywords">Palavras-chave (separadas por vírgula)</Label>
+            <Input id="nc-keywords" className="h-11" placeholder="ex.: manicure, pedicure, esmalte" value={f.keywords}
+              onChange={(e) => setF({ ...f, keywords: e.target.value.slice(0, 600) })}
+              data-testid="input-nicho-palavras-chave" />
+            <p className="text-xs text-muted-foreground">
+              Sinônimos para a busca da página de espaços. Acentos e maiúsculas são ignorados.
+            </p>
           </div>
           {/* Destaque nos círculos da página principal */}
           <div className="grid gap-3 rounded-xl bg-secondary/60 p-3 sm:grid-cols-[1fr_120px] sm:items-end">

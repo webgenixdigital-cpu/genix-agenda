@@ -7,6 +7,7 @@ import { isValidCpfCnpj, onlyDigits } from "@/lib/cpf-cnpj";
 import { todayISO } from "@/lib/dates";
 import { REGIMES, type TaxRegime } from "@/lib/faturamento";
 import { isConfirmMode } from "@/lib/confirm-mode";
+import { removeReplacedImage, storagePathOf } from "@/lib/images";
 
 type Result = { ok: true } | { ok: false; error: string };
 
@@ -56,6 +57,8 @@ export async function updateProfile(input: {
 
   const ig = input.instagram.trim().replace(/^@/, "").replace(/^https?:\/\/(www\.)?instagram\.com\//, "").replace(/\/$/, "");
 
+  const { data: before } = await supabase.from("businesses").select("hero_image").eq("id", business.id).single();
+
   const { error } = await supabase
     .from("businesses")
     .update({
@@ -76,6 +79,29 @@ export async function updateProfile(input: {
     .eq("id", business.id);
 
   if (error) return { ok: false, error: "Não foi possível salvar o perfil." };
+  await removeReplacedImage(supabase, business.id, before?.hero_image, hero || null);
+  refreshAll([business.slug]);
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------
+// PARTE 1b — Foto de capa (enviada pelo painel; salva na hora)
+// url vazia = remover. Só aceita foto do Storage deste espaço; link colado
+// continua pelo updateProfile. A foto antiga é apagada do Storage.
+// ---------------------------------------------------------------------
+export async function updateCoverImage(url: string): Promise<Result> {
+  const { business, role } = await getEditorContext();
+  if (role !== "owner") return { ok: false, error: NOT_OWNER };
+  const supabase = createClient();
+
+  const next = url.trim() || null;
+  if (next && !storagePathOf(next, business.id)) return { ok: false, error: "Foto inválida. Envie de novo." };
+
+  const { data: before } = await supabase.from("businesses").select("hero_image").eq("id", business.id).single();
+  const { error } = await supabase.from("businesses").update({ hero_image: next }).eq("id", business.id);
+  if (error) return { ok: false, error: "Não foi possível salvar a foto." };
+
+  await removeReplacedImage(supabase, business.id, before?.hero_image, next);
   refreshAll([business.slug]);
   return { ok: true };
 }

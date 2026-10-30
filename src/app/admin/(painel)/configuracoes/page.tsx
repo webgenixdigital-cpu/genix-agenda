@@ -7,6 +7,8 @@ import { HoursForm } from "@/components/admin/configuracoes/hours-form";
 import { WhatsappForm, type WhatsappPanelStatus } from "@/components/admin/configuracoes/whatsapp-form";
 import { LockedFeatureCard } from "@/components/admin/locked-feature";
 import { getPlanContext } from "@/lib/plan";
+import { loadFiscal } from "@/lib/faturamento-data";
+import { FiscalForm } from "@/components/admin/configuracoes/fiscal-form";
 
 export const dynamic = "force-dynamic";
 
@@ -36,10 +38,11 @@ export default async function ConfiguracoesPage() {
   const b = business as unknown as FullBusiness;
   const supabase = createClient();
 
-  const [{ data: hours }, plan, { data: wa }] = await Promise.all([
+  const [{ data: hours }, plan, { data: wa }, fiscal] = await Promise.all([
     supabase.from("business_hours").select("weekday, closed, open_time, close_time").eq("business_id", b.id),
     getPlanContext(b.id),
     supabase.rpc("whatsapp_panel_status", { p_business: b.id }),
+    loadFiscal(b.id),
   ]);
 
   return (
@@ -88,6 +91,14 @@ export default async function ConfiguracoesPage() {
         ) : (
           <p className="text-sm text-muted-foreground">Não foi possível carregar o status do WhatsApp.</p>
         )}
+      </Section>
+
+      <Section
+        id="enquadramento"
+        title="Enquadramento e faturamento"
+        description="Usado para acompanhar os limites de faturamento e montar o relatório para o contador."
+      >
+        <FiscalForm initial={fiscal} />
       </Section>
     </main>
   );

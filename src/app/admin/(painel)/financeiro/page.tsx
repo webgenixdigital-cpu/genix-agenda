@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { RevenueChart } from "@/components/admin/financeiro/revenue-chart";
 import { CashEntryDialog } from "@/components/admin/financeiro/cash-entry-dialog";
 import { DeleteEntryButton } from "@/components/admin/financeiro/delete-entry-button";
+import { FinanceTabs } from "@/components/admin/financeiro/finance-tabs";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -92,6 +93,9 @@ export default async function FinanceiroPage({ searchParams }: Props) {
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl md:text-4xl">Financeiro</h1>
+          <div className="mt-3">
+            <FinanceTabs active="caixa" />
+          </div>
           <div className="mt-3 flex items-center gap-1">
             <Button asChild variant="outline" size="icon" className="h-10 w-10">
               <Link href={`/admin/financeiro?mes=${prev}`} aria-label="Mês anterior" data-testid="btn-mes-anterior">

@@ -21,6 +21,7 @@ export function TeamManager({
   access = {},
   ownerUserId,
   canInvite = false,
+  partnerSalon = false,
 }: {
   team: Row[];
   services: ServiceOption[];
@@ -30,6 +31,8 @@ export function TeamManager({
   access?: Record<string, AccessInfo>;
   ownerUserId?: string;
   canInvite?: boolean;
+  /** espaço usa salão-parceiro: mostra a opção "parceiro" */
+  partnerSalon?: boolean;
 }) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<EditablePro | null>(null);
@@ -97,6 +100,11 @@ export function TeamManager({
                 {p.commission_pct > 0 && (
                   <p className="text-xs text-muted-foreground">Comissão de {String(p.commission_pct).replace(".", ",")}%</p>
                 )}
+                {partnerSalon && p.is_partner && (
+                  <span className="mt-1 inline-block rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-primary" data-testid={`selo-parceiro-${p.id}`}>
+                    Parceiro
+                  </span>
+                )}
               </div>
               <Button
                 variant="ghost"
@@ -149,7 +157,7 @@ export function TeamManager({
         ))}
       </ul>
 
-      <ProfessionalDialog open={dialogOpen} onOpenChange={setDialogOpen} pro={editing} services={services} />
+      <ProfessionalDialog open={dialogOpen} onOpenChange={setDialogOpen} pro={editing} services={services} partnerSalon={partnerSalon} />
     </>
   );
 }

@@ -7,6 +7,7 @@ import { getEditorContext } from "@/lib/admin";
 import { asaas, AsaasError, type AsaasBillingType, type AsaasCustomer, type AsaasPayment, type AsaasSubscription } from "@/lib/asaas";
 import { isValidCpfCnpj, onlyDigits } from "@/lib/cpf-cnpj";
 import { cycleOfPlanId, isPaidPlanId, kindOfPlanId, type PaidPlanId } from "@/lib/plan-ids";
+import { availablePaidPlans } from "@/lib/plans-server";
 
 type Result = { ok: true; invoiceUrl?: string; message?: string } | { ok: false; error: string };
 type Quote = { total: number; extra_professionals: number; professionals: number };
@@ -16,6 +17,7 @@ const BILLING: AsaasBillingType[] = ["PIX", "CREDIT_CARD"];
 const ONLY_OWNER = "Somente o dono do espaço pode alterar a assinatura.";
 const PRO_ONE = "O plano Profissional é para 1 profissional ativo. Desative os outros na Equipe ou escolha o plano Equipe.";
 const MIN_CHARGE = 5; // menor cobrança avulsa aceita pelo Asaas (R$)
+const UNAVAILABLE = "Este plano ainda não está disponível. Tente de novo em instantes.";
 
 const todayISO = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
 const kindLabel = (id: string) => (kindOfPlanId(id) === "profissional" ? "Profissional" : "Equipe");
@@ -52,6 +54,8 @@ export async function startSubscription(input: {
   if (ctx.role !== "owner") return { ok: false, error: ONLY_OWNER };
 
   if (!isPaidPlanId(input.planId)) return { ok: false, error: "Escolha o plano." };
+  // só planos ativos no banco (ou todos, no modo de prévia local)
+  if (!(await availablePaidPlans()).has(input.planId)) return { ok: false, error: UNAVAILABLE };
   if (!BILLING.includes(input.billingType)) return { ok: false, error: "Escolha a forma de pagamento." };
   if (input.holderName.trim().length < 3) return { ok: false, error: "Informe o nome de quem vai pagar." };
   if (!isValidCpfCnpj(input.cpfCnpj)) return { ok: false, error: "CPF ou CNPJ inválido." };
@@ -190,6 +194,7 @@ export async function changePlan(target: PaidPlanId): Promise<Result> {
   const ctx = await getEditorContext();
   if (ctx.role !== "owner") return { ok: false, error: ONLY_OWNER };
   if (!isPaidPlanId(target)) return { ok: false, error: "Plano inválido." };
+  if (!(await availablePaidPlans()).has(target)) return { ok: false, error: UNAVAILABLE };
 
   const admin = createAdminClient();
   const biz = ctx.business;

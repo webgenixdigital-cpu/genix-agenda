@@ -40,6 +40,7 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
 | `TURNSTILE_SECRET_KEY` | **só servidor** | valida o token na server action da vitrine; local usa a secret de teste da Cloudflare |
 | `CRON_SECRET` | **só servidor** | protege `/api/whatsapp/tick`; o mesmo valor fica no Vault do Supabase (`supabase/manual/whatsapp-cron.sql`) |
 | `WHATSAPP_SEND_ENABLED` | só servidor | `1` liga os envios automáticos; sem ela nada sai (local fica desligado: o banco é o mesmo da produção) |
+| `PLANS_PREVIEW` | só servidor, **só local** | `1` no `.env.local` + `npm run dev`: tabela de preços, Assinatura e actions tratam os planos novos (`gratis`, `profissional_*`, `equipe_*`) como ativos mesmo com `active = false`, para testar no sandbox do Asaas antes da 28b. Nunca liga com `NODE_ENV=production` (`next build`/`start`, Vercel); **não cadastrar na Vercel**. Lógica em `lib/plans-server.ts` |
 
 - Nunca prefixar segredos com `NEXT_PUBLIC_`. Nunca importar `lib/supabase/admin.ts` em componente `"use client"`.
 - No `.env.local`, a chave do Asaas começa com `$`: escrever `ASAAS_API_KEY=\$aact_...` (na Vercel, sem a barra).

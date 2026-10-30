@@ -4,6 +4,7 @@ import { requireRoles } from "@/lib/admin";
 import { getFreeDailyLimit, getPlanContext, PLAN_NAMES, recommendedKind } from "@/lib/plan";
 import { cycleOfPlanId, isLegacyPlanId, kindOfPlanId, planIdFor, type PaidPlanId } from "@/lib/plan-ids";
 import { brl } from "@/lib/format";
+import { availablePaidPlans, plansPreview } from "@/lib/plans-server";
 import { Button } from "@/components/ui/button";
 import { SubscribeForm, type Quotes } from "@/components/admin/assinatura/subscribe-form";
 import { CancelSubscriptionButton } from "@/components/admin/assinatura/cancel-button";
@@ -44,7 +45,7 @@ export default async function AssinaturaPage() {
   const supabase = createClient();
 
   const ids: PaidPlanId[] = ["profissional_mensal", "profissional_anual", "equipe_mensal", "equipe_anual"];
-  const [quoteRows, { data: sub }, freeLimit] = await Promise.all([
+  const [quoteRows, { data: sub }, freeLimit, available] = await Promise.all([
     Promise.all(ids.map((id) => supabase.rpc("subscription_quote", { bid: business.id, p_plan: id }))),
     supabase
       .from("subscriptions")
@@ -54,9 +55,12 @@ export default async function AssinaturaPage() {
       .eq("business_id", business.id)
       .maybeSingle(),
     getFreeDailyLimit(),
+    availablePaidPlans(),
   ]);
   const q = Object.fromEntries(ids.map((id, i) => [id, quoteRows[i].data as Quote | null])) as Record<PaidPlanId, Quote | null>;
-  const quotesOk = ids.every((id) => q[id]);
+  // planos novos só aparecem ativos depois da 28b (ou no modo de prévia local)
+  const quotesOk = ids.every((id) => q[id] && available.has(id));
+  const preview = plansPreview();
   const quotes: Quotes | null = quotesOk
     ? {
         profissional: { mensal: Number(q.profissional_mensal!.total), anual: Number(q.profissional_anual!.total) },
@@ -126,6 +130,13 @@ export default async function AssinaturaPage() {
         <h1 className="text-3xl md:text-4xl">Assinatura</h1>
         <p className="mt-1 text-sm text-muted-foreground">Seu plano atual e os planos Profissional e Equipe.</p>
       </header>
+
+      {preview && (
+        <p className="rounded-2xl border border-dashed border-amber-400 bg-amber-50 p-3 text-sm text-amber-900" data-testid="aviso-previa-planos">
+          <strong>Modo de prévia local (PLANS_PREVIEW=1):</strong> planos novos liberados mesmo inativos no banco. Use só com o
+          Asaas sandbox. Nunca liga em produção.
+        </p>
+      )}
 
       <section className="flex gap-4 rounded-2xl border bg-card p-5" data-testid="status-assinatura">
         <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-secondary text-primary">
@@ -214,7 +225,7 @@ export default async function AssinaturaPage() {
             </div>
           )}
 
-          {plan.status === "active" && !sub?.upgrade_plan_id && !sub?.scheduled_plan_id && otherPrice !== null && (
+          {plan.status === "active" && !sub?.upgrade_plan_id && !sub?.scheduled_plan_id && otherPrice !== null && available.has(otherId) && (
             <ChangePlanButton
               target={otherId}
               direction={otherKind === "equipe" ? "up" : "down"}
@@ -269,7 +280,7 @@ export default async function AssinaturaPage() {
               firstDueLabel={firstDueLabel}
             />
           ) : (
-            <p className="text-sm text-muted-foreground">Não foi possível carregar os valores dos planos agora. Tente em instantes.</p>
+            <p className="text-sm text-muted-foreground">Os planos ainda não estão disponíveis para assinatura. Tente de novo em instantes.</p>
           )}
         </section>
       )}

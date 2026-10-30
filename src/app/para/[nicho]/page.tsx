@@ -13,7 +13,7 @@ import { Pricing } from "@/components/marketing/pricing";
 import { Button } from "@/components/ui/button";
 import { brl, duration } from "@/lib/format";
 import { getActiveNiches } from "@/lib/niches";
-import { normalizePlans, PLAN_COLUMNS } from "@/lib/plans-public";
+import { getPublicPlans } from "@/lib/plans-server";
 
 export const revalidate = 3600;
 
@@ -52,13 +52,12 @@ export default async function NichoPage({ params }: Props) {
   if (!niche) notFound();
 
   const supabase = createClient();
-  const [{ data: templates }, { data: plansData }, { count }] = await Promise.all([
+  const [{ data: templates }, plans, { count }] = await Promise.all([
     supabase.from("niche_service_templates").select("id, name, duration_min, price").eq("niche_id", niche.id).order("sort_order"),
-    supabase.from("plans").select(PLAN_COLUMNS).eq("active", true),
+    getPublicPlans(),
     supabase.from("public_directory").select("id", { count: "exact", head: true }).eq("subcategory", niche.id),
   ]);
 
-  const plans = normalizePlans(plansData);
   const services = templates ?? [];
   const preview = services.slice(0, 3);
   const signupHref = `/cadastro?nicho=${niche.id}`;

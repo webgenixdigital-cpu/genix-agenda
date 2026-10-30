@@ -3,7 +3,6 @@ import Link from "next/link";
 import {
   PlayCircle, Search, Star,
 } from "lucide-react";
-import { createPublicClient } from "@/lib/supabase/public";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { NicheHighlights } from "@/components/niche-highlights";
@@ -11,7 +10,8 @@ import { BenefitBlocks } from "@/components/marketing/benefit-blocks";
 import { Pricing } from "@/components/marketing/pricing";
 import { Button } from "@/components/ui/button";
 import { getFeaturedNiches } from "@/lib/niches";
-import { normalizePlans, PLAN_COLUMNS, planFaq } from "@/lib/plans-public";
+import { planFaq } from "@/lib/plans-public";
+import { getPublicPlans } from "@/lib/plans-server";
 
 export const metadata: Metadata = {
   title: "Genix Agenda | Agenda online grátis e vitrine digital para profissionais",
@@ -37,13 +37,7 @@ const STEPS = [
 // PARTE 2 — Página
 // ---------------------------------------------------------------------
 export default async function Home() {
-  const supabase = createPublicClient();
-  const [{ data }, niches] = await Promise.all([
-    supabase.from("plans").select(PLAN_COLUMNS).eq("active", true),
-    getFeaturedNiches(),
-  ]);
-
-  const plans = normalizePlans(data);
+  const [plans, niches] = await Promise.all([getPublicPlans(), getFeaturedNiches()]);
   const faq = planFaq(plans);
 
   return (

@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: NextRequest) {
   const email = process.env.DEMO_EMAIL;
   const password = process.env.DEMO_PASSWORD;
-  const back = new URL("/profissional?demo=indisponivel", request.url);
+  const back = new URL("/?demo=indisponivel", request.url);
 
   if (!email || !password) return NextResponse.redirect(back);
 

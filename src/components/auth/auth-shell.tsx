@@ -6,7 +6,7 @@ export function AuthShell({ title, subtitle, children }: { title: string; subtit
   return (
     <div className="grid min-h-svh place-items-center bg-secondary/50 p-4">
       <div className="w-full max-w-md">
-        <Link href="/profissional" className="mb-6 flex items-center justify-center gap-2">
+        <Link href="/" className="mb-6 flex items-center justify-center gap-2">
           <span className="grid h-9 w-9 place-items-center rounded-full bg-primary text-primary-foreground">
             <CalendarHeart className="h-5 w-5" />
           </span>

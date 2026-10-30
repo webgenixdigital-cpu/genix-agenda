@@ -32,7 +32,7 @@ export default async function CadastroPage({ searchParams }: { searchParams: { n
     <div className="grid min-h-svh lg:grid-cols-[1fr_1.1fr]">
       {/* ---------- LATERAL ---------- */}
       <aside className="hidden flex-col justify-between bg-foreground p-12 text-background lg:flex">
-        <Link href="/profissional" className="flex items-center gap-2">
+        <Link href="/" className="flex items-center gap-2">
           <span className="grid h-9 w-9 place-items-center rounded-full bg-primary text-primary-foreground">
             <CalendarHeart className="h-5 w-5" />
           </span>
@@ -59,7 +59,7 @@ export default async function CadastroPage({ searchParams }: { searchParams: { n
       {/* ---------- FORMULÁRIO ---------- */}
       <main className="flex justify-center p-6 md:p-12">
         <div className="w-full max-w-md py-4">
-          <Link href="/profissional" className="mb-8 flex items-center gap-2 lg:hidden">
+          <Link href="/" className="mb-8 flex items-center gap-2 lg:hidden">
             <span className="grid h-9 w-9 place-items-center rounded-full bg-primary text-primary-foreground">
               <CalendarHeart className="h-5 w-5" />
             </span>

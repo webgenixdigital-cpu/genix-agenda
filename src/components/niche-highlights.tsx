@@ -7,21 +7,30 @@ import { cn } from "@/lib/utils";
 export function NicheHighlights({
   niches,
   activeId,
+  basePath = "/explorar",
+  singleRow = false,
   className,
 }: {
   niches: Niche[];
   activeId?: string;
+  /** destino de cada círculo: `${basePath}/${id}` */
+  basePath?: string;
+  /** uma linha só: rolagem lateral no celular, centralizada no desktop */
+  singleRow?: boolean;
   className?: string;
 }) {
+  // sem repetição, mesmo que a lista venha duplicada
+  const list = niches.filter((n, i) => niches.findIndex((x) => x.id === n.id) === i);
+
   return (
     <nav aria-label="Tipos de atendimento" className={cn("-mx-4 overflow-x-auto px-4 md:mx-0 md:px-0", className)}>
-      <ul className="flex gap-4 pb-2 md:flex-wrap md:gap-5">
-        {niches.map((n) => {
+      <ul className={cn("flex gap-4 pb-2", singleRow ? "mx-auto w-max flex-nowrap md:gap-5" : "md:flex-wrap md:gap-5")}>
+        {list.map((n) => {
           const active = n.id === activeId;
           return (
             <li key={n.id} className="shrink-0">
               <Link
-                href={`/explorar/${n.id}`}
+                href={`${basePath}/${n.id}`}
                 aria-current={active ? "page" : undefined}
                 className="group flex w-[76px] flex-col items-center gap-2 text-center"
                 data-testid={`destaque-${n.id}`}

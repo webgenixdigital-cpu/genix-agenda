@@ -19,7 +19,7 @@ export type ServiceInput = {
 function refresh(slug: string) {
   revalidatePath("/admin/servicos");
   revalidatePath(`/v/${slug}`);
-  revalidatePath("/");
+  revalidatePath("/espacos");
 }
 
 // ---------------------------------------------------------------------

@@ -37,6 +37,8 @@ export type AdminNiche = {
   icon: string;
   sort_order: number;
   active: boolean;
+  featured: boolean;
+  featured_order: number | null;
   usage: number;
   templates: AdminTemplate[];
 };
@@ -119,6 +121,7 @@ export function NicheManager({ niches }: { niches: AdminNiche[] }) {
                       <span className="text-xs text-muted-foreground">
                         {n.templates.length} {n.templates.length === 1 ? "sugestão" : "sugestões"} · {n.usage}{" "}
                         {n.usage === 1 ? "espaço" : "espaços"} · {n.active ? "Ativo" : "Desativado"}
+                        {n.featured && <> · Destaque{n.featured_order != null ? ` nº ${n.featured_order}` : ""}</>}
                       </span>
                     </span>
                     <ChevronDown className={cn("h-5 w-5 shrink-0 text-muted-foreground transition-transform", expanded.has(n.id) && "rotate-180")} />
@@ -206,7 +209,9 @@ export function NicheManager({ niches }: { niches: AdminNiche[] }) {
 function NicheDialog({ state, onClose }: { state: { open: boolean; niche: AdminNiche | null }; onClose: () => void }) {
   const { pending, run } = useRun();
   const n = state.niche;
-  const [f, setF] = useState({ id: "", segment: "beleza", name: "", description: "", icon: "sparkles", sort_order: "0" });
+  const [f, setF] = useState({
+    id: "", segment: "beleza", name: "", description: "", icon: "sparkles", sort_order: "0", featured: false, featured_order: "",
+  });
   const [loaded, setLoaded] = useState<string | null | undefined>(undefined);
 
   if (state.open && loaded !== (n?.id ?? null)) {
@@ -218,6 +223,8 @@ function NicheDialog({ state, onClose }: { state: { open: boolean; niche: AdminN
       description: n?.description ?? "",
       icon: n?.icon ?? "sparkles",
       sort_order: String(n?.sort_order ?? 0),
+      featured: n?.featured ?? false,
+      featured_order: n?.featured_order != null ? String(n.featured_order) : "",
     });
   }
   if (!state.open && loaded !== undefined) setLoaded(undefined);
@@ -232,7 +239,17 @@ function NicheDialog({ state, onClose }: { state: { open: boolean; niche: AdminN
           className="space-y-4"
           onSubmit={(e) => {
             e.preventDefault();
-            run(() => saveNiche({ originalId: n?.id, ...f, sort_order: Number(f.sort_order) }), "Nicho salvo", onClose);
+            run(
+              () =>
+                saveNiche({
+                  originalId: n?.id,
+                  ...f,
+                  sort_order: Number(f.sort_order),
+                  featured_order: f.featured_order ? Number(f.featured_order) : null,
+                }),
+              "Nicho salvo",
+              onClose
+            );
           }}
         >
           <div className="grid gap-3 sm:grid-cols-2">
@@ -279,6 +296,23 @@ function NicheDialog({ state, onClose }: { state: { open: boolean; niche: AdminN
             <Label htmlFor="nc-desc">Descrição curta</Label>
             <Textarea id="nc-desc" rows={2} value={f.description} onChange={(e) => setF({ ...f, description: e.target.value.slice(0, 160) })} />
           </div>
+          {/* Destaque nos círculos da página principal */}
+          <div className="grid gap-3 rounded-xl bg-secondary/60 p-3 sm:grid-cols-[1fr_120px] sm:items-end">
+            <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm font-medium">
+              <Switch checked={f.featured} onCheckedChange={(v) => setF({ ...f, featured: v })} data-testid="switch-nicho-destaque" />
+              Destaque na página principal
+            </label>
+            <div className="space-y-1.5">
+              <Label htmlFor="nc-featured-order">Ordem no destaque</Label>
+              <Input id="nc-featured-order" className="h-11" inputMode="numeric" placeholder="1 a 99" disabled={!f.featured}
+                value={f.featured_order}
+                onChange={(e) => setF({ ...f, featured_order: e.target.value.replace(/\D/g, "").slice(0, 2) })}
+                data-testid="input-nicho-ordem-destaque" />
+            </div>
+          </div>
+          <p className="-mt-2 text-xs text-muted-foreground">
+            A página principal mostra só os nichos ativos com destaque, nessa ordem. Sem nenhum marcado, mostra os 8 primeiros pela ordem geral.
+          </p>
           <Button type="submit" className="h-12 w-full text-base" disabled={pending}>
             {pending ? <Loader2 className="h-5 w-5 animate-spin" /> : "Salvar nicho"}
           </Button>

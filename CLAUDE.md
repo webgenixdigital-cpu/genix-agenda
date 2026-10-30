@@ -109,8 +109,10 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
 ## 8. Mapa rápido
 
 ```
-src/app/                     páginas públicas: /, /explorar/[nicho], /para/[nicho], /profissional, /v/[slug],
-                             /v/[slug]/avaliar/[id], /cadastro, /esqueci-senha, /redefinir-senha, /termos, /privacidade
+src/app/                     páginas públicas: / (página do profissional, com busca e nichos em destaque),
+                             /espacos (diretório para clientes: ?q, ?nicho, ?seg), /explorar/[nicho], /para/[nicho],
+                             /v/[slug], /v/[slug]/avaliar/[id], /cadastro, /esqueci-senha, /redefinir-senha, /termos,
+                             /privacidade · /profissional → 301 para "/" (redirects no next.config.mjs)
                              rotas: /demo, /demo/sair, /auth/confirm (route.ts)
 src/app/admin/login/         login do painel (page.tsx, login-form.tsx); admin/actions.ts na raiz
 src/app/admin/(painel)/      layout.tsx e page.tsx (Início) na raiz; pastas com page.tsx + actions.ts:
@@ -122,7 +124,8 @@ src/app/api/asaas/webhook/   webhook de pagamento
 src/components/              admin/* (por tela do painel), genix/, vitrine/, marketing/, auth/, ui/ (shadcn)
                              + componentes soltos (site-header, site-footer, business-card, niche-*...)
 src/lib/                     admin, asaas, cash, cpf-cnpj, dates, format, legal, messages, niches, onboarding,
-                             plan, plan-features, segments, types, utils; supabase/{client,server,admin,middleware}
+                             plan, plan-features, segments, types, utils;
+                             supabase/{client,server,admin,public,middleware} (public = sem cookies, só dados públicos)
 src/middleware.ts            sessão do Supabase e proteção das rotas
 supabase/                    migrations, seed (não rodar em produção), manual
 supabase-templates/          modelos de e-mail do Supabase
@@ -142,7 +145,8 @@ supabase-templates/          modelos de e-mail do Supabase
    - testes E2E (Playwright) em iPhone/Safari, Android, tablet e desktop; meta alta no Lighthouse;
    - avaliar atualização do Next.js depois que os testes E2E existirem.
 6. Depois: WhatsApp API oficial (cota no Completo), comanda/comissões, lista de espera, sinal via Pix,
-   busca de clientes sem acentos (unaccent + coluna name_search).
+   busca de clientes sem acentos (unaccent + coluna name_search),
+   cache da /para/[nicho] (cliente público sem cookies, como a /), sitemap e robots.
 
 ## 10. Como trabalhar neste projeto
 

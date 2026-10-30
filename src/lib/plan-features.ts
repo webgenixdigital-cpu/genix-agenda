@@ -2,7 +2,7 @@
 
 export const FREE_LOCKED_HREFS = ["/admin/bloqueios", "/admin/lembretes", "/admin/financeiro"];
 
-export type LockedFeatureKey = "bloqueios" | "lembretes" | "financeiro" | "pacotes" | "whatsapp";
+export type LockedFeatureKey = "bloqueios" | "lembretes" | "financeiro" | "faturamento" | "pacotes" | "whatsapp";
 
 export const LOCKED_FEATURES: Record<
   LockedFeatureKey,
@@ -33,6 +33,15 @@ export const LOCKED_FEATURES: Record<
       "Atendimentos concluídos entram no caixa automaticamente",
       "Gráfico dos últimos 6 meses",
       "Entradas por Pix, cartão e dinheiro",
+    ],
+  },
+  faturamento: {
+    title: "Faturamento e relatório para o contador",
+    description: "Acompanhe o limite do MEI, do nanoempreendedor ou do Simples e entregue ao contador um resumo pronto.",
+    bullets: [
+      "Receita do mês, do ano e dos últimos 12 meses",
+      "Alertas ao chegar perto do limite",
+      "Relatório para imprimir em PDF ou baixar em planilha",
     ],
   },
   pacotes: {

@@ -6,6 +6,9 @@ import { createClient } from "@/lib/supabase/server";
 import { NicheManager, type AdminNiche } from "@/components/genix/niche-manager";
 import { ProfileFieldsManager, type AdminField } from "@/components/genix/profile-fields-manager";
 import { WhatsappManager, type WhatsappOverview } from "@/components/genix/whatsapp-manager";
+import { RevenueLimitsManager } from "@/components/genix/revenue-limits-manager";
+import { loadLimits } from "@/lib/faturamento-data";
+import { todayISO } from "@/lib/dates";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Administração | Genix Agenda", robots: { index: false, follow: false } };
@@ -13,7 +16,7 @@ export const metadata: Metadata = { title: "Administração | Genix Agenda", rob
 type Props = { searchParams: { aba?: string } };
 
 export default async function GenixAdminPage({ searchParams }: Props) {
-  const aba = searchParams.aba === "fichas" ? "fichas" : searchParams.aba === "whatsapp" ? "whatsapp" : "nichos";
+  const aba = (["fichas", "whatsapp", "limites"] as const).find((a) => a === searchParams.aba) ?? "nichos";
   const supabase = createClient();
 
   // Só administradores da plataforma. Para os demais, a página "não existe".
@@ -35,6 +38,7 @@ export default async function GenixAdminPage({ searchParams }: Props) {
       .order("sort_order"),
     aba === "whatsapp" ? supabase.rpc("genix_whatsapp_overview") : Promise.resolve({ data: [] }),
   ]);
+  const limits = aba === "limites" ? await loadLimits() : [];
 
   const usageMap = new Map(((usage ?? []) as { niche_id: string; businesses: number }[]).map((u) => [u.niche_id, u.businesses]));
 
@@ -68,11 +72,12 @@ export default async function GenixAdminPage({ searchParams }: Props) {
         </div>
 
         {/* Abas */}
-        <nav className="inline-flex rounded-xl border bg-white p-1" aria-label="Seções">
+        <nav className="inline-flex flex-wrap rounded-xl border bg-white p-1" aria-label="Seções">
           {[
             { key: "nichos", label: "Nichos e serviços", href: "/genix" },
             { key: "fichas", label: "Fichas técnicas", href: "/genix?aba=fichas" },
             { key: "whatsapp", label: "WhatsApp", href: "/genix?aba=whatsapp" },
+            { key: "limites", label: "Limites de faturamento", href: "/genix?aba=limites" },
           ].map((t) => (
             <Link
               key={t.key}
@@ -90,6 +95,8 @@ export default async function GenixAdminPage({ searchParams }: Props) {
 
         {aba === "nichos" ? (
           <NicheManager niches={list} />
+        ) : aba === "limites" ? (
+          <RevenueLimitsManager limits={limits} today={todayISO()} />
         ) : aba === "whatsapp" ? (
           <WhatsappManager
             rows={((whatsapp ?? []) as WhatsappOverview[]).map((r) => ({

@@ -4,6 +4,7 @@ import { getPlanContext } from "@/lib/plan";
 import { TeamManager } from "@/components/admin/profissionais/team-manager";
 import { ReceptionSection, type AccessInfo } from "@/components/admin/profissionais/team-access";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { loadFiscal } from "@/lib/faturamento-data";
 
 export const dynamic = "force-dynamic";
 
@@ -12,10 +13,10 @@ export default async function ProfissionaisPage() {
   const plan = await getPlanContext(business.id);
   const supabase = createClient();
 
-  const [{ data: pros }, { data: services }] = await Promise.all([
+  const [{ data: pros }, { data: services }, fiscal] = await Promise.all([
     supabase
       .from("professionals")
-      .select("id, name, role, bio, photo_url, specialties, commission_pct, active, sort_order, user_id, professional_services(service_id)")
+      .select("id, name, role, bio, photo_url, specialties, commission_pct, is_partner, active, sort_order, user_id, professional_services(service_id)")
       .eq("business_id", business.id)
       .order("active", { ascending: false })
       .order("sort_order"),
@@ -25,6 +26,7 @@ export default async function ProfissionaisPage() {
       .eq("business_id", business.id)
       .eq("active", true)
       .order("sort_order"),
+    loadFiscal(business.id),
   ]);
 
   const team = (pros ?? []).map((p) => ({
@@ -35,6 +37,7 @@ export default async function ProfissionaisPage() {
     photo_url: p.photo_url,
     specialties: p.specialties ?? [],
     commission_pct: Number(p.commission_pct),
+    is_partner: !!p.is_partner,
     active: p.active,
     user_id: p.user_id,
     serviceIds: ((p.professional_services ?? []) as { service_id: string }[]).map((l) => l.service_id),
@@ -88,6 +91,7 @@ export default async function ProfissionaisPage() {
         access={access}
         ownerUserId={isOwner ? userId : undefined}
         canInvite={canInvite}
+        partnerSalon={fiscal.partner_salon}
       />
       {isOwner && <ReceptionSection members={reception} canInvite={canInvite} />}
     </main>

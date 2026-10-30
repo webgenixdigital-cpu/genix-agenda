@@ -20,6 +20,7 @@ export type EditablePro = {
   photo_url: string | null;
   specialties: string[];
   commission_pct: number;
+  is_partner: boolean;    // salão-parceiro
   serviceIds: string[];   // vazio = faz todos
 };
 
@@ -30,11 +31,13 @@ export function ProfessionalDialog({
   onOpenChange,
   pro,
   services,
+  partnerSalon = false,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   pro: EditablePro | null;
   services: ServiceOption[];
+  partnerSalon?: boolean;
 }) {
   const [pending, start] = useTransition();
   const [name, setName] = useState("");
@@ -43,6 +46,7 @@ export function ProfessionalDialog({
   const [photo, setPhoto] = useState("");
   const [specialties, setSpecialties] = useState("");
   const [commission, setCommission] = useState("0");
+  const [isPartner, setIsPartner] = useState(false);
   const [allServices, setAllServices] = useState(true);
   const [selected, setSelected] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -57,6 +61,7 @@ export function ProfessionalDialog({
     setPhoto(pro?.photo_url ?? "");
     setSpecialties((pro?.specialties ?? []).join(", "));
     setCommission(String(pro?.commission_pct ?? 0));
+    setIsPartner(pro?.is_partner ?? false);
     setAllServices(!pro || pro.serviceIds.length === 0);
     setSelected(pro?.serviceIds ?? []);
     setError(null);
@@ -74,6 +79,7 @@ export function ProfessionalDialog({
         photo_url: photo,
         specialties: specialties.split(","),
         commission_pct: Number(commission.replace(",", ".")) || 0,
+        is_partner: isPartner,
         allServices,
         serviceIds: selected,
       });
@@ -138,6 +144,18 @@ export function ProfessionalDialog({
               />
             </div>
           </div>
+
+          {partnerSalon && (
+            <label className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border p-4">
+              <span>
+                <span className="block font-semibold">Profissional parceiro (salão-parceiro)</span>
+                <span className="text-sm text-muted-foreground">
+                  A comissão acima vira o repasse ao parceiro no Faturamento. Vale para parceria com contrato formalizado.
+                </span>
+              </span>
+              <Switch checked={isPartner} onCheckedChange={setIsPartner} data-testid="switch-profissional-parceiro" />
+            </label>
+          )}
 
           {/* Serviços que faz */}
           <div className="space-y-3 rounded-xl border p-4">

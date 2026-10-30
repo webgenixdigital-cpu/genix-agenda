@@ -17,6 +17,7 @@ export type ProfessionalInput = {
   photo_url: string;
   specialties: string[];
   commission_pct: number;
+  is_partner: boolean;       // salão-parceiro (Lei 13.352)
   allServices: boolean;      // true = faz todos (sem vínculos)
   serviceIds: string[];      // usado quando allServices = false
 };
@@ -52,6 +53,7 @@ export async function saveProfessional(input: ProfessionalInput): Promise<Result
     photo_url: photo || null,
     specialties: input.specialties.map((s) => s.trim()).filter(Boolean).slice(0, 8),
     commission_pct: input.commission_pct,
+    is_partner: !!input.is_partner,
   };
 
   let id = input.id;

@@ -3,6 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getEditorContext } from "@/lib/admin";
+import { isValidCpfCnpj, onlyDigits } from "@/lib/cpf-cnpj";
+import { todayISO } from "@/lib/dates";
+import { REGIMES, type TaxRegime } from "@/lib/faturamento";
 
 type Result = { ok: true } | { ok: false; error: string };
 
@@ -156,5 +159,44 @@ export async function updateHours(input: {
   if (error) return { ok: false, error: "Não foi possível salvar as regras de agendamento." };
 
   refreshAll([business.slug]);
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------
+// PARTE 4 — Enquadramento (faturamento e relatório para o contador)
+// ---------------------------------------------------------------------
+export async function updateFiscal(input: {
+  regime: string;
+  activityStart: string; // YYYY-MM-DD ou vazio
+  cnpj: string;
+  partnerSalon: boolean;
+}): Promise<Result> {
+  const { business, role } = await getEditorContext();
+  if (role !== "owner") return { ok: false, error: NOT_OWNER };
+  const supabase = createClient();
+
+  if (!REGIMES.includes(input.regime as TaxRegime)) return { ok: false, error: "Escolha o enquadramento." };
+  const start = input.activityStart.trim();
+  if (start && (!/^\d{4}-\d{2}-\d{2}$/.test(start) || start > todayISO())) {
+    return { ok: false, error: "Confira a data de início das atividades." };
+  }
+  const cnpj = onlyDigits(input.cnpj);
+  if (cnpj && (cnpj.length !== 14 || !isValidCpfCnpj(cnpj))) return { ok: false, error: "Confira os números do CNPJ." };
+
+  const { error } = await supabase.from("business_fiscal").upsert(
+    {
+      business_id: business.id,
+      regime: input.regime,
+      activity_start: start || null,
+      cnpj: cnpj || null,
+      partner_salon: input.partnerSalon,
+    },
+    { onConflict: "business_id" }
+  );
+  if (error) return { ok: false, error: "Não foi possível salvar o enquadramento." };
+
+  revalidatePath("/admin/configuracoes");
+  revalidatePath("/admin/financeiro", "layout");
+  revalidatePath("/admin/profissionais");
   return { ok: true };
 }

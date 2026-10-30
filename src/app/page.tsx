@@ -171,15 +171,27 @@ export default async function Home() {
               </label>
               <div className="mt-4 flex items-center gap-2 rounded-full border bg-white p-1.5 pl-5 shadow-lg shadow-stone-900/5 focus-within:ring-2 focus-within:ring-ring">
                 <Search className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
-                <input
-                  id="busca-home"
-                  name="q"
-                  type="search"
-                  maxLength={60}
-                  placeholder="Busque por nome do espaço, cidade ou serviço"
-                  className="h-11 min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground"
-                  data-testid="input-busca-home"
-                />
+                {/* Placeholder responsivo só com CSS: o atributo fica " " e o texto curto
+                    (celular) ou completo (md+) aparece enquanto o campo está vazio */}
+                <div className="relative min-w-0 flex-1">
+                  <input
+                    id="busca-home"
+                    name="q"
+                    type="search"
+                    maxLength={60}
+                    placeholder=" "
+                    aria-describedby="busca-home-dica"
+                    className="peer h-11 w-full bg-transparent text-base outline-none"
+                    data-testid="input-busca-home"
+                  />
+                  <span
+                    id="busca-home-dica"
+                    className="pointer-events-none absolute inset-y-0 left-0 right-0 hidden items-center truncate text-base text-muted-foreground peer-placeholder-shown:flex"
+                  >
+                    <span className="truncate md:hidden">Espaço, cidade ou serviço</span>
+                    <span className="hidden truncate md:inline">Busque por nome do espaço, cidade ou serviço</span>
+                  </span>
+                </div>
                 <Button type="submit" className="h-11 shrink-0 rounded-full px-5" data-testid="btn-buscar-home">
                   Buscar
                 </Button>

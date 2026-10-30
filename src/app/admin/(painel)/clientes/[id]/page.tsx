@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getAdminContext } from "@/lib/admin";
 import { brl, maskPhone, whatsappLink } from "@/lib/format";
 import { StatusBadge } from "@/components/admin/status-badge";
+import { AutoConfirmBadge } from "@/components/admin/auto-confirm-badge";
+import { AUTO_CONFIRM_REASON, type AutoConfirmReason } from "@/lib/confirm-mode";
 import { CustomerDialog, DeleteCustomerButton } from "@/components/admin/clientes/customer-dialog";
 import { ProfileCard, type ProfileField } from "@/components/admin/clientes/profile-card";
 import { PackagesCard, type CustomerPackage } from "@/components/admin/clientes/packages-card";
@@ -31,6 +33,10 @@ const ACTION_LABEL: Record<string, string> = {
   reminder: "Lembrete enviado",
   return_contact: "Chamado para voltar",
 };
+/** motivo da confirmação automática gravado no histórico */
+const autoReason = (d: Record<string, unknown> | null) =>
+  typeof d?.reason === "string" ? AUTO_CONFIRM_REASON[d.reason as AutoConfirmReason] ?? null : null;
+
 const ROLE_LABEL: Record<string, string> = {
   online: "pela vitrine",
   owner: "pela matriz",
@@ -58,7 +64,7 @@ export default async function ClientePage({ params }: Props) {
 
   const { data: bookings } = await supabase
     .from("bookings")
-    .select("id, booking_date, start_time, service_name, professional_name, price, status, customer_package_id")
+    .select("id, booking_date, start_time, service_name, professional_name, price, status, customer_package_id, auto_confirm_reason")
     .eq("customer_id", c.id)
     .order("booking_date", { ascending: false })
     .order("start_time", { ascending: false })
@@ -234,7 +240,10 @@ export default async function ClientePage({ params }: Props) {
                       {b.customer_package_id ? `pacote ${pkgById.get(b.customer_package_id)?.name ?? ""}`.trim() : brl(b.price)}
                     </p>
                   </div>
-                  <StatusBadge status={b.status as BookingStatus} />
+                  <div className="flex flex-wrap items-center gap-2">
+                    <AutoConfirmBadge status={b.status} reason={b.auto_confirm_reason} testId={`selo-auto-confirmado-${b.id}`} />
+                    <StatusBadge status={b.status as BookingStatus} />
+                  </div>
                 </div>
                 {(byBooking.get(b.id) ?? []).length > 0 && (
                   <ol className="mt-3 space-y-1 border-l-2 border-secondary pl-3 text-xs text-muted-foreground">
@@ -245,6 +254,7 @@ export default async function ClientePage({ params }: Props) {
                           <span className="font-semibold text-foreground">{ACTION_LABEL[e.action] ?? e.action}</span>{" "}
                           {ROLE_LABEL[e.actor_role ?? ""] ?? ""} · {when(e.created_at)}
                           {e.action === "rescheduled" && to?.date && ` → ${br(to.date)} às ${to.time}`}
+                          {e.action === "confirmed" && autoReason(e.details) && ` · ${autoReason(e.details)}`}
                         </li>
                       );
                     })}

@@ -8,6 +8,7 @@ import { monthStartISO, todayISO } from "@/lib/dates";
 import { brl, longDate } from "@/lib/format";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { VitrineLinkCard } from "@/components/admin/vitrine-link-card";
+import { ConfirmIntroCard } from "@/components/admin/confirm-intro-card";
 import { Button } from "@/components/ui/button";
 import type { BookingStatus } from "@/lib/types";
 
@@ -99,6 +100,21 @@ export default async function Dashboard({ searchParams }: Props) {
   ]);
   const welcome = searchParams["bem-vindo"] === "1";
 
+  // Confirmação automática: aviso para contas antigas e novos confirmados nas últimas 24 h
+  const biz = business as unknown as { online_confirm_mode?: string; online_confirm_reviewed_at?: string | null };
+  const showConfirmIntro = isOwner && biz.online_confirm_mode === "manual" && !biz.online_confirm_reviewed_at;
+  const { count: autoConfirmed } =
+    isOwner || role === "reception"
+      ? await supabase
+          .from("bookings")
+          .select("id", { count: "exact", head: true })
+          .eq("business_id", business.id)
+          .eq("source", "online")
+          .eq("status", "confirmed")
+          .not("auto_confirm_reason", "is", null)
+          .gte("created_at", new Date(Date.now() - 86_400_000).toISOString())
+      : { count: 0 };
+
   // Indicadores por papel
   const commission = Number(me?.commission_pct ?? 0);
   const cards =
@@ -145,6 +161,24 @@ export default async function Dashboard({ searchParams }: Props) {
           welcome={welcome}
           ownerName={(business as { owner_name?: string | null }).owner_name}
         />
+      )}
+
+      {showConfirmIntro && <ConfirmIntroCard />}
+
+      {(autoConfirmed ?? 0) > 0 && (
+        <Link
+          href="/admin/agenda"
+          className="flex items-center justify-between gap-4 rounded-2xl border border-green-200 bg-green-50 p-4 text-green-900 transition-colors hover:bg-green-100"
+          data-testid="linha-confirmados-automaticamente"
+        >
+          <span>
+            <strong>{autoConfirmed}</strong>{" "}
+            {autoConfirmed === 1
+              ? "novo agendamento online confirmado automaticamente (24 h)"
+              : "novos agendamentos online confirmados automaticamente (24 h)"}
+          </span>
+          <span className="text-sm font-semibold underline">Ver agenda</span>
+        </Link>
       )}
 
       {stats.pending > 0 && (

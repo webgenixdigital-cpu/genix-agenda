@@ -6,6 +6,7 @@ import { addDaysISO, mondayOf, todayISO } from "@/lib/dates";
 import { agendaProfessional, blockAppliesOn, loadAgenda } from "@/lib/agenda-data";
 import { brl, longDate, maskPhone } from "@/lib/format";
 import { StatusBadge } from "@/components/admin/status-badge";
+import { AutoConfirmBadge } from "@/components/admin/auto-confirm-badge";
 import { AgendaToolbar } from "@/components/admin/agenda/agenda-toolbar";
 import { BookingActions } from "@/components/admin/agenda/booking-actions";
 import { ViewPreference } from "@/components/admin/agenda/view-preference";
@@ -208,6 +209,7 @@ export default async function AgendaPage({ searchParams }: Props) {
                         <p className="font-semibold">{b.customer_name}</p>
                       )}
                       <StatusBadge status={b.status} />
+                      <AutoConfirmBadge status={b.status} reason={b.auto_confirm_reason} testId={`selo-auto-confirmado-${b.id}`} />
                       {b.series_id && (
                         <span
                           className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-primary"

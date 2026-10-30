@@ -6,6 +6,7 @@ import { getEditorContext } from "@/lib/admin";
 import { isValidCpfCnpj, onlyDigits } from "@/lib/cpf-cnpj";
 import { todayISO } from "@/lib/dates";
 import { REGIMES, type TaxRegime } from "@/lib/faturamento";
+import { isConfirmMode } from "@/lib/confirm-mode";
 
 type Result = { ok: true } | { ok: false; error: string };
 
@@ -198,5 +199,38 @@ export async function updateFiscal(input: {
   revalidatePath("/admin/configuracoes");
   revalidatePath("/admin/financeiro", "layout");
   revalidatePath("/admin/profissionais");
+  return { ok: true };
+}
+// ---------------------------------------------------------------------
+// PARTE 5 — Confirmação automática dos agendamentos online
+// A regra roda no banco (create_public_booking); aqui só o modo.
+// ---------------------------------------------------------------------
+export async function updateConfirmMode(mode: string): Promise<Result> {
+  const { business, role } = await getEditorContext();
+  if (role !== "owner") return { ok: false, error: NOT_OWNER };
+  if (!isConfirmMode(mode)) return { ok: false, error: "Escolha uma das opções." };
+
+  const { error } = await createClient()
+    .from("businesses")
+    .update({ online_confirm_mode: mode, online_confirm_reviewed_at: new Date().toISOString() })
+    .eq("id", business.id);
+  if (error) return { ok: false, error: "Não foi possível salvar a confirmação automática." };
+
+  revalidatePath("/admin", "layout");
+  return { ok: true };
+}
+
+/** "Agora não" no aviso do Início (contas que já existiam antes do recurso) */
+export async function dismissConfirmIntro(): Promise<Result> {
+  const { business, role } = await getEditorContext();
+  if (role !== "owner") return { ok: false, error: NOT_OWNER };
+
+  const { error } = await createClient()
+    .from("businesses")
+    .update({ online_confirm_reviewed_at: new Date().toISOString() })
+    .eq("id", business.id);
+  if (error) return { ok: false, error: "Não foi possível dispensar o aviso." };
+
+  revalidatePath("/admin");
   return { ok: true };
 }

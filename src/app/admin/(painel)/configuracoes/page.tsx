@@ -9,6 +9,8 @@ import { LockedFeatureCard } from "@/components/admin/locked-feature";
 import { getPlanContext } from "@/lib/plan";
 import { loadFiscal } from "@/lib/faturamento-data";
 import { FiscalForm } from "@/components/admin/configuracoes/fiscal-form";
+import { ConfirmModeForm } from "@/components/admin/configuracoes/confirm-mode-form";
+import { isConfirmMode, type ConfirmMode } from "@/lib/confirm-mode";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +33,7 @@ type FullBusiness = {
   is_published: boolean;
   slot_step_min: number;
   booking_notice_min: number;
+  online_confirm_mode: string | null;
 };
 
 export default async function ConfiguracoesPage() {
@@ -77,6 +80,14 @@ export default async function ConfiguracoesPage() {
           slotStep={b.slot_step_min}
           noticeMin={b.booking_notice_min}
         />
+      </Section>
+
+      <Section
+        id="confirmacao"
+        title="Confirmação dos agendamentos online"
+        description="Decide se o pedido feito na vitrine já entra confirmado ou espera você confirmar."
+      >
+        <ConfirmModeForm initial={isConfirmMode(b.online_confirm_mode ?? "") ? (b.online_confirm_mode as ConfirmMode) : "manual"} />
       </Section>
 
       <Section

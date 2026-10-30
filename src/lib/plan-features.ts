@@ -2,7 +2,7 @@
 
 export const FREE_LOCKED_HREFS = ["/admin/bloqueios", "/admin/lembretes", "/admin/financeiro"];
 
-export type LockedFeatureKey = "bloqueios" | "lembretes" | "financeiro" | "pacotes";
+export type LockedFeatureKey = "bloqueios" | "lembretes" | "financeiro" | "pacotes" | "whatsapp";
 
 export const LOCKED_FEATURES: Record<
   LockedFeatureKey,
@@ -42,6 +42,15 @@ export const LOCKED_FEATURES: Record<
       "Modelos de pacote com preço e validade",
       "Saldo de sessões na ficha do cliente",
       "Venda lançada no caixa uma vez só",
+    ],
+  },
+  whatsapp: {
+    title: "Lembretes automáticos no WhatsApp",
+    description: "O lembrete de véspera sai sozinho do seu WhatsApp para os clientes confirmados.",
+    bullets: [
+      "Envio a partir das 08:00 da véspera, com ritmo seguro",
+      "Dois textos que se alternam, editáveis",
+      "Quem já recebeu sai da fila de Lembretes",
     ],
   },
 };

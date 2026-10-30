@@ -4,6 +4,9 @@ import { ProfileForm } from "@/components/admin/configuracoes/profile-form";
 import { getActiveNiches } from "@/lib/niches";
 import { LinkForm } from "@/components/admin/configuracoes/link-form";
 import { HoursForm } from "@/components/admin/configuracoes/hours-form";
+import { WhatsappForm, type WhatsappPanelStatus } from "@/components/admin/configuracoes/whatsapp-form";
+import { LockedFeatureCard } from "@/components/admin/locked-feature";
+import { getPlanContext } from "@/lib/plan";
 
 export const dynamic = "force-dynamic";
 
@@ -33,10 +36,11 @@ export default async function ConfiguracoesPage() {
   const b = business as unknown as FullBusiness;
   const supabase = createClient();
 
-  const { data: hours } = await supabase
-    .from("business_hours")
-    .select("weekday, closed, open_time, close_time")
-    .eq("business_id", b.id);
+  const [{ data: hours }, plan, { data: wa }] = await Promise.all([
+    supabase.from("business_hours").select("weekday, closed, open_time, close_time").eq("business_id", b.id),
+    getPlanContext(b.id),
+    supabase.rpc("whatsapp_panel_status", { p_business: b.id }),
+  ]);
 
   return (
     <main className="mx-auto max-w-3xl space-y-8 p-4 md:p-8">
@@ -71,13 +75,37 @@ export default async function ConfiguracoesPage() {
           noticeMin={b.booking_notice_min}
         />
       </Section>
+
+      <Section
+        id="whatsapp"
+        title="WhatsApp automático (beta)"
+        description="Lembrete de véspera enviado sozinho do WhatsApp do seu espaço."
+      >
+        {plan.tier !== "completo" ? (
+          <LockedFeatureCard feature="whatsapp" />
+        ) : wa ? (
+          <WhatsappForm initial={wa as WhatsappPanelStatus} businessName={b.name} canEdit={role === "owner"} />
+        ) : (
+          <p className="text-sm text-muted-foreground">Não foi possível carregar o status do WhatsApp.</p>
+        )}
+      </Section>
     </main>
   );
 }
 
-function Section({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
+function Section({
+  id,
+  title,
+  description,
+  children,
+}: {
+  id?: string;
+  title: string;
+  description: string;
+  children: React.ReactNode;
+}) {
   return (
-    <section className="rounded-2xl border bg-card p-5 md:p-6">
+    <section id={id} className="scroll-mt-4 rounded-2xl border bg-card p-5 md:p-6">
       <h2 className="text-2xl">{title}</h2>
       <p className="mb-5 mt-1 text-sm text-muted-foreground">{description}</p>
       {children}

@@ -1,11 +1,13 @@
 import Link from "next/link";
-import { CheckCircle2 } from "lucide-react";
+import { AlertCircle, Bot, CheckCircle2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminContext } from "@/lib/admin";
 import { getPlanContext } from "@/lib/plan";
 import { LockedFeature } from "@/components/admin/locked-feature";
 import { todayISO } from "@/lib/dates";
 import { longDate, maskPhone, whatsappLink } from "@/lib/format";
+import { reminderMessage } from "@/lib/messages";
+import { reasonLabel } from "@/lib/whatsapp/templates";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { SendReminderButton, UndoReminderButton } from "@/components/admin/lembretes/reminder-actions";
 import { ReturnQueue } from "@/components/admin/lembretes/return-queue";
@@ -16,14 +18,19 @@ export const dynamic = "force-dynamic";
 
 type Props = { searchParams: { dia?: string } };
 
-function reminderMessage(name: string, service: string, pro: string, date: string, time: string, business: string, isToday: boolean) {
-  const first = name.split(" ")[0];
-  return (
-    `Olá, ${first}! Passando para lembrar do seu horário ${isToday ? "hoje" : "amanhã"} ⏰\n\n` +
-    `• ${service}\n• Com ${pro}\n• ${longDate(date)}, às ${time.slice(0, 5)}\n\n` +
-    `Pode confirmar sua presença respondendo esta mensagem? Se precisar remarcar, é só avisar.\n${business}`
-  );
-}
+type AutoSend = {
+  booking_id: string;
+  booking_date: string;
+  start_time: string;
+  attempt: number;
+  status: "sending" | "sent" | "failed";
+  reason: string | null;
+  retryable: boolean;
+  sent_at: string | null;
+};
+
+const hhmm = (ts: string) =>
+  new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" }).format(new Date(ts));
 
 export default async function LembretesPage({ searchParams }: Props) {
   const { business } = await getAdminContext();
@@ -48,6 +55,23 @@ export default async function LembretesPage({ searchParams }: Props) {
   const queue = list.filter((b) => !b.reminder_sent_at);
   const sent = list.filter((b) => b.reminder_sent_at);
 
+  // envios automáticos: última tentativa da data/hora atual de cada agendamento
+  const [{ data: sends }, { data: waSettings }] = await Promise.all([
+    list.length
+      ? supabase
+          .from("whatsapp_reminder_sends")
+          .select("booking_id, booking_date, start_time, attempt, status, reason, retryable, sent_at")
+          .in("booking_id", list.map((b) => b.id))
+          .order("attempt")
+      : Promise.resolve({ data: [] }),
+    supabase.from("whatsapp_settings").select("auto_enabled").eq("business_id", business.id).maybeSingle(),
+  ]);
+  const lastSend = new Map<string, AutoSend>();
+  for (const s of (sends ?? []) as AutoSend[]) {
+    const b = list.find((x) => x.id === s.booking_id);
+    if (b && s.booking_date === date && s.start_time === b.start_time) lastSend.set(s.booking_id, s);
+  }
+
   const tabs = [
     { key: "amanha", label: "Amanhã", href: "/admin/lembretes", active: !isToday && !isReturns },
     { key: "hoje", label: "Hoje", href: "/admin/lembretes?dia=hoje", active: isToday },
@@ -61,6 +85,12 @@ export default async function LembretesPage({ searchParams }: Props) {
         <p className="mt-1 max-w-lg text-sm text-muted-foreground">
           Um toque abre o WhatsApp com a mensagem pronta e tira o cliente da fila. Lembrar na véspera reduz faltas.
         </p>
+        {waSettings?.auto_enabled && (
+          <p className="mt-2 flex max-w-lg items-start gap-2 text-sm text-muted-foreground" data-testid="lembretes-automatico-ativo">
+            <Bot className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+            Envio automático ligado: os confirmados recebem o lembrete a partir das 08:00 da véspera. Quem não receber continua aqui.
+          </p>
+        )}
       </header>
 
       <nav className="inline-flex rounded-xl border bg-white p-1" aria-label="Dia">
@@ -114,6 +144,7 @@ export default async function LembretesPage({ searchParams }: Props) {
                   <p className="text-sm text-muted-foreground">
                     {b.service_name} com {b.professional_name} · {maskPhone(b.customer_phone)}
                   </p>
+                  <AutoFailure send={lastSend.get(b.id)} />
                 </div>
                 {href && <SendReminderButton id={b.id} href={href} />}
               </li>
@@ -127,30 +158,46 @@ export default async function LembretesPage({ searchParams }: Props) {
         <section className="space-y-3">
           <h2 className="font-sans text-sm font-semibold text-muted-foreground">Já lembrados</h2>
           <ul className="divide-y rounded-2xl border bg-card">
-            {sent.map((b) => (
-              <li key={b.id} className="flex items-center gap-3 p-4">
-                <CheckCircle2 className="h-5 w-5 shrink-0 text-green-600" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold">
-                    {b.start_time.slice(0, 5)} · {b.customer_name}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Lembrete enviado às{" "}
-                    {new Intl.DateTimeFormat("pt-BR", {
-                      timeZone: "America/Sao_Paulo",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    }).format(new Date(b.reminder_sent_at!))}
-                  </p>
-                </div>
-                <UndoReminderButton id={b.id} />
-              </li>
-            ))}
+            {sent.map((b) => {
+              const auto = lastSend.get(b.id);
+              const isAuto = auto?.status === "sent" && !!auto.sent_at;
+              return (
+                <li key={b.id} className="flex items-center gap-3 p-4">
+                  <CheckCircle2 className="h-5 w-5 shrink-0 text-green-600" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold">
+                      {b.start_time.slice(0, 5)} · {b.customer_name}
+                    </p>
+                    {isAuto ? (
+                      <p className="flex items-center gap-1 text-xs font-medium text-primary" data-testid={`selo-automatico-${b.id}`}>
+                        <Bot className="h-3.5 w-3.5" /> Enviado automaticamente às {hhmm(auto.sent_at!)}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">Lembrete enviado às {hhmm(b.reminder_sent_at!)}</p>
+                    )}
+                  </div>
+                  <UndoReminderButton id={b.id} />
+                </li>
+              );
+            })}
           </ul>
         </section>
       )}
       </>
       )}
     </main>
+  );
+}
+
+/** Último motivo do envio automático que não deu certo (fila manual) */
+function AutoFailure({ send }: { send?: AutoSend }) {
+  if (!send || send.status !== "failed") return null;
+  const willRetry = send.retryable && send.attempt === 1;
+  return (
+    <p className="mt-1 flex items-start gap-1 text-xs text-amber-800" data-testid="lembrete-falha-automatico">
+      <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+      Envio automático não saiu: {reasonLabel(send.reason)}.
+      {willRetry ? " Uma nova tentativa sai em breve." : " Envie pelo botão."}
+    </p>
   );
 }

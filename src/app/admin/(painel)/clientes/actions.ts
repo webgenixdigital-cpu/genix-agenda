@@ -83,6 +83,27 @@ export async function updateCustomer(
 }
 
 // ---------------------------------------------------------------------
+// PARTE 2.1 — Não enviar lembretes automáticos (matriz e recepção;
+// o banco barra os demais papéis)
+// ---------------------------------------------------------------------
+export async function setCustomerAutoReminders(id: string, optOut: boolean): Promise<Result> {
+  const { business, role } = await getEditorContext();
+  if (role !== "owner" && role !== "reception") return { ok: false, error: "Somente a matriz e a recepção podem alterar esta opção." };
+
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("customers")
+    .update({ no_auto_reminders: optOut })
+    .eq("id", id)
+    .eq("business_id", business.id)
+    .select("id");
+
+  if (error || !data?.length) return { ok: false, error: "Não foi possível salvar a preferência." };
+  revalidatePath(`/admin/clientes/${id}`);
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------
 // PARTE 3 — Excluir (só a matriz; agendamentos continuam no histórico)
 // ---------------------------------------------------------------------
 export async function deleteCustomer(id: string): Promise<Result> {

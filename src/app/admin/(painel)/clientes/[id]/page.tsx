@@ -8,6 +8,7 @@ import { StatusBadge } from "@/components/admin/status-badge";
 import { CustomerDialog, DeleteCustomerButton } from "@/components/admin/clientes/customer-dialog";
 import { ProfileCard, type ProfileField } from "@/components/admin/clientes/profile-card";
 import { PackagesCard, type CustomerPackage } from "@/components/admin/clientes/packages-card";
+import { AutoReminderToggle } from "@/components/admin/clientes/auto-reminder-toggle";
 import { Button } from "@/components/ui/button";
 import { getPlanContext } from "@/lib/plan";
 import type { BookingStatus } from "@/lib/types";
@@ -36,6 +37,7 @@ const ROLE_LABEL: Record<string, string> = {
   reception: "pela recepção",
   staff: "pelo profissional",
   sistema: "pelo sistema",
+  automatico: "automático pelo WhatsApp",
 };
 
 // ---------------------------------------------------------------------
@@ -48,7 +50,7 @@ export default async function ClientePage({ params }: Props) {
 
   const { data: c } = await supabase
     .from("customers")
-    .select("id, name, phone, email, notes, created_at, profile")
+    .select("id, name, phone, email, notes, created_at, profile, no_auto_reminders")
     .eq("id", params.id)
     .eq("business_id", business.id)
     .maybeSingle();
@@ -180,6 +182,11 @@ export default async function ClientePage({ params }: Props) {
         <p className="flex gap-2 whitespace-pre-line rounded-2xl bg-secondary p-4 text-sm">
           <StickyNote className="mt-0.5 h-4 w-4 shrink-0 text-primary" /> {c.notes}
         </p>
+      )}
+
+      {/* Lembretes automáticos (matriz e recepção, plano Completo) */}
+      {canSell && plan.tier === "completo" && (
+        <AutoReminderToggle customerId={c.id} initial={c.no_auto_reminders} />
       )}
 
       {/* Pacotes: no Grátis só aparece se já houver pacote vendido */}

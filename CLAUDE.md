@@ -38,6 +38,8 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
 | `ASAAS_API_URL` / `ASAAS_API_KEY` / `ASAAS_WEBHOOK_TOKEN` | só servidor | local = **sandbox**; Vercel = produção |
 | `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | navegador | Cloudflare Turnstile (site key pública); local usa as chaves de teste da Cloudflare |
 | `TURNSTILE_SECRET_KEY` | **só servidor** | valida o token na server action da vitrine; local usa a secret de teste da Cloudflare |
+| `CRON_SECRET` | **só servidor** | protege `/api/whatsapp/tick`; o mesmo valor fica no Vault do Supabase (`supabase/manual/whatsapp-cron.sql`) |
+| `WHATSAPP_SEND_ENABLED` | só servidor | `1` liga os envios automáticos; sem ela nada sai (local fica desligado: o banco é o mesmo da produção) |
 
 - Nunca prefixar segredos com `NEXT_PUBLIC_`. Nunca importar `lib/supabase/admin.ts` em componente `"use client"`.
 - No `.env.local`, a chave do Asaas começa com `$`: escrever `ASAAS_API_KEY=\$aact_...` (na Vercel, sem a barra).
@@ -63,7 +65,9 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
   - **1 login = 1 espaço** (índice único em `business_members.user_id`). Acessos individuais são recurso do Completo.
 - **Demo pública** (`/demo`) entra no Lumina como `viewer`; ao salvar, o servidor redireciona com `?demo=bloqueado`.
 - **Avaliações** próprias pós-atendimento (link único por atendimento concluído), não Google.
-- **WhatsApp:** hoje via links `wa.me` (fila de um toque). Envio automático (API oficial) será incluso no Completo com cota mensal — etapa futura.
+- **WhatsApp:** links `wa.me` (fila de um toque) + **lembrete automático beta via Z-API** (Completo, liberado pela Genix
+  por espaço em `/genix?aba=whatsapp`; credenciais só no servidor; camada `lib/whatsapp/provider.ts`; relógio pg_cron →
+  `/api/whatsapp/tick`). API oficial com cota mensal — etapa futura, como outra implementação do provider.
 - Recebimento de **sinal via Pix** do cliente final: decisão adiada (avaliar subcontas Asaas).
 
 ## 5. Segurança e banco

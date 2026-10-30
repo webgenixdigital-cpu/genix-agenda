@@ -34,9 +34,16 @@ export async function saveNiche(input: {
   description: string;
   icon: string;
   sort_order: number;
+  featured: boolean;
+  featured_order: number | null;
 }): Promise<Result> {
   const supabase = await adminClient();
   if (!supabase) return { ok: false, error: "Acesso negado." };
+
+  const featuredOrder = input.featured_order == null ? null : Math.round(input.featured_order);
+  if (input.featured && featuredOrder != null && (featuredOrder < 1 || featuredOrder > 99)) {
+    return { ok: false, error: "Ordem no destaque: use um número de 1 a 99." };
+  }
 
   const id = input.id.trim().toLowerCase();
   if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(id) || id.length < 3) {
@@ -53,6 +60,9 @@ export async function saveNiche(input: {
     description: input.description.trim() || null,
     icon: input.icon,
     sort_order: Math.round(input.sort_order) || 0,
+    // destaque nos círculos da página principal ("/")
+    featured: !!input.featured,
+    featured_order: input.featured ? featuredOrder : null,
   };
 
   if (input.originalId) {

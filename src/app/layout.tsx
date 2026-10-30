@@ -16,6 +16,8 @@ const sans = DM_Sans({
 });
 
 export const metadata: Metadata = {
+  // base dos links canônicos (alternates.canonical) das páginas públicas
+  metadataBase: new URL("https://genixagenda.com.br"),
   title: "Genix Agenda — Vitrine Digital & Agenda Online",
   description:
     "Vitrine digital e agenda online para salões, barbearias, clínicas de estética e profissionais que atendem pessoas. Agendamento online e WhatsApp.",

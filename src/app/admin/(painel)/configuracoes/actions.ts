@@ -16,7 +16,7 @@ const SEGMENTS = ["beleza", "estetica", "psicologia_terapias", "outros"];
 
 function refreshAll(slugs: string[]) {
   revalidatePath("/admin", "layout");
-  revalidatePath("/");
+  revalidatePath("/espacos");
   slugs.forEach((s) => revalidatePath(`/v/${s}`));
 }
 

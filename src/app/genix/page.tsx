@@ -26,7 +26,10 @@ export default async function GenixAdminPage({ searchParams }: Props) {
   if (!isAdmin) notFound();
 
   const [{ data: niches }, { data: templates }, { data: usage }, { data: fields }, { data: whatsapp }] = await Promise.all([
-    supabase.from("niches").select("id, segment, name, description, icon, sort_order, active").order("sort_order"),
+    supabase
+      .from("niches")
+      .select("id, segment, name, description, icon, sort_order, active, featured, featured_order")
+      .order("sort_order"),
     supabase
       .from("niche_service_templates")
       .select("id, niche_id, name, category, description, duration_min, price, sort_order")

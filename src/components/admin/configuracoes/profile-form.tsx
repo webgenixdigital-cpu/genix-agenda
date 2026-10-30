@@ -3,7 +3,8 @@
 import { useState, useTransition } from "react";
 import { Loader2, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
-import { updateProfile } from "@/app/admin/(painel)/configuracoes/actions";
+import { updateCoverImage, updateProfile } from "@/app/admin/(painel)/configuracoes/actions";
+import { PhotoUpload, removeUploaded } from "@/components/admin/photo/photo-upload";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +14,7 @@ import { maskPhone, whatsappLink } from "@/lib/format";
 import { SEGMENTS } from "@/lib/segments";
 
 type Initial = {
+  id: string;
   name: string;
   segment: string;
   subcategory: string | null;
@@ -29,7 +31,16 @@ type Initial = {
 
 export type NicheOption = { id: string; segment: string; name: string };
 
-export function ProfileForm({ initial, niches }: { initial: Initial; niches: NicheOption[] }) {
+export function ProfileForm({
+  initial,
+  niches,
+  readOnly = false,
+}: {
+  initial: Initial;
+  niches: NicheOption[];
+  /** demonstração: envio de foto abre o convite */
+  readOnly?: boolean;
+}) {
   const [pending, start] = useTransition();
   const [f, setF] = useState({
     name: initial.name,
@@ -124,9 +135,37 @@ export function ProfileForm({ initial, niches }: { initial: Initial; niches: Nic
         <Field label="Instagram" id="cf-ig">
           <Input id="cf-ig" className="h-11" placeholder="@seuperfil" value={f.instagram} onChange={(e) => set("instagram")(e.target.value.slice(0, 60))} />
         </Field>
-        <Field label="Foto de capa (link https)" id="cf-hero">
-          <Input id="cf-hero" className="h-11" placeholder="https://..." value={f.hero_image} onChange={(e) => set("hero_image")(e.target.value)} />
-        </Field>
+      </div>
+
+      {/* Foto de capa: enviada e salva na hora; link colado vai com "Salvar perfil" */}
+      <div className="space-y-1.5">
+        <p className="text-sm font-medium">Foto de capa</p>
+        <PhotoUpload
+          kind="capa"
+          businessId={initial.id}
+          value={f.hero_image}
+          readOnly={readOnly}
+          help="Use uma foto horizontal e bem iluminada do seu espaço. Nós ajustamos o tamanho automaticamente."
+          onUploaded={async (url, paths) => {
+            const r = await updateCoverImage(url);
+            if (!r) return; // demonstração: o servidor redirecionou
+            if (r.ok) set("hero_image")(url);
+            else {
+              await removeUploaded(paths);
+              toast.error(r.error);
+            }
+          }}
+          onRemove={async () => {
+            const r = await updateCoverImage("");
+            if (!r) return;
+            if (r.ok) {
+              set("hero_image")("");
+              toast.success("Foto removida");
+            } else toast.error(r.error);
+          }}
+          onLinkChange={set("hero_image")}
+          testid="foto-capa"
+        />
       </div>
 
       {/* WhatsApp */}

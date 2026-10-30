@@ -22,6 +22,8 @@ export function TeamManager({
   ownerUserId,
   canInvite = false,
   partnerSalon = false,
+  businessId,
+  readOnly = false,
 }: {
   team: Row[];
   services: ServiceOption[];
@@ -33,6 +35,9 @@ export function TeamManager({
   canInvite?: boolean;
   /** espaço usa salão-parceiro: mostra a opção "parceiro" */
   partnerSalon?: boolean;
+  businessId: string;
+  /** demonstração: envio de foto abre o convite */
+  readOnly?: boolean;
 }) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<EditablePro | null>(null);
@@ -157,7 +162,8 @@ export function TeamManager({
         ))}
       </ul>
 
-      <ProfessionalDialog open={dialogOpen} onOpenChange={setDialogOpen} pro={editing} services={services} partnerSalon={partnerSalon} />
+      <ProfessionalDialog open={dialogOpen} onOpenChange={setDialogOpen} pro={editing} services={services} partnerSalon={partnerSalon}
+        businessId={businessId} readOnly={readOnly} />
     </>
   );
 }

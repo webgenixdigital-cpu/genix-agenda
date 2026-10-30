@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { saveProfessional } from "@/app/admin/(painel)/profissionais/actions";
+import { PhotoUpload, removeUploaded } from "@/components/admin/photo/photo-upload";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -28,17 +29,33 @@ type ServiceOption = { id: string; name: string; category: string | null };
 
 export function ProfessionalDialog({
   open,
-  onOpenChange,
   pro,
   services,
   partnerSalon = false,
+  businessId,
+  readOnly = false,
+  onOpenChange: setOpen,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   pro: EditablePro | null;
   services: ServiceOption[];
   partnerSalon?: boolean;
+  businessId: string;
+  /** demonstração: envio de foto abre o convite */
+  readOnly?: boolean;
 }) {
+  // foto enviada neste diálogo e ainda não salva: apagada se for trocada ou se fechar sem salvar
+  const unsaved = useRef<string[]>([]);
+  const discardUnsaved = () => {
+    const paths = unsaved.current;
+    unsaved.current = [];
+    void removeUploaded(paths);
+  };
+  const onOpenChange = (o: boolean) => {
+    if (!o) discardUnsaved();
+    setOpen(o);
+  };
   const [pending, start] = useTransition();
   const [name, setName] = useState("");
   const [role, setRole] = useState("");
@@ -86,6 +103,7 @@ export function ProfessionalDialog({
       if (!r) return; // demonstração: o servidor redirecionou
       if (r.ok) {
         toast.success(pro ? "Profissional atualizado" : "Profissional cadastrado");
+        unsaved.current = []; // a foto nova agora está salva
         onOpenChange(false);
       } else setError(r.error);
     });
@@ -123,8 +141,25 @@ export function ProfessionalDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="pf-photo">Link da foto (opcional)</Label>
-            <Input id="pf-photo" className="h-11" placeholder="https://..." value={photo} onChange={(e) => setPhoto(e.target.value)} />
+            <p className="text-sm font-medium">Foto (opcional)</p>
+            <PhotoUpload
+              kind="profissional"
+              businessId={businessId}
+              value={photo}
+              readOnly={readOnly}
+              help="Uma foto de rosto, de frente e com boa luz. Nós ajustamos o tamanho automaticamente."
+              onUploaded={(url, paths) => {
+                discardUnsaved();
+                unsaved.current = paths;
+                setPhoto(url);
+              }}
+              onRemove={() => {
+                discardUnsaved();
+                setPhoto("");
+              }}
+              onLinkChange={setPhoto}
+              testid="foto-profissional"
+            />
           </div>
 
           <div className="grid gap-3 sm:grid-cols-[1fr_120px]">

@@ -11,17 +11,28 @@ export type Niche = {
   description: string | null;
   icon: string;
   sort_order: number;
+  /** sinônimos para a busca (migration 27); vazio se a coluna ainda não existir */
+  keywords: string[];
 };
 
 /** Nichos ativos, na ordem definida pela Genix (só no servidor) */
 export const getActiveNiches = cache(async (): Promise<Niche[]> => {
   const supabase = createClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("niches")
-    .select("id, segment, name, description, icon, sort_order")
+    .select("id, segment, name, description, icon, sort_order, keywords")
     .eq("active", true)
     .order("sort_order");
-  return (data ?? []) as Niche[];
+  if (error) {
+    // sem a coluna keywords (migration 27 ainda não aplicada)
+    const { data: base } = await supabase
+      .from("niches")
+      .select("id, segment, name, description, icon, sort_order")
+      .eq("active", true)
+      .order("sort_order");
+    return (base ?? []).map((n) => ({ ...n, keywords: [] })) as Niche[];
+  }
+  return (data ?? []).map((n) => ({ ...n, keywords: n.keywords ?? [] })) as Niche[];
 });
 
 /**
@@ -44,7 +55,7 @@ export async function getFeaturedNiches(): Promise<Niche[]> {
       .eq("active", true)
       .order("sort_order")
       .limit(8);
-    return (base ?? []) as Niche[];
+    return (base ?? []).map((n) => ({ ...n, keywords: [] })) as Niche[];
   }
   const all = data ?? [];
   const featured = all
@@ -58,5 +69,6 @@ export async function getFeaturedNiches(): Promise<Niche[]> {
     description: n.description,
     icon: n.icon,
     sort_order: n.sort_order,
+    keywords: [],
   })) as Niche[];
 }

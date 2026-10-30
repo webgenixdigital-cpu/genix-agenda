@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { normalizeText } from "@/lib/niche-match";
 
 type Result = { ok: true } | { ok: false; error: string };
 
@@ -36,6 +37,8 @@ export async function saveNiche(input: {
   sort_order: number;
   featured: boolean;
   featured_order: number | null;
+  /** sinônimos separados por vírgula (busca da /espacos) */
+  keywords: string;
 }): Promise<Result> {
   const supabase = await adminClient();
   if (!supabase) return { ok: false, error: "Acesso negado." };
@@ -63,6 +66,15 @@ export async function saveNiche(input: {
     // destaque nos círculos da página principal ("/")
     featured: !!input.featured,
     featured_order: input.featured ? featuredOrder : null,
+    // sinônimos: sem acento, minúsculas, sem repetição (máx. 20)
+    keywords: Array.from(
+      new Set(
+        input.keywords
+          .split(",")
+          .map((k) => normalizeText(k).slice(0, 40))
+          .filter((k) => k.length >= 2)
+      )
+    ).slice(0, 20),
   };
 
   if (input.originalId) {

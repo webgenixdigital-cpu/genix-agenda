@@ -1,14 +1,14 @@
 import Link from "next/link";
-import { ArrowRight, CalendarCheck, MessageCircle, Search, Store } from "lucide-react";
+import { ArrowRight, CalendarCheck, MessageCircle, Search, Store, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { BusinessCard } from "@/components/business-card";
 import { NicheIcon } from "@/components/niche-icon";
-import { NicheHighlights } from "@/components/niche-highlights";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { NicheSearch } from "@/components/espacos/niche-search";
 import { getActiveNiches } from "@/lib/niches";
+import { matchNiches } from "@/lib/niche-match";
 import { SEGMENTS } from "@/lib/segments";
 import type { Metadata } from "next";
 import type { DirectoryItem } from "@/lib/types";
@@ -22,7 +22,10 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
-type Props = { searchParams: { nicho?: string; seg?: string; q?: string } };
+type Props = { searchParams: { nicho?: string; seg?: string; q?: string; onde?: string } };
+
+// texto seguro para o filtro do PostgREST (vírgula e parênteses quebram o .or)
+const clean = (s?: string) => (s ?? "").replace(/[,()%*]/g, " ").replace(/\s+/g, " ").trim().slice(0, 60);
 
 const HOW = [
   { icon: Search, title: "Escolha o espaço", text: "Veja serviços, preços, equipe e avaliações de quem já foi." },
@@ -37,8 +40,22 @@ export default async function EspacosPage({ searchParams }: Props) {
   const niches = await getActiveNiches();
   const nicho = niches.find((n) => n.id === searchParams.nicho)?.id;
   const seg = SEGMENTS.some((s) => s.value === searchParams.seg) ? searchParams.seg : undefined;
-  const q = (searchParams.q ?? "").replace(/[,()%]/g, " ").trim().slice(0, 60);
-  const filtered = !!(nicho || seg || q);
+  const q = clean(searchParams.q);
+  const onde = clean(searchParams.onde);
+  const filtered = !!(nicho || seg || q || onde);
+
+  // texto livre que bate com o nome/sinônimo de um nicho também traz os espaços dele
+  // (ex.: "cilios" → Lash designer), além da busca por nome, cidade e nicho
+  const qNiches = q ? matchNiches(niches, q).map((n) => n.id) : [];
+  const qFilter = q
+    ? [
+        `name.ilike.%${q}%`,
+        `city.ilike.%${q}%`,
+        `niche_name.ilike.%${q}%`,
+        ...(qNiches.length ? [`subcategory.in.(${qNiches.join(",")})`] : []),
+      ].join(",")
+    : "";
+  const ondeFilter = onde ? `name.ilike.%${onde}%,city.ilike.%${onde}%` : "";
 
   const supabase = createClient();
   let query = supabase
@@ -48,7 +65,10 @@ export default async function EspacosPage({ searchParams }: Props) {
     .order("rating_count", { ascending: false });
   if (nicho) query = query.eq("subcategory", nicho);
   else if (seg) query = query.eq("segment", seg);
-  if (q) query = query.or(`name.ilike.%${q}%,city.ilike.%${q}%,niche_name.ilike.%${q}%`);
+  // q e onde valem juntos (E); cada um é um "ou" entre os seus campos
+  if (qFilter && ondeFilter) query = query.or(`and(or(${qFilter}),or(${ondeFilter}))`);
+  else if (qFilter) query = query.or(qFilter);
+  else if (ondeFilter) query = query.or(ondeFilter);
 
   const [{ data, error }, { data: all }] = await Promise.all([
     query,
@@ -61,6 +81,18 @@ export default async function EspacosPage({ searchParams }: Props) {
   for (const r of all ?? []) if (r.subcategory) counts.set(r.subcategory, (counts.get(r.subcategory) ?? 0) + 1);
 
   const activeNiche = niches.find((n) => n.id === nicho);
+  const activeSeg = SEGMENTS.find((s) => s.value === seg);
+
+  // link que tira um filtro e mantém os outros
+  const hrefWithout = (key: "nicho" | "seg") => {
+    const p = new URLSearchParams();
+    if (key !== "nicho" && nicho) p.set("nicho", nicho);
+    if (key !== "seg" && seg) p.set("seg", seg);
+    if (q) p.set("q", q);
+    if (onde) p.set("onde", onde);
+    const qs = p.toString();
+    return `/espacos${qs ? `?${qs}` : ""}#resultados`;
+  };
 
   // -------------------------------------------------------------------
   // PARTE 2 — Página
@@ -80,23 +112,45 @@ export default async function EspacosPage({ searchParams }: Props) {
               Salões, barbearias, estética, unhas, cílios e muito mais, com horários abertos agora.
             </p>
 
-            <form action="/espacos" className="mt-8 flex max-w-xl gap-2" role="search">
-              {nicho && <input type="hidden" name="nicho" value={nicho} />}
-              <div className="relative flex-1">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  name="q"
-                  defaultValue={q}
-                  placeholder="Nome, cidade ou tipo de serviço"
-                  className="h-12 bg-white pl-10 text-base"
-                  data-testid="input-busca"
-                />
-              </div>
-              <Button type="submit" className="h-12 px-6" data-testid="btn-buscar">Buscar</Button>
-            </form>
+            {/* Busca: nicho (com sugestões) + onde */}
+            <NicheSearch
+              key={`${nicho ?? ""}|${q}|${onde}`}
+              niches={niches.map((n) => ({ id: n.id, name: n.name, keywords: n.keywords, icon: n.icon }))}
+              initialNiche={nicho}
+              initialQ={q}
+              initialOnde={onde}
+              seg={seg}
+            />
 
-            {/* Destaques circulares (estilo Instagram) */}
-            <NicheHighlights niches={niches} activeId={nicho} className="mt-8" />
+            {/* Filtros ativos (removíveis) */}
+            {(activeNiche || activeSeg) && (
+              <ul className="mt-4 flex flex-wrap gap-2" aria-label="Filtros ativos">
+                {activeNiche && (
+                  <li>
+                    <Link
+                      href={hrefWithout("nicho")}
+                      className="inline-flex min-h-11 items-center gap-2 rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground"
+                      aria-label={`Remover filtro ${activeNiche.name}`}
+                      data-testid="filtro-nicho-remover"
+                    >
+                      {activeNiche.name} <X className="h-4 w-4" aria-hidden />
+                    </Link>
+                  </li>
+                )}
+                {activeSeg && !activeNiche && (
+                  <li>
+                    <Link
+                      href={hrefWithout("seg")}
+                      className="inline-flex min-h-11 items-center gap-2 rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground"
+                      aria-label={`Remover filtro ${activeSeg.label}`}
+                      data-testid="filtro-segmento-remover"
+                    >
+                      {activeSeg.label} <X className="h-4 w-4" aria-hidden />
+                    </Link>
+                  </li>
+                )}
+              </ul>
+            )}
           </div>
         </section>
 
@@ -108,6 +162,7 @@ export default async function EspacosPage({ searchParams }: Props) {
               <p className="mt-1 text-sm text-muted-foreground">
                 {items.length === 1 ? "1 espaço encontrado" : `${items.length} espaços encontrados`}
                 {q && <> para “{q}”</>}
+                {onde && <> em “{onde}”</>}
               </p>
             </div>
             {activeNiche && (

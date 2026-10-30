@@ -4,6 +4,7 @@ import { CalendarHeart, CheckCircle2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { ReviewForm } from "@/components/vitrine/review-form";
 import { Button } from "@/components/ui/button";
+import { IMAGE_SIZES } from "@/lib/images";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Avalie seu atendimento", robots: { index: false } };
@@ -36,7 +37,14 @@ export default async function AvaliarPage({ params }: Props) {
       <header className="relative isolate overflow-hidden">
         {ctx.hero_image && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={ctx.hero_image} alt="" className="absolute inset-0 -z-10 h-full w-full object-cover" />
+          <img
+            src={ctx.hero_image}
+            alt=""
+            width={IMAGE_SIZES.capa.width}
+            height={IMAGE_SIZES.capa.height}
+            className="absolute inset-0 -z-10 h-full w-full object-cover"
+            decoding="async"
+          />
         )}
         <div className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,rgba(28,25,23,0.78)_0%,rgba(28,25,23,0.9)_100%)]" />
         <div className="mx-auto max-w-lg px-5 pb-16 pt-10 text-center text-white">

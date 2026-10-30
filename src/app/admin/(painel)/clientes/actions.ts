@@ -172,7 +172,7 @@ const PACKAGE_ERRORS: Record<string, string> = {
   MODELO_INVALIDO: "Esse modelo de pacote não está mais disponível.",
   CLIENTE_INVALIDO: "Cliente não encontrado.",
   SEM_PERMISSAO: "Somente a matriz e a recepção podem vender ou cancelar pacotes.",
-  PLANO_GRATIS: "Pacotes são um recurso do plano Completo.",
+  PLANO_GRATIS: "Pacotes são um recurso dos planos Profissional e Equipe.",
   FORMA_INVALIDA: "Escolha a forma de pagamento.",
   NAO_ENCONTRADO: "Pacote não encontrado.",
 };

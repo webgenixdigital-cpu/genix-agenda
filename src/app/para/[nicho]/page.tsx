@@ -2,16 +2,18 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
-  BellRing, CalendarCheck, CalendarOff, Check, ClipboardList, Link2, MessageCircle, PlayCircle, Sparkles, Users, Wallet,
+  Check, PlayCircle, Sparkles,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { NicheIcon } from "@/components/niche-icon";
-import { Pricing, type Plan } from "@/components/marketing/pricing";
+import { BenefitBlocks } from "@/components/marketing/benefit-blocks";
+import { Pricing } from "@/components/marketing/pricing";
 import { Button } from "@/components/ui/button";
 import { brl, duration } from "@/lib/format";
 import { getActiveNiches } from "@/lib/niches";
+import { normalizePlans, PLAN_COLUMNS } from "@/lib/plans-public";
 
 export const revalidate = 3600;
 
@@ -26,7 +28,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!n) return { title: "Página não encontrada" };
   return {
     title: `Agenda online para ${n.name} | Genix Agenda`,
-    description: `Vitrine digital, agendamento online, equipe e financeiro para ${n.name.toLowerCase()}. Teste grátis por 15 dias, sem cartão.`,
+    description: `Vitrine digital e agenda online para ${n.name.toLowerCase()}. Grátis para sempre para 1 profissional; planos Profissional e Equipe com 15 dias de teste, sem cartão.`,
   };
 }
 
@@ -39,18 +41,8 @@ const STEPS = [
   { title: "Receba agendamentos", text: "Os clientes marcam sozinhos e você confirma com um toque no WhatsApp." },
 ];
 
-const FEATURES = [
-  { icon: Link2, title: "Vitrine com link próprio", text: "Serviços, preços, equipe e avaliações numa página para divulgar." },
-  { icon: CalendarCheck, title: "Agendamento 24 horas", text: "Só aparecem horários livres de verdade, sem conflito." },
-  { icon: Users, title: "Cada profissional com seu acesso", text: "Matriz vê tudo; cada profissional vê a própria agenda e os próprios ganhos." },
-  { icon: ClipboardList, title: "Ficha do cliente", text: "Histórico de visitas e ficha técnica do seu segmento para cada cliente." },
-  { icon: BellRing, title: "Lembretes pelo WhatsApp", text: "Fila de lembretes de véspera para reduzir as faltas." },
-  { icon: CalendarOff, title: "Folgas e férias", text: "Bloqueie períodos e veja na hora quem precisa ser avisado." },
-  { icon: Wallet, title: "Financeiro e comissões", text: "Caixa do dia, faturamento do mês e comissão estimada de cada profissional." },
-  { icon: MessageCircle, title: "Avaliações dos clientes", text: "Link de avaliação após o atendimento, com as notas na sua vitrine." },
-];
 
-const TRUST = ["15 dias grátis", "Sem cartão", "Cancele quando quiser"];
+const TRUST = ["Grátis para sempre", "15 dias do Equipe para testar", "Sem cartão"];
 
 // ---------------------------------------------------------------------
 // PARTE 2 — Página
@@ -62,15 +54,11 @@ export default async function NichoPage({ params }: Props) {
   const supabase = createClient();
   const [{ data: templates }, { data: plansData }, { count }] = await Promise.all([
     supabase.from("niche_service_templates").select("id, name, duration_min, price").eq("niche_id", niche.id).order("sort_order"),
-    supabase.from("plans").select("id, name, billing_cycle, base_price, included_professionals, extra_professional_price").eq("active", true),
+    supabase.from("plans").select(PLAN_COLUMNS).eq("active", true),
     supabase.from("public_directory").select("id", { count: "exact", head: true }).eq("subcategory", niche.id),
   ]);
 
-  const plans = (plansData ?? []).map((p) => ({
-    ...p,
-    base_price: Number(p.base_price),
-    extra_professional_price: Number(p.extra_professional_price),
-  })) as Plan[];
+  const plans = normalizePlans(plansData);
   const services = templates ?? [];
   const preview = services.slice(0, 3);
   const signupHref = `/cadastro?nicho=${niche.id}`;
@@ -92,12 +80,12 @@ export default async function NichoPage({ params }: Props) {
                 Sua agenda de {niche.name.toLowerCase()} cheia, sem viver no WhatsApp.
               </h1>
               <p className="mt-5 max-w-xl text-lg text-muted-foreground">
-                {niche.description} Vitrine com agendamento online, equipe, ficha do cliente e financeiro num só lugar.
+                {niche.description} Seus clientes marcam pelo link e você controla o dia num só lugar. Simples de começar.
               </p>
 
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <Button asChild size="lg" className="h-12 px-7 text-base active:scale-95" data-testid="btn-nicho-teste">
-                  <Link href={signupHref}>Começar 15 dias grátis</Link>
+                  <Link href={signupHref}>Criar minha agenda grátis</Link>
                 </Button>
                 <Button asChild size="lg" variant="outline" className="h-12 bg-white px-6 text-base">
                   <Link href="/demo"><PlayCircle className="mr-2 h-5 w-5" /> Ver demonstração</Link>
@@ -200,27 +188,17 @@ export default async function NichoPage({ params }: Props) {
 
         {/* ---------- GESTÃO ---------- */}
         <section className="mx-auto max-w-6xl px-4 py-14 md:px-6">
-          <h2 className="max-w-2xl text-3xl md:text-[42px] md:leading-tight">Gestão completa, sem complicação</h2>
-          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {FEATURES.map(({ icon: Icon, title, text }) => (
-              <div key={title} className="rounded-2xl border bg-card p-5">
-                <span className="grid h-10 w-10 place-items-center rounded-full bg-secondary text-primary">
-                  <Icon className="h-5 w-5" />
-                </span>
-                <h3 className="mt-3 font-sans font-semibold">{title}</h3>
-                <p className="mt-1 text-sm text-muted-foreground">{text}</p>
-              </div>
-            ))}
-          </div>
+          <h2 className="max-w-2xl text-3xl md:text-[42px] md:leading-tight">Simples de usar, com o seu dia sob controle</h2>
+          <BenefitBlocks className="mt-8" />
         </section>
 
         {/* ---------- PLANOS ---------- */}
         <section className="border-t bg-secondary/40">
           <div className="mx-auto max-w-6xl px-4 py-14 md:px-6">
             <div className="text-center">
-              <h2 className="text-3xl md:text-[42px]">Comece grátis. Cresça com o Completo.</h2>
+              <h2 className="text-3xl md:text-[42px]">Comece grátis. Cresça no seu ritmo.</h2>
               <p className="mx-auto mt-3 max-w-xl text-muted-foreground">
-                Toda conta nova ganha 15 dias do Completo. Depois, assine ou continue no Grátis.
+                Toda conta nova ganha 15 dias do plano Equipe. Depois, escolha o seu plano ou continue no Grátis para sempre.
               </p>
             </div>
             <div className="mt-10">
@@ -233,7 +211,7 @@ export default async function NichoPage({ params }: Props) {
       {/* Barra fixa no celular */}
       <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-white/95 p-3 backdrop-blur md:hidden">
         <Button asChild className="h-12 w-full text-base" data-testid="btn-nicho-teste-mobile">
-          <Link href={signupHref}>Começar 15 dias grátis</Link>
+          <Link href={signupHref}>Criar minha agenda grátis</Link>
         </Button>
       </div>
 

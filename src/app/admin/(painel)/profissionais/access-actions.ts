@@ -3,13 +3,13 @@
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { getEditorContext } from "@/lib/admin";
-import { getPlanContext } from "@/lib/plan";
+import { getPlanContext, hasTeamFeatures } from "@/lib/plan";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 type Result = { ok: true; message?: string } | { ok: false; error: string };
 
 const ONLY_OWNER = "Somente a matriz pode gerenciar acessos.";
-const FULL_ONLY = "Acessos individuais são um recurso do plano Completo.";
+const FULL_ONLY = "Acessos individuais da equipe são um recurso do plano Equipe.";
 
 function siteOrigin() {
   const h = headers();
@@ -32,7 +32,7 @@ export async function inviteMember(input: {
   const ctx = await getEditorContext();
   if (ctx.role !== "owner") return { ok: false, error: ONLY_OWNER };
   const plan = await getPlanContext(ctx.business.id);
-  if (plan.tier !== "completo") return { ok: false, error: FULL_ONLY };
+  if (!hasTeamFeatures(plan)) return { ok: false, error: FULL_ONLY };
 
   const email = input.email.trim().toLowerCase();
   const name = input.name.trim();
@@ -80,6 +80,8 @@ export async function inviteMember(input: {
   });
   if (memErr) {
     await admin.auth.admin.deleteUser(userId);
+    // gatilho da 28a: acessos da equipe só no plano Equipe
+    if (memErr.message.includes("PLANO_EQUIPE")) return { ok: false, error: FULL_ONLY };
     return { ok: false, error: "Não foi possível vincular o acesso. Tente de novo." };
   }
 

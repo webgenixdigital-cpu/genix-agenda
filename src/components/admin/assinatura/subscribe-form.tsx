@@ -8,12 +8,21 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { brl } from "@/lib/format";
 import { isValidCpfCnpj, maskCpfCnpj } from "@/lib/cpf-cnpj";
+import { planIdFor, type Cycle, type PaidKind } from "@/lib/plan-ids";
 import { cn } from "@/lib/utils";
 
+/** valores calculados no banco (subscription_quote) para cada plano e ciclo */
+export type Quotes = Record<PaidKind, Record<Cycle, number>>;
+
 type Props = {
-  monthly: number;
-  yearly: number;
-  firstDueLabel: string;   // "hoje" ou "em 03/11/2026 (fim do teste)"
+  quotes: Quotes;
+  /** profissionais ativos (o Profissional é para 1) */
+  activePros: number;
+  /** extras cobrados no Equipe (além dos 3 inclusos) */
+  equipeExtras: number;
+  /** plano sugerido: 1 profissional → Profissional; 2+ → Equipe */
+  recommended: PaidKind;
+  firstDueLabel: string; // "hoje" ou "em 03/11/2026 (fim do teste)"
 };
 
 const METHODS = [
@@ -21,22 +30,29 @@ const METHODS = [
   { value: "CREDIT_CARD", label: "Cartão", icon: CreditCard, hint: "Renova sozinho" },
 ] as const;
 
-export function SubscribeForm({ monthly, yearly, firstDueLabel }: Props) {
+const KINDS: { id: PaidKind; title: string; text: string }[] = [
+  { id: "profissional", title: "Profissional", text: "Para quem atende sozinho: tudo liberado para 1 profissional." },
+  { id: "equipe", title: "Equipe", text: "Para salões e equipes: até 3 profissionais, acessos da equipe e comissões." },
+];
+
+export function SubscribeForm({ quotes, activePros, equipeExtras, recommended, firstDueLabel }: Props) {
   const [pending, start] = useTransition();
-  const [planId, setPlanId] = useState<"mensal" | "anual">("anual");
+  const proBlocked = activePros > 1;
+  const [kind, setKind] = useState<PaidKind>(proBlocked ? "equipe" : recommended);
+  const [cycle, setCycle] = useState<Cycle>("anual");
   const [method, setMethod] = useState<(typeof METHODS)[number]["value"]>("PIX");
   const [name, setName] = useState("");
   const [doc, setDoc] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const docOk = isValidCpfCnpj(doc);
-  const valid = name.trim().length >= 3 && docOk;
-  const savings = monthly * 12 - yearly;
+  const valid = name.trim().length >= 3 && docOk && !(kind === "profissional" && proBlocked);
+  const total = quotes[kind][cycle];
 
   function submit() {
     setError(null);
     start(async () => {
-      const r = await startSubscription({ planId, billingType: method, holderName: name, cpfCnpj: doc });
+      const r = await startSubscription({ planId: planIdFor(kind, cycle), billingType: method, holderName: name, cpfCnpj: doc });
       if (!r) return; // demonstração: o servidor redirecionou
       if (!r.ok) {
         setError(r.error);
@@ -58,27 +74,64 @@ export function SubscribeForm({ monthly, yearly, firstDueLabel }: Props) {
       <fieldset>
         <legend className="mb-3 text-sm font-semibold text-primary">1. Escolha o plano</legend>
         <div className="grid gap-3 sm:grid-cols-2">
-          {([
-            { id: "mensal", title: "Mensal", price: brl(monthly), suffix: "/mês", note: "Sem fidelidade" },
-            { id: "anual", title: "Anual", price: brl(yearly), suffix: "/ano", note: `Economia de ${brl(savings)} (2 meses grátis)` },
-          ] as const).map((p) => (
+          {KINDS.map((k) => {
+            const disabled = k.id === "profissional" && proBlocked;
+            return (
+              <button
+                key={k.id}
+                type="button"
+                onClick={() => !disabled && setKind(k.id)}
+                aria-pressed={kind === k.id}
+                aria-disabled={disabled}
+                className={cn(
+                  "relative rounded-2xl border-2 p-4 text-left transition-colors",
+                  kind === k.id ? "border-primary bg-primary/5" : "border-border bg-card hover:border-primary/40",
+                  disabled && "cursor-not-allowed opacity-60 hover:border-border"
+                )}
+                data-testid={`escolher-plano-${k.id}`}
+              >
+                {k.id === recommended && !disabled && (
+                  <span className="absolute -top-2.5 right-3 rounded-full bg-primary px-2 py-0.5 text-[11px] font-semibold text-primary-foreground">
+                    Indicado para você
+                  </span>
+                )}
+                <p className="text-sm font-semibold">{k.title}</p>
+                <p className="mt-1 font-heading text-3xl">
+                  {brl(quotes[k.id][cycle])}
+                  <span className="text-base text-muted-foreground"> {cycle === "anual" ? "/ano" : "/mês"}</span>
+                </p>
+                {cycle === "anual" && (
+                  <p className="text-xs text-muted-foreground">equivale a {brl(quotes[k.id].anual / 12)}/mês</p>
+                )}
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {disabled ? `Você tem ${activePros} profissionais ativos. O Profissional é para 1.` : k.text}
+                </p>
+                {k.id === "equipe" && equipeExtras > 0 && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Inclui {equipeExtras} {equipeExtras === 1 ? "profissional extra" : "profissionais extras"}.
+                  </p>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Mensal / anual */}
+        <div className="mt-3 inline-flex rounded-full border bg-white p-1" role="radiogroup" aria-label="Forma de cobrança">
+          {(["mensal", "anual"] as const).map((c) => (
             <button
-              key={p.id}
+              key={c}
               type="button"
-              onClick={() => setPlanId(p.id)}
-              aria-pressed={planId === p.id}
+              role="radio"
+              aria-checked={cycle === c}
+              onClick={() => setCycle(c)}
               className={cn(
-                "rounded-2xl border-2 p-4 text-left transition-colors",
-                planId === p.id ? "border-primary bg-primary/5" : "border-border bg-card hover:border-primary/40"
+                "inline-flex h-11 items-center rounded-full px-5 text-sm font-semibold transition-colors",
+                cycle === c ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
               )}
-              data-testid={`escolher-plano-${p.id}`}
+              data-testid={`ciclo-${c}`}
             >
-              <p className="text-sm font-semibold">{p.title}</p>
-              <p className="mt-1 font-heading text-3xl">
-                {p.price}
-                <span className="text-base text-muted-foreground"> {p.suffix}</span>
-              </p>
-              <p className={cn("mt-1 text-sm", p.id === "anual" ? "text-green-700" : "text-muted-foreground")}>{p.note}</p>
+              {c === "mensal" ? "Mensal" : "Anual · 2 meses grátis"}
             </button>
           ))}
         </div>
@@ -87,7 +140,7 @@ export function SubscribeForm({ monthly, yearly, firstDueLabel }: Props) {
       {/* 2. Forma de pagamento */}
       <fieldset>
         <legend className="mb-3 text-sm font-semibold text-primary">2. Forma de pagamento</legend>
-                <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-2">
           {METHODS.map(({ value, label, icon: Icon, hint }) => (
             <button
               key={value}
@@ -132,8 +185,10 @@ export function SubscribeForm({ monthly, yearly, firstDueLabel }: Props) {
 
       <div className="rounded-xl bg-secondary p-4 text-sm">
         <p>
-          <strong>Total: {brl(planId === "anual" ? yearly : monthly)}</strong> {planId === "anual" ? "por ano" : "por mês"}.
-          Primeira cobrança com vencimento {firstDueLabel}.
+          <strong>
+            {kind === "profissional" ? "Profissional" : "Equipe"}: {brl(total)}
+          </strong>{" "}
+          {cycle === "anual" ? `por ano (equivale a ${brl(total / 12)}/mês)` : "por mês"}. Primeira cobrança com vencimento {firstDueLabel}.
         </p>
       </div>
 

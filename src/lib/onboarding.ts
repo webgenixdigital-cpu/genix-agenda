@@ -112,8 +112,8 @@ export async function getOnboarding(business: BusinessLike, plan: PlanContext) {
       title: "Escolha seu plano",
       why:
         plan.trialDaysLeft !== null
-          ? `Seu teste do Completo termina em ${plan.trialDaysLeft} ${plan.trialDaysLeft === 1 ? "dia" : "dias"}. Depois, você segue no Grátis se quiser.`
-          : "Libere agendamentos ilimitados, equipe, lembretes e financeiro.",
+          ? `Seu teste do plano Equipe termina em ${plan.trialDaysLeft} ${plan.trialDaysLeft === 1 ? "dia" : "dias"}. Depois, você segue no Grátis se quiser.`
+          : "Libere agendamentos ilimitados, bloqueios, financeiro e, no Equipe, os acessos da equipe.",
       done: plan.status === "active",
       optional: true,
       href: "/admin/assinatura",

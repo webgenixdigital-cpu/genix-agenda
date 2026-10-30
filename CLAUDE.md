@@ -47,11 +47,24 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
 
 ## 4. Decisões de produto (respeitar sempre)
 
-- **Freemium:** toda conta nova ganha **15 dias do Completo**; sem pagamento, cai no **Grátis** (nada é apagado).
-  - Grátis: vitrine + pedidos, **10 agendamentos online/dia**, **1 profissional**, selo "Feito com Genix Agenda";
-    Bloqueios, Lembretes, Financeiro e acessos de equipe ficam com cadeado + CTA.
-  - Completo: R$ 98,70/mês ou R$ 987,00/ano até 3 profissionais; +R$ 35/mês (R$ 350/ano) por profissional extra.
+- **Freemium — 3 planos** (migrations 28a/28b): toda conta nova ganha **15 dias do Equipe**; no fim do teste a oferta
+  segue a equipe ativa (1 profissional → Profissional; 2+ → Equipe); sem pagamento, cai no **Grátis** (nada é apagado).
+  - **Grátis** (para sempre): vitrine, agenda online com **6 agendamentos online/dia** (`plans.online_daily_limit`
+    da linha `gratis`), **1 profissional**, selo "Feito com Genix Agenda", avaliações, remarcar, confirmação
+    automática, ficha/histórico e a fila manual de Lembretes (wa.me). Bloqueios, Retornos, Financeiro, pacotes,
+    recorrência e acessos de equipe ficam com cadeado + CTA.
+  - **Profissional** (R$ 48,70/mês | R$ 487,00/ano): tudo pago para **1 profissional**, sem selo; sem acessos de equipe
+    nem profissional extra.
+  - **Equipe** (R$ 98,70/mês | R$ 987,00/ano): até 3 profissionais + R$ 19,90/mês (R$ 199,00/ano) por extra; acessos
+    da equipe (recepção, profissional, "Meus ganhos"), comissões e salão-parceiro.
+  - **Anual = 10 × mensal** ("2 meses grátis no plano anual"). Assinantes do antigo Completo (`mensal`/`anual`) contam
+    como Equipe e mantêm o valor contratado.
   - Valores vêm da tabela `plans` e da função `subscription_quote` (não fixar no código).
+  - Banco: `access_tier` (`completo`|`gratis`) separa pago × grátis; `plan_kind` diz qual plano; `plan_max_professionals`
+    e o gatilho de `business_members` (só Equipe tem acessos) travam no banco. Acessos de equipe num plano sem equipe
+    ficam **pausados**, nunca apagados.
+  - Troca de plano: upgrade mensal na hora (novo valor na próxima cobrança); upgrade anual com cobrança avulsa
+    proporcional; downgrade só no próximo ciclo (`subscriptions.scheduled_plan_id`).
 - **Sem área da saúde nesta fase:** nada de prontuário, anamnese, alergias, medicamentos, gestação, dados clínicos.
   O segmento `psicologia_terapias` existe no banco mas **não é oferecido**. Campos de ficha técnica nunca de saúde.
   Os Termos/Privacidade publicados afirmam isso.
@@ -74,7 +87,8 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
 
 - **RLS é a fonte da verdade.** Toda regra de permissão deve existir no banco, não só na tela.
 - Funções de apoio: `member_role_of`, `my_professional_id`, `sees_whole_agenda`, `can_manage_booking`,
-  `is_business_owner`, `access_tier` (`completo`|`gratis`), `can_use_full_features`, `is_platform_admin`.
+  `is_business_owner`, `access_tier` (`completo`|`gratis`), `plan_kind` (`gratis`|`profissional`|`equipe`),
+  `plan_max_professionals`, `free_daily_limit`, `can_use_full_features`, `is_platform_admin`.
 - Operações sensíveis via funções `security definer`: `get_available_slots`, `create_public_booking`,
   `complete_booking` (status + caixa), `create_business_for_user`, `submit_review`, `public_plan_info`.
 - Trava de conflito de horário: constraint `no_overlap` em `bookings`. Caixa: 1 lançamento por atendimento.
@@ -132,6 +146,9 @@ supabase-templates/          modelos de e-mail do Supabase
 ```
 
 ## 9. Roadmap pendente (em ordem)
+
+**Prioritário:** cobrança de profissional extra acompanhar a equipe ativa (hoje o valor do Asaas não muda ao ativar
+o 4º+ profissional no Equipe; só a assinatura nova ou a troca de plano recalculam pelo `subscription_quote`).
 
 1. **N3.2 Retornos:** prazo de retorno por serviço (`services.return_after_days`) e fila "hora de voltar" com WhatsApp pronto.
 2. **N4 Pacotes e recorrência:** pacotes de sessões (ex.: 10 drenagens) e agendamentos recorrentes.

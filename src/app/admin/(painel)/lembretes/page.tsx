@@ -35,11 +35,13 @@ const hhmm = (ts: string) =>
 export default async function LembretesPage({ searchParams }: Props) {
   const { business } = await getAdminContext();
   const plan = await getPlanContext(business.id);
-  if (plan.tier === "gratis") return <LockedFeature feature="lembretes" />;
+
 
   const supabase = createClient();
 
   const isReturns = searchParams.dia === "retornos";
+  // Grátis: a fila manual de lembretes é liberada; os Retornos continuam nos planos pagos
+  if (isReturns && plan.tier === "gratis") return <LockedFeature feature="retornos" />;
   const isToday = searchParams.dia === "hoje";
   const date = todayISO(isToday ? 0 : 1);
 

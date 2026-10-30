@@ -1,12 +1,13 @@
-// Recursos exclusivos do plano Completo (usado no servidor e no navegador)
+// Recursos dos planos pagos (usado no servidor e no navegador)
+// minPlan: plano mínimo que libera o recurso (aparece no cadeado).
 
-export const FREE_LOCKED_HREFS = ["/admin/bloqueios", "/admin/lembretes", "/admin/financeiro"];
+export const FREE_LOCKED_HREFS = ["/admin/bloqueios", "/admin/financeiro"];
 
-export type LockedFeatureKey = "bloqueios" | "lembretes" | "financeiro" | "faturamento" | "pacotes" | "whatsapp";
+export type LockedFeatureKey = "bloqueios" | "retornos" | "financeiro" | "faturamento" | "pacotes";
 
 export const LOCKED_FEATURES: Record<
   LockedFeatureKey,
-  { title: string; description: string; bullets: string[] }
+  { title: string; description: string; bullets: string[]; minPlan: "profissional" | "equipe" }
 > = {
   bloqueios: {
     title: "Bloqueios de agenda",
@@ -14,17 +15,19 @@ export const LOCKED_FEATURES: Record<
     bullets: [
       "Bloqueie um dia, um período ou só algumas horas",
       "Folgas fixas toda semana, sem cadastrar dia por dia",
-      "Aviso automático de quem já estava marcado no período",
+      "Aviso de quem já estava marcado no período",
     ],
+    minPlan: "profissional",
   },
-  lembretes: {
-    title: "Lembretes de véspera",
-    description: "Lembre todos os clientes de amanhã em poucos toques e reduza as faltas.",
+  retornos: {
+    title: "Retornos",
+    description: "Saiba quem está na hora de voltar e chame o cliente com a mensagem pronta.",
     bullets: [
-      "Fila com os clientes do dia seguinte",
+      "Prazo de retorno por serviço",
+      "Fila “hora de voltar” com os clientes do período",
       "Mensagem pronta no WhatsApp com um toque",
-      "Controle de quem já foi lembrado",
     ],
+    minPlan: "profissional",
   },
   financeiro: {
     title: "Financeiro e caixa",
@@ -34,6 +37,7 @@ export const LOCKED_FEATURES: Record<
       "Gráfico dos últimos 6 meses",
       "Entradas por Pix, cartão e dinheiro",
     ],
+    minPlan: "profissional",
   },
   faturamento: {
     title: "Faturamento e relatório para o contador",
@@ -43,6 +47,7 @@ export const LOCKED_FEATURES: Record<
       "Alertas ao chegar perto do limite",
       "Relatório para imprimir em PDF ou baixar em planilha",
     ],
+    minPlan: "profissional",
   },
   pacotes: {
     title: "Pacotes de sessões",
@@ -52,14 +57,10 @@ export const LOCKED_FEATURES: Record<
       "Saldo de sessões na ficha do cliente",
       "Venda lançada no caixa uma vez só",
     ],
-  },
-  whatsapp: {
-    title: "Lembretes automáticos no WhatsApp",
-    description: "O lembrete de véspera sai sozinho do seu WhatsApp para os clientes confirmados.",
-    bullets: [
-      "Envio a partir das 08:00 da véspera, com ritmo seguro",
-      "Dois textos que se alternam, editáveis",
-      "Quem já recebeu sai da fila de Lembretes",
-    ],
+    minPlan: "profissional",
   },
 };
+
+/** Texto do cadeado: "planos Profissional e Equipe" ou "plano Equipe" */
+export const minPlanLabel = (minPlan: "profissional" | "equipe") =>
+  minPlan === "equipe" ? "plano Equipe" : "planos Profissional e Equipe";

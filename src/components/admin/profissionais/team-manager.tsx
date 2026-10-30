@@ -24,6 +24,7 @@ export function TeamManager({
   partnerSalon = false,
   businessId,
   readOnly = false,
+  teamFeatures = true,
 }: {
   team: Row[];
   services: ServiceOption[];
@@ -38,6 +39,8 @@ export function TeamManager({
   businessId: string;
   /** demonstração: envio de foto abre o convite */
   readOnly?: boolean;
+  /** plano Equipe: comissão e salão-parceiro no cadastro */
+  teamFeatures?: boolean;
 }) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<EditablePro | null>(null);
@@ -81,7 +84,7 @@ export function TeamManager({
         ) : (
           <Button asChild variant="outline" className="h-11" data-testid="btn-equipe-completo">
             <Link href="/admin/assinatura">
-              <Lock className="mr-1.5 h-4 w-4" /> Mais profissionais no Completo
+              <Lock className="mr-1.5 h-4 w-4" /> Mais profissionais no plano Equipe
             </Link>
           </Button>
         )}
@@ -163,7 +166,7 @@ export function TeamManager({
       </ul>
 
       <ProfessionalDialog open={dialogOpen} onOpenChange={setDialogOpen} pro={editing} services={services} partnerSalon={partnerSalon}
-        businessId={businessId} readOnly={readOnly} />
+        businessId={businessId} readOnly={readOnly} teamFeatures={teamFeatures} />
     </>
   );
 }

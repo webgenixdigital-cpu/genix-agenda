@@ -69,7 +69,7 @@ export default async function CadastroPage({ searchParams }: { searchParams: { n
           <h2 className="text-3xl">{mode === "full" ? "Criar conta grátis" : "Falta pouco"}</h2>
           <p className="mb-8 mt-2 text-muted-foreground">
             {mode === "full"
-              ? "15 dias do plano Completo, sem cartão."
+              ? "15 dias do plano Equipe, sem cartão."
               : "Sua conta foi criada. Agora conte sobre o seu espaço para concluir."}
           </p>
 

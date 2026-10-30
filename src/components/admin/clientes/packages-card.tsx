@@ -86,7 +86,7 @@ export function PackagesCard({
         {canSell && locked && (
           <Button asChild variant="outline" className="h-11" data-testid="btn-liberar-pacotes">
             <Link href="/admin/assinatura">
-              <Lock className="mr-1.5 h-4 w-4" /> Vender pacote · Completo
+              <Lock className="mr-1.5 h-4 w-4" /> Vender pacote · planos pagos
             </Link>
           </Button>
         )}

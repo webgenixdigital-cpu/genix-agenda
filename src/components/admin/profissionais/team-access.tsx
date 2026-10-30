@@ -196,7 +196,7 @@ export function ProAccess({
   if (!canInvite) {
     return (
       <Link href="/admin/assinatura" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
-        <Lock className="h-3.5 w-3.5" /> Acesso individual no Completo
+        <Lock className="h-3.5 w-3.5" /> Acesso individual no plano Equipe
       </Link>
     );
   }
@@ -233,7 +233,7 @@ export function ReceptionSection({ members, canInvite }: { members: AccessInfo[]
         ) : (
           <Button asChild variant="outline" className="h-11">
             <Link href="/admin/assinatura">
-              <Lock className="mr-1.5 h-4 w-4" /> Recepção no Completo
+              <Lock className="mr-1.5 h-4 w-4" /> Recepção no plano Equipe
             </Link>
           </Button>
         )}

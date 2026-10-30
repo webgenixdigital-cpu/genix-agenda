@@ -7,7 +7,7 @@ export const metadata = { title: "Termos de Uso | Genix Agenda" };
 // MODELO: revise com um advogado antes de vender em escala.
 export default function TermosPage() {
   return (
-    <LegalPage title="Termos de Uso">
+    <LegalPage title="Termos de Uso" updatedAt={LEGAL.termosAtualizadoEm}>
       <section>
         <h2>1. Quem somos e o que é o serviço</h2>
         <p>
@@ -33,9 +33,9 @@ export default function TermosPage() {
       <section>
         <h2>3. Planos, teste grátis e pagamento</h2>
         <ul>
-          <li><strong>Teste grátis:</strong> toda conta nova recebe 15 dias do plano Completo, sem cadastro de cartão.</li>
+          <li><strong>Teste grátis:</strong> toda conta nova recebe 15 dias do plano Equipe, sem cadastro de cartão.</li>
           <li><strong>Plano Grátis:</strong> ao final do teste, se não houver assinatura, a conta passa automaticamente para o plano Grátis, com recursos e limites informados na página de planos (por exemplo, limite diário de agendamentos online e de profissionais ativos). Nenhum dado é apagado nessa mudança.</li>
-          <li><strong>Plano Completo:</strong> cobrado de forma mensal ou anual, conforme os valores vigentes na página de planos no momento da contratação, incluindo eventual valor por profissional adicional.</li>
+          <li><strong>Planos pagos (Profissional e Equipe):</strong> cobrados de forma mensal ou anual, conforme os valores vigentes na página de planos no momento da contratação, incluindo eventual valor por profissional adicional.</li>
           <li>Os pagamentos são processados por empresa parceira de meios de pagamento. A renovação é automática ao fim de cada período, até o cancelamento.</li>
           <li>Em caso de falta de pagamento, poderemos, após aviso, retornar a conta ao plano Grátis.</li>
           <li>Alterações de preço serão comunicadas com antecedência e só valem para o período seguinte.</li>
@@ -45,7 +45,7 @@ export default function TermosPage() {
       <section>
         <h2>4. Cancelamento e direito de arrependimento</h2>
         <ul>
-          <li>Você pode cancelar a assinatura a qualquer momento. O acesso ao plano Completo continua até o fim do período já pago.</li>
+          <li>Você pode cancelar a assinatura a qualquer momento. O acesso ao plano pago continua até o fim do período já pago.</li>
           <li>Nos termos do Código de Defesa do Consumidor, quando aplicável, você pode desistir da contratação em até 7 dias da primeira cobrança, com devolução do valor pago.</li>
           <li>Fora dessa hipótese, não há reembolso proporcional de períodos já iniciados, salvo previsão legal.</li>
         </ul>

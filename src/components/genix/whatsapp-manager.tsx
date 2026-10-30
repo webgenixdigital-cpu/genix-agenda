@@ -98,7 +98,7 @@ function InstanceCard({ row }: { row: WhatsappOverview }) {
         <div>
           <p className="font-semibold">{row.name}</p>
           <p className="text-sm text-muted-foreground">
-            /v/{row.slug} · plano {row.tier === "completo" ? "Completo" : "Grátis"} ·{" "}
+            /v/{row.slug} · plano {row.tier === "completo" ? "pago" : "Grátis"} ·{" "}
             {row.auto_enabled ? "automático ligado pelo espaço" : "automático desligado pelo espaço"}
           </p>
         </div>

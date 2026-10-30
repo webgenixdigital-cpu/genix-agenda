@@ -198,7 +198,7 @@ export type SeriesInput = {
 export type SeriesDate = { seq: number; date: string; issue: string | null };
 
 const SERIES_ERRORS: Record<string, string> = {
-  PLANO_GRATIS: "Agendamentos recorrentes são um recurso do plano Completo.",
+  PLANO_GRATIS: "Agendamentos recorrentes são um recurso dos planos Profissional e Equipe.",
   SEM_PERMISSAO: "Você só pode agendar na sua própria agenda.",
   FREQUENCIA_INVALIDA: "Escolha a frequência.",
   QUANTIDADE_INVALIDA: "Escolha de 1 a 52 vezes.",

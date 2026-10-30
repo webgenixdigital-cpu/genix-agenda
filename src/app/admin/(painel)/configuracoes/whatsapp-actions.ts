@@ -48,7 +48,7 @@ export async function getWhatsappQr(): Promise<
   { ok: true; image: string } | { ok: true; connected: true } | { ok: false; error: string }
 > {
   const { business } = await ownerContext();
-  if ((await getPlanContext(business.id)).tier !== "completo") return { ok: false, error: "Recurso do plano Completo." };
+  if ((await getPlanContext(business.id)).tier !== "completo") return { ok: false, error: "Recurso dos planos Profissional e Equipe." };
 
   const { db, provider } = await ownProvider(business.id);
   if (!provider) return { ok: false, error: "O WhatsApp automático ainda não foi liberado para o seu espaço." };
@@ -65,7 +65,7 @@ export async function getWhatsappQr(): Promise<
 
 export async function refreshWhatsappStatus(): Promise<{ ok: true; connected: boolean } | { ok: false; error: string }> {
   const { business } = await ownerContext();
-  if ((await getPlanContext(business.id)).tier !== "completo") return { ok: false, error: "Recurso do plano Completo." };
+  if ((await getPlanContext(business.id)).tier !== "completo") return { ok: false, error: "Recurso dos planos Profissional e Equipe." };
 
   const { db, provider } = await ownProvider(business.id);
   if (!provider) return { ok: false, error: "O WhatsApp automático ainda não foi liberado para o seu espaço." };
@@ -82,7 +82,7 @@ export async function refreshWhatsappStatus(): Promise<{ ok: true; connected: bo
 // ---------------------------------------------------------------------
 const AUTO_ERRORS: Record<string, string> = {
   SEM_PERMISSAO: "Somente a matriz pode alterar esta opção.",
-  PLANO_GRATIS: "Recurso do plano Completo.",
+  PLANO_GRATIS: "Recurso dos planos Profissional e Equipe.",
   NAO_HABILITADO: "O WhatsApp automático ainda não foi liberado para o seu espaço.",
   ACEITE_OBRIGATORIO: "Para ativar, confirme que leu o aviso de risco.",
 };

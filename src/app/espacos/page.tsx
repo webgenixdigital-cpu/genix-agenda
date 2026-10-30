@@ -257,7 +257,7 @@ export default async function EspacosPage({ searchParams }: Props) {
             <div>
               <h2 className="text-3xl">Você atende com hora marcada?</h2>
               <p className="mt-2 max-w-xl text-stone-300">
-                Vitrine e agenda online grátis para sempre para 1 profissional. E 15 dias do Completo para testar tudo, sem cartão.
+                Vitrine e agenda online grátis para sempre para 1 profissional. E 15 dias do plano Equipe para testar tudo, sem cartão.
               </p>
             </div>
             <Button asChild size="lg" className="h-12 shrink-0 px-7 text-base" data-testid="btn-home-profissional">

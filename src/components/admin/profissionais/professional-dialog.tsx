@@ -34,6 +34,7 @@ export function ProfessionalDialog({
   partnerSalon = false,
   businessId,
   readOnly = false,
+  teamFeatures = true,
   onOpenChange: setOpen,
 }: {
   open: boolean;
@@ -44,6 +45,8 @@ export function ProfessionalDialog({
   businessId: string;
   /** demonstração: envio de foto abre o convite */
   readOnly?: boolean;
+  /** plano Equipe: comissão e salão-parceiro */
+  teamFeatures?: boolean;
 }) {
   // foto enviada neste diálogo e ainda não salva: apagada se for trocada ou se fechar sem salvar
   const unsaved = useRef<string[]>([]);
@@ -162,12 +165,13 @@ export function ProfessionalDialog({
             />
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-[1fr_120px]">
+          <div className={cn("grid gap-3", teamFeatures && "sm:grid-cols-[1fr_120px]")}>
             <div className="space-y-1.5">
               <Label htmlFor="pf-spec">Especialidades (separe por vírgula)</Label>
               <Input id="pf-spec" className="h-11" placeholder="Cortes, Coloração" value={specialties} onChange={(e) => setSpecialties(e.target.value)} />
             </div>
-            <div className="space-y-1.5">
+            {/* comissão: recurso do plano Equipe (fora dele, o valor salvo fica como está) */}
+            {teamFeatures && <div className="space-y-1.5">
               <Label htmlFor="pf-com">Comissão (%)</Label>
               <Input
                 id="pf-com"
@@ -177,7 +181,7 @@ export function ProfessionalDialog({
                 onChange={(e) => setCommission(e.target.value.replace(/[^\d,.]/g, "").slice(0, 5))}
                 data-testid="input-profissional-comissao"
               />
-            </div>
+            </div>}
           </div>
 
           {partnerSalon && (

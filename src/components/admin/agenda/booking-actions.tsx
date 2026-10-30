@@ -28,6 +28,8 @@ export type AgendaBooking = {
   customer_package_id?: string | null;
   /** faz parte de uma série recorrente */
   series_id?: string | null;
+  /** motivo da confirmação automática (vitrine) */
+  auto_confirm_reason?: string | null;
   professional_id: string;
   service_id: string | null;
 };

@@ -27,6 +27,8 @@ export type PublicBooking = {
   end_time: string;
   price: number;
   customer_name: string;
+  /** 'confirmed' quando a confirmação automática do espaço aprovou (25_confirmacao_automatica) */
+  status: "pending" | "confirmed";
 };
 
 type Result = { ok: true; booking: PublicBooking } | { ok: false; error: string; code?: string };

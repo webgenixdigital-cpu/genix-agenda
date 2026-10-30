@@ -42,6 +42,7 @@ type Confirmation = {
   end_time: string;
   price: number;
   customer_name: string;
+  status: "pending" | "confirmed";
 };
 
 const STEPS = ["Serviço", "Profissional", "Data e horário", "Seus dados"];
@@ -196,8 +197,11 @@ export function BookingWizard({ slug, businessName, whatsapp, services, professi
   const phoneDigits = phone.replace(/\D/g, "");
   const canSubmit = name.trim().length >= 2 && phoneDigits.length >= 10 && !!token && !sending;
 
+  const confirmed = done?.status === "confirmed";
   const waText = done
-    ? `Olá, ${businessName}! Acabei de agendar pelo site:\n\n` +
+    ? (confirmed
+        ? `Olá, ${businessName}! Agendei pelo site e meu horário já está confirmado:\n\n`
+        : `Olá, ${businessName}! Acabei de enviar um pedido de agendamento pelo site. Fico aguardando a confirmação:\n\n`) +
       `• ${done.service_name}\n• Com ${done.professional_name}\n` +
       `• ${longDate(done.date)}, às ${done.start_time}\n\nNome: ${done.customer_name}`
     : "";
@@ -215,9 +219,13 @@ export function BookingWizard({ slug, businessName, whatsapp, services, professi
             <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-green-100 text-green-700">
               <Check className="h-7 w-7" />
             </div>
-            <DialogTitle className="mt-4 font-heading text-3xl">Pedido de agendamento enviado</DialogTitle>
+            <DialogTitle className="mt-4 font-heading text-3xl" data-testid={confirmed ? "titulo-horario-confirmado" : "titulo-pedido-enviado"}>
+              {confirmed ? "Horário confirmado!" : "Pedido enviado, aguarde a confirmação"}
+            </DialogTitle>
             <DialogDescription className="mt-2">
-              {businessName} vai confirmar seu horário. Avise pelo WhatsApp para agilizar.
+              {confirmed
+                ? `Seu horário em ${businessName} está garantido. Até lá!`
+                : `${businessName} vai confirmar seu horário. Avise pelo WhatsApp para agilizar.`}
             </DialogDescription>
 
             <dl className="mt-6 space-y-2 rounded-xl bg-secondary p-4 text-left text-sm">

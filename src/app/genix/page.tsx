@@ -10,6 +10,7 @@ import { RevenueLimitsManager } from "@/components/genix/revenue-limits-manager"
 import { loadLimits } from "@/lib/faturamento-data";
 import { todayISO } from "@/lib/dates";
 import { BillingManager, type BillingOverview } from "@/components/genix/billing-manager";
+import { SearchVisibilityManager, type SearchOverview } from "@/components/genix/search-visibility-manager";
 import { asaas, type AsaasSubscription } from "@/lib/asaas";
 
 export const dynamic = "force-dynamic";
@@ -44,7 +45,7 @@ async function loadBilling(supabase: ReturnType<typeof createClient>): Promise<B
 }
 
 export default async function GenixAdminPage({ searchParams }: Props) {
-  const aba = (["fichas", "whatsapp", "limites", "assinaturas"] as const).find((a) => a === searchParams.aba) ?? "nichos";
+  const aba = (["fichas", "whatsapp", "limites", "assinaturas", "buscadores"] as const).find((a) => a === searchParams.aba) ?? "nichos";
   const supabase = createClient();
 
   // Só administradores da plataforma. Para os demais, a página "não existe".
@@ -71,6 +72,8 @@ export default async function GenixAdminPage({ searchParams }: Props) {
   ]);
   const limits = aba === "limites" ? await loadLimits() : [];
   const billing = aba === "assinaturas" ? await loadBilling(supabase) : [];
+  // ocultar dos buscadores (30); erro = migration ainda não aplicada
+  const search = aba === "buscadores" ? await supabase.rpc("genix_search_overview") : null;
 
   const usageMap = new Map(((usage ?? []) as { niche_id: string; businesses: number }[]).map((u) => [u.niche_id, u.businesses]));
 
@@ -111,6 +114,7 @@ export default async function GenixAdminPage({ searchParams }: Props) {
             { key: "whatsapp", label: "WhatsApp", href: "/genix?aba=whatsapp" },
             { key: "limites", label: "Limites de faturamento", href: "/genix?aba=limites" },
             { key: "assinaturas", label: "Assinaturas", href: "/genix?aba=assinaturas" },
+            { key: "buscadores", label: "Buscadores", href: "/genix?aba=buscadores" },
           ].map((t) => (
             <Link
               key={t.key}
@@ -130,6 +134,8 @@ export default async function GenixAdminPage({ searchParams }: Props) {
           <NicheManager niches={list} />
         ) : aba === "assinaturas" ? (
           <BillingManager rows={billing} />
+        ) : aba === "buscadores" ? (
+          <SearchVisibilityManager rows={(search?.data ?? []) as SearchOverview[]} missing={!!search?.error} />
         ) : aba === "limites" ? (
           <RevenueLimitsManager limits={limits} today={todayISO()} />
         ) : aba === "whatsapp" ? (

@@ -65,12 +65,24 @@ function todayWeekday() {
   return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(d);
 }
 
+/** Fora do Google? Demonstração ou oculto pela Genix (search_hidden, migration 30) */
+async function hiddenFromSearch(slug: string) {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("businesses").select("is_demo, search_hidden").eq("slug", slug).maybeSingle();
+  if (!error) return !!(data?.is_demo || data?.search_hidden);
+  // sem a coluna search_hidden (migration 30 ainda não aplicada): só a demonstração
+  const { data: base } = await supabase.from("businesses").select("is_demo").eq("slug", slug).maybeSingle();
+  return !!base?.is_demo;
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const data = await loadVitrine(params.slug);
+  const [data, hidden] = await Promise.all([loadVitrine(params.slug), hiddenFromSearch(params.slug)]);
   if (!data) return { title: "Página não encontrada" };
   return {
     title: `${data.business.name} | Agende online`,
     description: data.business.tagline ?? data.business.description ?? undefined,
+    ...(hidden ? { robots: { index: false, follow: false } } : {}),
   };
 }
 

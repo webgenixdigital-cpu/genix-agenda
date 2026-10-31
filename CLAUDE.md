@@ -167,7 +167,8 @@ supabase-templates/          modelos de e-mail do Supabase
    - avaliar atualização do Next.js depois que os testes E2E existirem.
 6. Depois: WhatsApp API oficial (cota no Completo), comanda/comissões, lista de espera, sinal via Pix,
    busca de clientes sem acentos (unaccent + coluna name_search),
-   cache da /para/[nicho] (cliente público sem cookies, como a /), sitemap e robots.
+   cache da /para/[nicho] (cliente público sem cookies, como a /), sitemap e robots,
+   trocar window.confirm() por diálogo de confirmação próprio (visual da marca, melhor no celular).
 
 ## 10. Como trabalhar neste projeto
 

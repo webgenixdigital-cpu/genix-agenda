@@ -47,18 +47,18 @@ export default async function Home() {
       <main>
         {/* ---------- HERO ---------- */}
         <section className="border-b bg-secondary/60">
-          <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-14 md:px-6 md:py-20 lg:grid-cols-[1.1fr_1fr]">
-            <div>
-              <span className="inline-flex items-center gap-2 rounded-2xl bg-white px-3 py-1.5 text-sm font-semibold text-primary ring-1 ring-primary/20">
+          <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 py-20 md:px-6 md:py-24 lg:grid-cols-[1.1fr_1fr]">
+            <div className="text-center">
+              <span className="inline-flex items-center gap-2 text-balance rounded-2xl bg-white px-3 py-1.5 text-sm font-semibold text-primary ring-1 ring-primary/20">
                 Grátis para sempre: vitrine e agenda online para 1 profissional. Sem cartão.
               </span>
               <h1 className="mt-5 text-4xl leading-[1.06] md:text-[56px]">
                 Seus clientes marcam sozinhos. Você só atende.
               </h1>
-              <p className="mt-5 max-w-xl text-lg text-muted-foreground">
+              <p className="copy mt-6 text-lg text-muted-foreground">
                 Um link de agendamento para a sua bio, lembretes em um toque e o controle do dia num só lugar. Fácil de começar, fácil de usar.
               </p>
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <div className="mt-10 flex flex-col justify-center gap-3 sm:flex-row">
                 <Button asChild size="lg" className="h-12 px-7 text-base active:scale-95" data-testid="btn-hero-teste">
                   <Link href="/cadastro">Criar minha agenda grátis</Link>
                 </Button>
@@ -68,7 +68,7 @@ export default async function Home() {
                   </Link>
                 </Button>
               </div>
-              <p className="mt-5 text-sm text-muted-foreground">
+              <p className="mt-6 text-sm text-muted-foreground">
                 Já é cliente?{" "}
                 <Link href="/admin/login" className="font-semibold text-primary underline" data-testid="link-entrar">
                   Entrar no painel
@@ -117,7 +117,7 @@ export default async function Home() {
           </div>
 
           {/* ---------- BUSCA (para quem quer agendar → /espacos) ---------- */}
-          <div className="mx-auto max-w-6xl px-4 pb-14 md:px-6 md:pb-20">
+          <div className="mx-auto max-w-6xl px-4 pb-20 md:px-6 md:pb-24">
             <form action="/espacos" method="get" role="search" className="mx-auto max-w-2xl">
               <label htmlFor="busca-home" className="block text-center font-heading text-2xl">
                 Quer agendar um horário?
@@ -153,35 +153,35 @@ export default async function Home() {
 
             {/* Nichos em destaque (administrados no /genix) → /para/[nicho] */}
             {niches.length > 0 && (
-              <div className="mt-12">
+              <div className="mt-16">
                 <h2 className="text-center text-2xl md:text-3xl">Feito para quem atende com hora marcada</h2>
-                <NicheHighlights niches={niches} basePath="/para" singleRow className="mt-6" />
+                <NicheHighlights niches={niches} basePath="/para" singleRow className="mt-8" />
               </div>
             )}
           </div>
         </section>
 
         {/* ---------- BENEFÍCIOS ---------- */}
-        <section className="mx-auto max-w-6xl px-4 py-16 md:px-6 md:py-20">
-          <h2 className="max-w-2xl text-3xl md:text-[42px] md:leading-tight">
+        <section className="mx-auto max-w-6xl px-4 py-20 text-center md:px-6 md:py-24">
+          <h2 className="mx-auto max-w-2xl text-3xl md:text-[42px] md:leading-tight">
             Simples de usar, com o seu dia sob controle
           </h2>
-          <p className="mt-3 max-w-2xl text-muted-foreground">
+          <p className="copy mt-4 text-muted-foreground">
             Tudo o que um espaço que atende pessoas precisa, num lugar só. Cada item mostra o plano que já inclui o recurso.
           </p>
-          <BenefitBlocks className="mt-10" />
+          <BenefitBlocks className="mt-12" />
         </section>
 
         {/* ---------- COMO FUNCIONA ---------- */}
-        <section className="bg-foreground py-16 text-background md:py-20">
-          <div className="mx-auto max-w-6xl px-4 md:px-6">
+        <section className="bg-foreground py-20 text-background md:py-24">
+          <div className="mx-auto max-w-6xl px-4 text-center md:px-6">
             <h2 className="text-3xl md:text-[42px]">Comece hoje, em 3 passos</h2>
-            <ol className="mt-10 grid gap-8 md:grid-cols-3">
+            <ol className="mt-12 grid gap-10 md:grid-cols-3">
               {STEPS.map((s) => (
                 <li key={s.n}>
                   <span className="font-heading text-5xl text-[#F2C078]">{s.n}</span>
                   <p className="mt-3 text-lg font-semibold">{s.title}</p>
-                  <p className="mt-1 text-stone-300">{s.text}</p>
+                  <p className="copy mt-2 max-w-[32ch] text-stone-300">{s.text}</p>
                 </li>
               ))}
             </ol>
@@ -189,30 +189,32 @@ export default async function Home() {
         </section>
 
         {/* ---------- PLANOS ---------- */}
-        <section id="planos" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-16 md:px-6 md:py-20">
+        <section id="planos" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-20 md:px-6 md:py-24">
           <div className="text-center">
             <h2 className="text-3xl md:text-[42px]">Comece grátis. Cresça no seu ritmo.</h2>
-            <p className="mx-auto mt-3 max-w-xl text-muted-foreground">
+            <p className="copy mt-4 text-muted-foreground">
               Toda conta nova ganha 15 dias do plano Equipe. Depois, escolha o Profissional ou o Equipe, ou continue no Grátis para sempre.
             </p>
           </div>
-          <div className="mt-10">
+          <div className="mt-12">
             <Pricing plans={plans} />
           </div>
         </section>
 
         {/* ---------- FAQ ---------- */}
         <section className="border-t bg-secondary/50">
-          <div className="mx-auto max-w-3xl px-4 py-16 md:px-6 md:py-20">
-            <h2 className="text-3xl md:text-[42px]">Perguntas frequentes</h2>
-            <div className="mt-8 space-y-3">
+          <div className="mx-auto max-w-3xl px-4 py-20 md:px-6 md:py-24">
+            <h2 className="text-center text-3xl md:text-[42px]">Perguntas frequentes</h2>
+            <div className="mt-10 space-y-4">
               {faq.map((f) => (
                 <details key={f.q} className="group rounded-2xl border bg-white p-5 open:shadow-sm">
-                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-semibold">
-                    {f.q}
-                    <span className="text-2xl leading-none text-primary transition-transform group-open:rotate-45">+</span>
+                  <summary className="flex min-h-11 cursor-pointer list-none items-center gap-4 font-semibold">
+                    {/* espaçador do tamanho do "+" para a pergunta ficar no centro */}
+                    <span className="w-4 shrink-0" aria-hidden />
+                    <span className="flex-1 text-balance text-center">{f.q}</span>
+                    <span className="w-4 shrink-0 text-center text-2xl leading-none text-primary transition-transform group-open:rotate-45">+</span>
                   </summary>
-                  <p className="mt-3 text-muted-foreground">{f.a}</p>
+                  <p className="copy mt-3 text-center text-muted-foreground">{f.a}</p>
                 </details>
               ))}
             </div>
@@ -220,11 +222,11 @@ export default async function Home() {
         </section>
 
         {/* ---------- CHAMADA FINAL ---------- */}
-        <section className="mx-auto max-w-6xl px-4 py-16 text-center md:px-6 md:py-20">
+        <section className="mx-auto max-w-6xl px-4 py-20 text-center md:px-6 md:py-24">
           <h2 className="mx-auto max-w-2xl text-3xl md:text-[42px] md:leading-tight">
             Comece grátis hoje e veja sua agenda se organizar
           </h2>
-          <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+          <div className="mt-10 flex flex-col justify-center gap-3 sm:flex-row">
             <Button asChild size="lg" className="h-12 px-8 text-base" data-testid="btn-final-teste">
               <Link href="/cadastro">Criar minha agenda grátis</Link>
             </Button>

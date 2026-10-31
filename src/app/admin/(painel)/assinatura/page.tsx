@@ -139,8 +139,8 @@ export default async function AssinaturaPage() {
   // PARTE 3 — Página
   // -------------------------------------------------------------------
   return (
-    <main className="mx-auto max-w-3xl space-y-6 p-4 md:p-8">
-      <header>
+    <main className="mx-auto max-w-3xl space-y-8 p-4 md:p-8">
+      <header className="text-center">
         <h1 className="text-3xl md:text-4xl">Assinatura</h1>
         <p className="mt-1 text-sm text-muted-foreground">Seu plano atual e os planos Profissional e Equipe.</p>
       </header>

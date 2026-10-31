@@ -81,14 +81,14 @@ export default async function LembretesPage({ searchParams }: Props) {
   ];
 
   return (
-    <main className="mx-auto max-w-3xl space-y-6 p-4 md:p-8">
-      <header>
+    <main className="mx-auto max-w-3xl space-y-8 p-4 md:p-8">
+      <header className="text-center">
         <h1 className="text-3xl md:text-4xl">Lembretes</h1>
-        <p className="mt-1 max-w-lg text-sm text-muted-foreground">
+        <p className="mx-auto mt-1 max-w-lg text-sm text-muted-foreground">
           Um toque abre o WhatsApp com a mensagem pronta e tira o cliente da fila. Lembrar na véspera reduz faltas.
         </p>
         {waSettings?.auto_enabled && (
-          <p className="mt-2 flex max-w-lg items-start gap-2 text-sm text-muted-foreground" data-testid="lembretes-automatico-ativo">
+          <p className="mx-auto mt-2 flex max-w-lg items-start gap-2 text-left text-sm text-muted-foreground" data-testid="lembretes-automatico-ativo">
             <Bot className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
             Envio automático ligado: os confirmados recebem o lembrete a partir das 08:00 da véspera. Quem não receber continua aqui.
           </p>

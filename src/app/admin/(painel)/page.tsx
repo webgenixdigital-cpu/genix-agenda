@@ -150,8 +150,8 @@ export default async function Dashboard({ searchParams }: Props) {
   const greeting = role === "staff" && me?.name ? me.name.split(" ")[0] : business.name;
 
   return (
-    <main className="mx-auto max-w-6xl space-y-8 p-4 md:p-8">
-      <header>
+    <main className="mx-auto max-w-6xl space-y-10 p-4 md:p-8">
+      <header className="text-center">
         <p className="text-sm text-muted-foreground first-letter:uppercase">{longDate(today)}</p>
         <h1 className="mt-1 text-3xl md:text-4xl">Olá, {greeting}</h1>
       </header>

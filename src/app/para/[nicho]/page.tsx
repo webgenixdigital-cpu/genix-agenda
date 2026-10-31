@@ -70,19 +70,19 @@ export default async function NichoPage({ params }: Props) {
       <main className="pb-24 md:pb-0">
         {/* ---------- HERO EM DUAS COLUNAS ---------- */}
         <section className="border-b bg-secondary/60">
-          <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-12 md:px-6 md:py-20 lg:grid-cols-[1.1fr_1fr]">
-            <div>
+          <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 py-16 md:px-6 md:py-24 lg:grid-cols-[1.1fr_1fr]">
+            <div className="text-center">
               <span className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-sm font-semibold text-primary ring-1 ring-primary/20">
                 <NicheIcon name={niche.icon} className="h-4 w-4" /> Para {niche.name.toLowerCase()}
               </span>
               <h1 className="mt-5 text-4xl leading-[1.06] md:text-[56px]">
                 Sua agenda de {niche.name.toLowerCase()} cheia, sem viver no WhatsApp.
               </h1>
-              <p className="mt-5 max-w-xl text-lg text-muted-foreground">
+              <p className="copy mt-6 text-lg text-muted-foreground">
                 {niche.description} Seus clientes marcam pelo link e você controla o dia num só lugar. Simples de começar.
               </p>
 
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <div className="mt-10 flex flex-col justify-center gap-3 sm:flex-row">
                 <Button asChild size="lg" className="h-12 px-7 text-base active:scale-95" data-testid="btn-nicho-teste">
                   <Link href={signupHref}>Criar minha agenda grátis</Link>
                 </Button>
@@ -91,7 +91,7 @@ export default async function NichoPage({ params }: Props) {
                 </Button>
               </div>
 
-              <ul className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted-foreground">
+              <ul className="mt-8 flex flex-wrap justify-center gap-x-5 gap-y-2.5 text-sm text-muted-foreground">
                 {TRUST.map((t) => (
                   <li key={t} className="flex items-center gap-1.5">
                     <Check className="h-4 w-4 text-primary" /> {t}
@@ -100,7 +100,7 @@ export default async function NichoPage({ params }: Props) {
               </ul>
 
               {(count ?? 0) > 0 && (
-                <p className="mt-4 text-sm">
+                <p className="mt-5 text-sm">
                   <Link href={`/explorar/${niche.id}`} className="font-semibold text-primary underline">
                     {count} {count === 1 ? "espaço" : "espaços"} de {niche.name.toLowerCase()}
                   </Link>{" "}
@@ -145,14 +145,14 @@ export default async function NichoPage({ params }: Props) {
         </section>
 
         {/* ---------- COMO FUNCIONA ---------- */}
-        <section className="mx-auto max-w-6xl px-4 py-14 md:px-6">
+        <section className="mx-auto max-w-6xl px-4 py-20 text-center md:px-6 md:py-24">
           <h2 className="text-3xl md:text-[42px]">Como funciona</h2>
-          <ol className="mt-8 grid gap-6 md:grid-cols-3">
+          <ol className="mt-10 grid gap-8 md:grid-cols-3">
             {STEPS.map((s, i) => (
-              <li key={s.title} className="rounded-2xl border bg-card p-6">
+              <li key={s.title} className="rounded-2xl border bg-card p-6 md:p-7">
                 <span className="font-heading text-5xl text-primary/40">{i + 1}</span>
                 <p className="mt-2 text-lg font-semibold">{s.title}</p>
-                <p className="mt-1 text-muted-foreground">{s.text}</p>
+                <p className="copy mt-2 text-muted-foreground">{s.text}</p>
               </li>
             ))}
           </ol>
@@ -161,10 +161,10 @@ export default async function NichoPage({ params }: Props) {
         {/* ---------- SERVIÇOS PRONTOS ---------- */}
         {services.length > 0 && (
           <section className="border-y bg-secondary/50">
-            <div className="mx-auto grid max-w-6xl gap-8 px-4 py-14 md:px-6 lg:grid-cols-[1fr_1.1fr] lg:items-center">
-              <div>
+            <div className="mx-auto grid max-w-6xl gap-10 px-4 py-20 md:px-6 md:py-24 lg:grid-cols-[1fr_1.1fr] lg:items-center">
+              <div className="text-center">
                 <h2 className="text-3xl md:text-[42px] md:leading-tight">Sua conta já nasce com estes serviços</h2>
-                <p className="mt-3 text-muted-foreground">
+                <p className="copy mt-4 text-muted-foreground">
                   Os serviços mais comuns de {niche.name.toLowerCase()} entram com um clique. É só ajustar os preços.
                 </p>
               </div>
@@ -186,21 +186,21 @@ export default async function NichoPage({ params }: Props) {
         )}
 
         {/* ---------- GESTÃO ---------- */}
-        <section className="mx-auto max-w-6xl px-4 py-14 md:px-6">
-          <h2 className="max-w-2xl text-3xl md:text-[42px] md:leading-tight">Simples de usar, com o seu dia sob controle</h2>
-          <BenefitBlocks className="mt-8" />
+        <section className="mx-auto max-w-6xl px-4 py-20 text-center md:px-6 md:py-24">
+          <h2 className="mx-auto max-w-2xl text-3xl md:text-[42px] md:leading-tight">Simples de usar, com o seu dia sob controle</h2>
+          <BenefitBlocks className="mt-12" />
         </section>
 
         {/* ---------- PLANOS ---------- */}
         <section className="border-t bg-secondary/40">
-          <div className="mx-auto max-w-6xl px-4 py-14 md:px-6">
+          <div className="mx-auto max-w-6xl px-4 py-20 md:px-6 md:py-24">
             <div className="text-center">
               <h2 className="text-3xl md:text-[42px]">Comece grátis. Cresça no seu ritmo.</h2>
-              <p className="mx-auto mt-3 max-w-xl text-muted-foreground">
+              <p className="copy mt-4 text-muted-foreground">
                 Toda conta nova ganha 15 dias do plano Equipe. Depois, escolha o seu plano ou continue no Grátis para sempre.
               </p>
             </div>
-            <div className="mt-10">
+            <div className="mt-12">
               <Pricing plans={plans} />
             </div>
           </div>

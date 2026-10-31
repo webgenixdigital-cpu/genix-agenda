@@ -104,11 +104,11 @@ export default async function EspacosPage({ searchParams }: Props) {
       <main>
         {/* ---------- HERO + BUSCA ---------- */}
         <section className="border-b bg-secondary/60">
-          <div className="mx-auto max-w-6xl px-4 py-14 md:px-6 md:py-20">
-            <h1 className="max-w-2xl text-4xl leading-[1.08] md:text-[56px]">
+          <div className="mx-auto max-w-6xl px-4 py-20 text-center md:px-6 md:py-24">
+            <h1 className="mx-auto max-w-2xl text-4xl leading-[1.08] md:text-[56px]">
               Encontre quem cuida de você e agende em poucos toques
             </h1>
-            <p className="mt-4 max-w-xl text-lg text-muted-foreground">
+            <p className="copy mt-5 text-lg text-muted-foreground">
               Salões, barbearias, estética, unhas, cílios e muito mais, com horários abertos agora.
             </p>
 
@@ -124,7 +124,7 @@ export default async function EspacosPage({ searchParams }: Props) {
 
             {/* Filtros ativos (removíveis) */}
             {(activeNiche || activeSeg) && (
-              <ul className="mt-4 flex flex-wrap gap-2" aria-label="Filtros ativos">
+              <ul className="mt-5 flex flex-wrap justify-center gap-2" aria-label="Filtros ativos">
                 {activeNiche && (
                   <li>
                     <Link
@@ -155,11 +155,11 @@ export default async function EspacosPage({ searchParams }: Props) {
         </section>
 
         {/* ---------- RESULTADOS ---------- */}
-        <section id="resultados" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-12 md:px-6">
-          <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+        <section id="resultados" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-16 md:px-6 md:py-20">
+          <div className="mb-8 flex flex-col items-center gap-3 text-center">
             <div>
               <h2 className="text-3xl">{activeNiche ? activeNiche.name : filtered ? "Resultados" : "Espaços em destaque"}</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
+              <p className="mt-2 text-sm text-muted-foreground">
                 {items.length === 1 ? "1 espaço encontrado" : `${items.length} espaços encontrados`}
                 {q && <> para “{q}”</>}
                 {onde && <> em “{onde}”</>}
@@ -173,7 +173,7 @@ export default async function EspacosPage({ searchParams }: Props) {
           </div>
 
           {error && (
-            <p className="rounded-xl border border-destructive/40 bg-white p-4 text-sm text-destructive">
+            <p className="rounded-xl border border-destructive/40 bg-white p-4 text-center text-sm text-destructive">
               Não foi possível carregar os espaços agora. Recarregue a página em alguns segundos.
             </p>
           )}
@@ -193,19 +193,19 @@ export default async function EspacosPage({ searchParams }: Props) {
 
         {/* ---------- COMO AGENDAR ---------- */}
         <section className="border-y bg-secondary/50">
-          <div className="mx-auto max-w-6xl px-4 py-14 md:px-6">
+          <div className="mx-auto max-w-6xl px-4 py-20 text-center md:px-6 md:py-24">
             <h2 className="text-3xl md:text-[42px]">Como agendar</h2>
-            <ol className="mt-8 grid gap-6 md:grid-cols-3">
+            <ol className="mt-10 grid gap-8 md:grid-cols-3">
               {HOW.map(({ icon: Icon, title, text }, i) => (
-                <li key={title} className="rounded-2xl bg-white p-6">
-                  <span className="flex items-center gap-3">
+                <li key={title} className="rounded-2xl bg-white p-6 md:p-7">
+                  <span className="flex items-center justify-center gap-3">
                     <span className="grid h-11 w-11 place-items-center rounded-full bg-primary text-primary-foreground">
                       <Icon className="h-5 w-5" />
                     </span>
                     <span className="font-heading text-3xl text-primary/40">{i + 1}</span>
                   </span>
                   <p className="mt-4 text-lg font-semibold">{title}</p>
-                  <p className="mt-1 text-muted-foreground">{text}</p>
+                  <p className="copy mt-2 text-muted-foreground">{text}</p>
                 </li>
               ))}
             </ol>
@@ -213,27 +213,27 @@ export default async function EspacosPage({ searchParams }: Props) {
         </section>
 
         {/* ---------- NICHOS ---------- */}
-        <section className="mx-auto max-w-6xl px-4 py-14 md:px-6" aria-labelledby="nichos">
-          <h2 id="nichos" className="max-w-2xl text-3xl md:text-[42px] md:leading-tight">Para cada tipo de atendimento</h2>
-          <p className="mt-3 max-w-2xl text-muted-foreground">
+        <section className="mx-auto max-w-6xl px-4 py-20 text-center md:px-6 md:py-24" aria-labelledby="nichos">
+          <h2 id="nichos" className="mx-auto max-w-2xl text-3xl md:text-[42px] md:leading-tight">Para cada tipo de atendimento</h2>
+          <p className="copy mt-4 text-muted-foreground">
             Clientes encontram e agendam. Profissionais organizam a agenda, a equipe e o caixa num só lugar.
           </p>
 
-          <ul className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <ul className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {niches.map((n) => {
               const c = counts.get(n.id) ?? 0;
               return (
                 <li key={n.id} className="flex flex-col rounded-2xl border bg-card p-5" data-testid={`card-nicho-${n.id}`}>
-                  <div className="flex items-start gap-3">
+                  <div className="flex flex-col items-center gap-3">
                     <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-secondary text-primary">
                       <NicheIcon name={n.icon} className="h-6 w-6" />
                     </span>
                     <div>
                       <h3 className="font-sans text-lg font-semibold">{n.name}</h3>
-                      {n.description && <p className="mt-0.5 text-sm text-muted-foreground">{n.description}</p>}
+                      {n.description && <p className="mt-1 text-sm text-muted-foreground">{n.description}</p>}
                     </div>
                   </div>
-                  <div className="mt-auto flex flex-wrap gap-2 pt-5">
+                  <div className="mt-auto flex flex-wrap justify-center gap-2 pt-5">
                     <Button asChild size="sm" className="h-10" variant={c > 0 ? "default" : "outline"}>
                       <Link href={`/explorar/${n.id}`}>
                         {c > 0 ? `Ver ${c} ${c === 1 ? "espaço" : "espaços"}` : "Ver espaços"}
@@ -253,10 +253,10 @@ export default async function EspacosPage({ searchParams }: Props) {
 
         {/* ---------- FAIXA PROFISSIONAL ---------- */}
         <section className="bg-foreground text-background">
-          <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-6 px-4 py-12 md:flex-row md:items-center md:px-6">
+          <div className="mx-auto flex max-w-6xl flex-col items-center gap-8 px-4 py-16 text-center md:px-6 md:py-20">
             <div>
               <h2 className="text-3xl">Você atende com hora marcada?</h2>
-              <p className="mt-2 max-w-xl text-stone-300">
+              <p className="copy mt-3 text-stone-300">
                 Vitrine e agenda online grátis para sempre para 1 profissional. E 15 dias do plano Equipe para testar tudo, sem cartão.
               </p>
             </div>

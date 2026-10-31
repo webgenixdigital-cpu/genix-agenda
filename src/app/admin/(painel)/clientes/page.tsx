@@ -40,8 +40,8 @@ export default async function ClientesPage({ searchParams }: Props) {
   // PARTE 2 — Página
   // -------------------------------------------------------------------
   return (
-    <main className="mx-auto max-w-5xl space-y-6 p-4 md:p-8">
-      <header className="flex flex-wrap items-end justify-between gap-4">
+    <main className="mx-auto max-w-5xl space-y-8 p-4 md:p-8">
+      <header className="flex flex-col items-center gap-4 text-center">
         <div>
           <h1 className="text-3xl md:text-4xl">Clientes</h1>
           <p className="mt-1 text-sm text-muted-foreground">

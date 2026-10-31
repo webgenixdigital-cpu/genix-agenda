@@ -39,7 +39,7 @@ export function EmailVerifyBanner({ email }: { email: string }) {
 
   return (
     <div
-      className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-amber-300 bg-amber-50 px-4 py-2.5 text-sm text-amber-900 md:px-8"
+      className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 border-b border-amber-300 bg-amber-50 px-4 py-2.5 text-sm text-amber-900 md:px-8"
       data-testid="faixa-confirmar-email"
     >
       <p className="flex items-center gap-2">

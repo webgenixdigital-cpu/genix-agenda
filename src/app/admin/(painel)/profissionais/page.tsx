@@ -79,10 +79,10 @@ export default async function ProfissionaisPage() {
   const canInvite = isOwner && teamPlan;
 
   return (
-    <main className="mx-auto max-w-5xl space-y-6 p-4 md:p-8">
-      <header>
+    <main className="mx-auto max-w-5xl space-y-8 p-4 md:p-8">
+      <header className="text-center">
         <h1 className="text-3xl md:text-4xl">Equipe</h1>
-        <p className="mt-1 max-w-lg text-sm text-muted-foreground">
+        <p className="mx-auto mt-1 max-w-lg text-sm text-muted-foreground">
           Quem atende no seu espaço e quais serviços cada pessoa faz. Isso define os horários oferecidos na vitrine.
         </p>
       </header>

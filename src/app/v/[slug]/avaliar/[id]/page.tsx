@@ -47,11 +47,11 @@ export default async function AvaliarPage({ params }: Props) {
           />
         )}
         <div className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,rgba(28,25,23,0.78)_0%,rgba(28,25,23,0.9)_100%)]" />
-        <div className="mx-auto max-w-lg px-5 pb-16 pt-10 text-center text-white">
+        <div className="mx-auto max-w-lg px-5 pb-20 pt-12 text-center text-white">
           <CalendarHeart className="mx-auto h-8 w-8 text-[#F2C078]" />
           <p className="mt-4 text-sm text-stone-300">{ctx.business_name}</p>
           <h1 className="mt-1 text-3xl leading-tight md:text-4xl">Como foi seu atendimento, {ctx.first_name}?</h1>
-          <p className="mt-3 text-stone-300">
+          <p className="mt-3 leading-relaxed text-stone-300">
             {ctx.service_name} com {ctx.professional_name}
           </p>
         </div>

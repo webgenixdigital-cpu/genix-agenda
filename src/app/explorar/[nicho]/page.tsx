@@ -73,21 +73,21 @@ export default async function ExplorarNichoPage({ params, searchParams }: Props)
       <main className="pb-28 md:pb-0">
         {/* ---------- TOPO ---------- */}
         <section className="border-b bg-secondary/60">
-          <div className="mx-auto max-w-6xl px-4 pb-10 pt-8 md:px-6 md:pb-14">
+          <div className="mx-auto max-w-6xl px-4 pb-14 pt-10 md:px-6 md:pb-20">
             <NicheHighlights niches={niches} activeId={niche.id} />
 
-            <div className="mt-8 flex items-center gap-4">
+            <div className="mt-10 flex flex-col items-center gap-4 text-center">
               <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground">
                 <NicheIcon name={niche.icon} className="h-7 w-7" />
               </span>
               <div>
                 <h1 className="text-3xl leading-tight md:text-5xl">{niche.name}</h1>
-                {niche.description && <p className="mt-1 text-muted-foreground">{niche.description}</p>}
+                {niche.description && <p className="copy mt-2 text-muted-foreground">{niche.description}</p>}
               </div>
             </div>
 
             {/* Onde você está? */}
-            <form action={`/explorar/${niche.id}`} className="mt-8 max-w-xl" role="search">
+            <form action={`/explorar/${niche.id}`} className="mx-auto mt-10 max-w-xl" role="search">
               <label htmlFor="local" className="text-sm font-semibold">Onde você está?</label>
               <div className="mt-2 flex gap-2">
                 <div className="relative flex-1">
@@ -110,7 +110,7 @@ export default async function ExplorarNichoPage({ params, searchParams }: Props)
             </form>
 
             {cities.length > 0 && (
-              <div className="mt-4 flex flex-wrap items-center gap-2">
+              <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
                 <span className="text-sm text-muted-foreground">Cidades com {niche.name.toLowerCase()}:</span>
                 {cities.slice(0, 8).map((c) => {
                   const active = local && c.city.toLowerCase() === local.toLowerCase();

@@ -116,12 +116,12 @@ export default async function VitrinePage({ params }: Props) {
           )}
           <div className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,rgba(28,25,23,0.78)_0%,rgba(28,25,23,0.88)_100%)]" />
 
-          <div className="mx-auto max-w-6xl px-4 py-14 text-white md:px-6 md:py-20">
+          <div className="mx-auto max-w-6xl px-4 py-20 text-center text-white md:px-6 md:py-24">
             <p className="text-sm font-medium text-[#F2C078]">{b.niche_name}</p>
-            <h1 className="mt-2 max-w-3xl text-4xl leading-[1.08] md:text-[56px]">{b.name}</h1>
-            {b.tagline && <p className="mt-4 max-w-xl text-lg text-stone-200">{b.tagline}</p>}
+            <h1 className="mx-auto mt-2 max-w-3xl text-4xl leading-[1.08] md:text-[56px]">{b.name}</h1>
+            {b.tagline && <p className="copy mt-5 text-lg text-stone-200">{b.tagline}</p>}
 
-            <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-stone-200">
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm text-stone-200">
               {b.rating_count > 0 && (
                 <span className="inline-flex items-center gap-1.5">
                   <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
@@ -144,7 +144,7 @@ export default async function VitrinePage({ params }: Props) {
               )}
             </div>
 
-            <div className="mt-8 flex flex-wrap gap-3">
+            <div className="mt-10 flex flex-wrap justify-center gap-3">
               {onlineServices.length > 0 && (
                 <BookTrigger size="lg" className="h-12 px-7 text-base active:scale-95" data-testid="btn-agendar-online">
                   Agendar online
@@ -161,20 +161,20 @@ export default async function VitrinePage({ params }: Props) {
           </div>
         </section>
 
-        <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 md:px-6 lg:grid-cols-[1fr_320px]">
+        <div className="mx-auto grid max-w-6xl gap-12 px-4 py-16 md:px-6 md:py-20 lg:grid-cols-[1fr_320px]">
           {/* ---------- COLUNA PRINCIPAL ---------- */}
-          <div className="space-y-14">
+          <div className="space-y-16">
             {b.description && (
-              <p className="max-w-2xl text-lg leading-relaxed text-muted-foreground">{b.description}</p>
+              <p className="copy text-center text-lg text-muted-foreground">{b.description}</p>
             )}
 
             {/* Serviços */}
             <section aria-labelledby="servicos">
-              <h2 id="servicos" className="text-3xl">Serviços</h2>
+              <h2 id="servicos" className="text-center text-3xl">Serviços</h2>
               {services.length === 0 && (
-                <p className="mt-4 text-muted-foreground">Os serviços deste espaço ainda não foram cadastrados.</p>
+                <p className="mt-4 text-center text-muted-foreground">Os serviços deste espaço ainda não foram cadastrados.</p>
               )}
-              <div className="mt-6 space-y-10">
+              <div className="mt-8 space-y-10">
                 {Object.entries(groups).map(([category, list]) => (
                   <div key={category}>
                     <h3 className="mb-3 font-sans text-sm font-semibold text-muted-foreground">{category}</h3>
@@ -222,8 +222,8 @@ export default async function VitrinePage({ params }: Props) {
             {/* Profissionais */}
             {professionals.length > 0 && (
               <section aria-labelledby="equipe">
-                <h2 id="equipe" className="text-3xl">Equipe</h2>
-                <div className="mt-6 grid gap-4 sm:grid-cols-2">
+                <h2 id="equipe" className="text-center text-3xl">Equipe</h2>
+                <div className="mt-8 grid gap-4 sm:grid-cols-2">
                   {professionals.map((p) => (
                     <div key={p.id} className="flex gap-4 rounded-2xl border bg-card p-5">
                       <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-full bg-secondary font-heading text-xl text-primary">
@@ -256,8 +256,8 @@ export default async function VitrinePage({ params }: Props) {
             {/* Avaliações */}
             {reviews.length > 0 && (
               <section aria-labelledby="avaliacoes">
-                <h2 id="avaliacoes" className="text-3xl">O que dizem os clientes</h2>
-                <div className="mt-6 grid gap-4 sm:grid-cols-2">
+                <h2 id="avaliacoes" className="text-center text-3xl">O que dizem os clientes</h2>
+                <div className="mt-8 grid gap-4 sm:grid-cols-2">
                   {reviews.map((r) => (
                     <figure key={r.id} className="rounded-2xl bg-secondary/70 p-5">
                       <div className="flex gap-0.5" aria-label={`${r.rating} de 5 estrelas`}>

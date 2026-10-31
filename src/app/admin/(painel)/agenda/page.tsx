@@ -52,9 +52,9 @@ export default async function AgendaPage({ searchParams }: Props) {
     const activeCount = data.list.filter((b) => b.status !== "cancelled").length;
 
     return (
-      <main className="mx-auto max-w-screen-2xl space-y-6 p-4 md:p-8">
+      <main className="mx-auto max-w-screen-2xl space-y-8 p-4 md:p-8">
         <ViewPreference view={view} />
-        <header className="flex flex-wrap items-end justify-between gap-4">
+        <header className="flex flex-col items-center gap-4 text-center">
           <div>
             <h1 className="text-3xl md:text-4xl">Agenda da semana</h1>
             <p className="mt-1 text-sm text-muted-foreground">
@@ -127,8 +127,8 @@ export default async function AgendaPage({ searchParams }: Props) {
   // PARTE 2 — Página
   // -------------------------------------------------------------------
   return (
-    <main className="mx-auto max-w-5xl space-y-6 p-4 md:p-8">
-      <header className="flex flex-wrap items-end justify-between gap-4">
+    <main className="mx-auto max-w-5xl space-y-8 p-4 md:p-8">
+      <header className="flex flex-col items-center gap-4 text-center">
         <div>
           <h1 className="text-3xl md:text-4xl">{pendingMode ? "Pedidos pendentes" : "Agenda"}</h1>
           <p className="mt-1 text-sm text-muted-foreground">

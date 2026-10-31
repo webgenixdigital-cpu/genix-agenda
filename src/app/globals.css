@@ -71,6 +71,27 @@
   }
   h1, h2, h3 {
     @apply font-heading tracking-tight;
+    text-wrap: balance;
+  }
+  /* evita palavra sozinha na última linha (navegadores sem suporte ignoram) */
+  p, li, summary, dd {
+    text-wrap: pretty;
+  }
+}
+
+@layer components {
+  /* parágrafo de destaque centralizado, com largura de leitura */
+  .copy {
+    @apply mx-auto max-w-[60ch] leading-relaxed;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  .text-pretty {
+    text-wrap: pretty;
   }
 }
 

@@ -89,14 +89,14 @@ export default async function FinanceiroPage({ searchParams }: Props) {
   // PARTE 2 — Página
   // -------------------------------------------------------------------
   return (
-    <main className="mx-auto max-w-6xl space-y-6 p-4 md:p-8">
-      <header className="flex flex-wrap items-end justify-between gap-4">
+    <main className="mx-auto max-w-6xl space-y-8 p-4 md:p-8">
+      <header className="flex flex-col items-center gap-4 text-center">
         <div>
           <h1 className="text-3xl md:text-4xl">Financeiro</h1>
           <div className="mt-3">
             <FinanceTabs active="caixa" />
           </div>
-          <div className="mt-3 flex items-center gap-1">
+          <div className="mt-3 flex items-center justify-center gap-1">
             <Button asChild variant="outline" size="icon" className="h-10 w-10">
               <Link href={`/admin/financeiro?mes=${prev}`} aria-label="Mês anterior" data-testid="btn-mes-anterior">
                 <ChevronLeft className="h-5 w-5" />

@@ -16,13 +16,16 @@ export function LegalPage({
   return (
     <>
       <SiteHeader />
-      <main className="mx-auto max-w-3xl px-4 py-12 md:px-6 md:py-16">
-        <h1 className="text-4xl md:text-5xl">{title}</h1>
-        <p className="mt-3 text-sm text-muted-foreground">Última atualização: {updatedAt}</p>
+      <main className="mx-auto max-w-3xl px-4 py-16 md:px-6 md:py-20">
+        <header className="text-center">
+          <h1 className="text-4xl md:text-5xl">{title}</h1>
+          <p className="mt-3 text-sm text-muted-foreground">Última atualização: {updatedAt}</p>
+        </header>
+        {/* corpo em coluna de leitura (~65ch), centralizada, com texto à esquerda */}
         <div
-          className="mt-10 space-y-8 leading-relaxed text-stone-800
+          className="mx-auto mt-12 max-w-[65ch] space-y-10 leading-relaxed text-stone-800
             [&_h2]:font-heading [&_h2]:text-2xl [&_h2]:text-foreground
-            [&_li]:ml-5 [&_li]:list-disc [&_li]:pl-1 [&_p]:mt-3 [&_ul]:mt-3 [&_ul]:space-y-1.5"
+            [&_li]:ml-5 [&_li]:list-disc [&_li]:pl-1 [&_p]:mt-3 [&_ul]:mt-3 [&_ul]:space-y-2"
         >
           {children}
         </div>

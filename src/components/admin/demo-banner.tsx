@@ -20,7 +20,7 @@ export function DemoBanner() {
     <>
       {/* Faixa fixa no topo */}
       <div
-        className="sticky top-0 z-40 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 bg-foreground px-4 py-2.5 text-sm text-background md:justify-between"
+        className="sticky top-0 z-40 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 bg-foreground px-4 py-2.5 text-sm text-background md:h-14 md:flex-nowrap md:justify-between md:py-0"
         data-testid="faixa-demo"
       >
         <p className="flex items-center gap-2">

@@ -52,7 +52,7 @@ export default async function AgendaPage({ searchParams }: Props) {
     const activeCount = data.list.filter((b) => b.status !== "cancelled").length;
 
     return (
-      <main className="mx-auto max-w-7xl space-y-6 p-4 md:p-8">
+      <main className="mx-auto max-w-screen-2xl space-y-6 p-4 md:p-8">
         <ViewPreference view={view} />
         <header className="flex flex-wrap items-end justify-between gap-4">
           <div>

@@ -28,19 +28,7 @@ export async function markOnboardingStep(step: ManualStep): Promise<Result> {
 }
 
 // ---------------------------------------------------------------------
-// PARTE 2 — Fechar / reabrir o card
-// ---------------------------------------------------------------------
-export async function setOnboardingDismissed(dismissed: boolean): Promise<Result> {
-  const { business } = await getEditorContext();
-  const supabase = createClient();
-  const { error } = await supabase.from("businesses").update({ onboarding_dismissed: dismissed }).eq("id", business.id);
-  if (error) return { ok: false, error: "Não foi possível atualizar." };
-  revalidatePath("/admin");
-  return { ok: true };
-}
-
-// ---------------------------------------------------------------------
-// PARTE 3 — Adicionar serviços sugeridos do segmento (sem duplicar nomes)
+// PARTE 2 — Adicionar serviços sugeridos do segmento (sem duplicar nomes)
 // ---------------------------------------------------------------------
 export async function addSuggestedServices(): Promise<Result> {
   const { business } = await getEditorContext();

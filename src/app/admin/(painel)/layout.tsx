@@ -100,6 +100,7 @@ export default async function PainelLayout({ children }: { children: React.React
           lockedHrefs={plan.tier === "gratis" ? FREE_LOCKED_HREFS : []}
           role={ctx.role}
           initialCollapsed={sidebarCollapsed}
+          belowDemoBanner={isDemo}
         />
         <div className="min-w-0 flex-1">
           {!isDemo && !plan.internal && !ctx.emailVerified && <EmailVerifyBanner email={ctx.email} />}

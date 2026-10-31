@@ -10,6 +10,8 @@ import { loadFiscal } from "@/lib/faturamento-data";
 import { FiscalForm } from "@/components/admin/configuracoes/fiscal-form";
 import { ConfirmModeForm } from "@/components/admin/configuracoes/confirm-mode-form";
 import { isConfirmMode, type ConfirmMode } from "@/lib/confirm-mode";
+import { getOnboarding } from "@/lib/onboarding";
+import { ReviewOnboardingLink } from "@/components/admin/configuracoes/review-onboarding-link";
 
 export const dynamic = "force-dynamic";
 
@@ -47,11 +49,16 @@ export default async function ConfiguracoesPage() {
     loadFiscal(b.id),
   ]);
 
+  // "Rever configuração inicial" só quando o cartão do Início teria algo a mostrar
+  const onboarding = role === "viewer" || !plan.internal ? await getOnboarding(business as never, plan) : null;
+  const canReviewOnboarding = !!onboarding && onboarding.doneCount < onboarding.total;
+
   return (
     <main className="mx-auto max-w-3xl space-y-8 p-4 md:p-8">
       <header>
         <h1 className="text-3xl md:text-4xl">Configurações</h1>
         <p className="mt-1 text-sm text-muted-foreground">Como seu espaço aparece na vitrine e como os clientes agendam.</p>
+        {canReviewOnboarding && <ReviewOnboardingLink />}
       </header>
 
       {role !== "owner" && (

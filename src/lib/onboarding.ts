@@ -25,7 +25,6 @@ type BusinessLike = {
   description?: string | null;
   hero_image?: string | null;
   onboarding?: Record<string, boolean> | null;
-  onboarding_dismissed?: boolean;
 };
 
 export async function getOnboarding(business: BusinessLike, plan: PlanContext) {
@@ -126,6 +125,5 @@ export async function getOnboarding(business: BusinessLike, plan: PlanContext) {
     items,
     doneCount: required.filter((i) => i.done).length,
     total: required.length,
-    dismissed: !!business.onboarding_dismissed,
   };
 }

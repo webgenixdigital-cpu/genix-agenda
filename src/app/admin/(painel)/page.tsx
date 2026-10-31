@@ -1,9 +1,11 @@
+import { cookies } from "next/headers";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminContext } from "@/lib/admin";
 import { getPlanContext } from "@/lib/plan";
 import { getOnboarding } from "@/lib/onboarding";
 import { OnboardingCard } from "@/components/admin/onboarding-card";
+import { ONBOARDING_COOKIE, readOnboardingPref } from "@/lib/ui-prefs";
 import { monthStartISO, todayISO } from "@/lib/dates";
 import { brl, longDate } from "@/lib/format";
 import { StatusBadge } from "@/components/admin/status-badge";
@@ -94,9 +96,12 @@ export default async function Dashboard({ searchParams }: Props) {
   const { data: me } = professionalId
     ? await supabase.from("professionals").select("name, commission_pct").eq("id", professionalId).maybeSingle()
     : { data: null };
+  // Configuração inicial: matriz (e a demo, só para ver); "Ocultar" fica no cookie deste navegador
+  const onboardingPref = readOnboardingPref(cookies().get(ONBOARDING_COOKIE)?.value);
+  const showsOnboarding = (role === "viewer" || (isOwner && !plan.internal)) && onboardingPref !== "hidden";
   const [{ today, bookings, stats }, onboarding] = await Promise.all([
     loadDashboard(business.id),
-    plan.internal || !isOwner ? Promise.resolve(null) : getOnboarding(business as never, plan),
+    showsOnboarding ? getOnboarding(business as never, plan) : Promise.resolve(null),
   ]);
   const welcome = searchParams["bem-vindo"] === "1";
 
@@ -151,12 +156,12 @@ export default async function Dashboard({ searchParams }: Props) {
         <h1 className="mt-1 text-3xl md:text-4xl">Olá, {greeting}</h1>
       </header>
 
-      {onboarding && (
+      {onboarding && onboarding.doneCount < onboarding.total && (
         <OnboardingCard
           items={onboarding.items}
           doneCount={onboarding.doneCount}
           total={onboarding.total}
-          dismissed={onboarding.dismissed}
+          initialExpanded={onboardingPref === "expanded"}
           slug={business.slug}
           welcome={welcome}
           ownerName={(business as { owner_name?: string | null }).owner_name}

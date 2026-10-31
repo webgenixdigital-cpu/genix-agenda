@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { cookies } from "next/headers";
 import Link from "next/link";
 import { AlertTriangle, PauseCircle, WifiOff } from "lucide-react";
 import { todayISO } from "@/lib/dates";
@@ -8,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { getAdminContext } from "@/lib/admin";
 import { getFreeDailyLimit, getPlanContext, hasTeamFeatures } from "@/lib/plan";
 import { FREE_LOCKED_HREFS } from "@/lib/plan-features";
+import { SIDEBAR_COOKIE } from "@/lib/ui-prefs";
 import { AdminSidebar } from "@/components/admin/admin-sidebar";
 import { DemoBanner } from "@/components/admin/demo-banner";
 import { PlanBanner } from "@/components/admin/plan-banner";
@@ -21,6 +23,8 @@ export default async function PainelLayout({ children }: { children: React.React
   const isDemo = ctx.role === "viewer";
   const isOwner = ctx.role === "owner";
   const isTeam = ctx.role === "staff" || ctx.role === "reception";
+  // menu recolhido no computador (cookie por navegador): já renderiza no estado certo, sem flash
+  const sidebarCollapsed = cookies().get(SIDEBAR_COOKIE)?.value === "collapsed";
 
   // faixa do plano (matriz): limite do Grátis e oferta do fim do teste pelo tamanho da equipe
   let freeLimit = 10;
@@ -95,6 +99,7 @@ export default async function PainelLayout({ children }: { children: React.React
           email={isDemo ? "Conta de demonstração" : ctx.email}
           lockedHrefs={plan.tier === "gratis" ? FREE_LOCKED_HREFS : []}
           role={ctx.role}
+          initialCollapsed={sidebarCollapsed}
         />
         <div className="min-w-0 flex-1">
           {!isDemo && !plan.internal && !ctx.emailVerified && <EmailVerifyBanner email={ctx.email} />}

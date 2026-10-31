@@ -4,10 +4,11 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  BellRing, CalendarDays, CalendarHeart, CalendarOff, CreditCard, ExternalLink, LayoutDashboard,
+  BellRing, CalendarDays, CalendarOff, CreditCard, ExternalLink, LayoutDashboard,
   HandCoins, Lock, LogOut, Menu, Scissors, Settings, UserRound, Users, Wallet,
 } from "lucide-react";
 import { signOut } from "@/app/admin/actions";
+import { BrandIcon, BrandLogo } from "@/components/brand-logo";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
@@ -44,13 +45,11 @@ function NavContent({ businessName, slug, email, lockedHrefs = [], role = "owner
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center gap-2 px-5 py-5">
-        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground">
-          <CalendarHeart className="h-5 w-5" />
-        </span>
-        <div className="min-w-0">
+      <div className="px-5 py-5">
+        <BrandLogo />
+        <div className="mt-4 min-w-0">
           <p className="truncate font-heading text-lg leading-tight">{businessName}</p>
-          <p className="text-xs text-muted-foreground">Genix Agenda · {ROLE_LABEL[role]}</p>
+          <p className="text-xs text-muted-foreground">{ROLE_LABEL[role]}</p>
         </div>
       </div>
 
@@ -113,7 +112,10 @@ export function AdminSidebar(props: Props) {
 
       {/* Mobile: barra superior + menu deslizante */}
       <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b bg-white/90 px-4 backdrop-blur md:hidden">
-        <p className="truncate font-heading text-lg">{props.businessName}</p>
+        <div className="flex min-w-0 items-center gap-2">
+          <BrandIcon className="shrink-0" />
+          <p className="truncate font-heading text-lg">{props.businessName}</p>
+        </div>
         <Button variant="ghost" size="icon" onClick={() => setOpen(true)} aria-label="Abrir menu" data-testid="btn-menu-mobile">
           <Menu className="h-5 w-5" />
         </Button>

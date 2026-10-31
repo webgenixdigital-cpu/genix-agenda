@@ -8,7 +8,13 @@ import { removeReplacedImage } from "@/lib/images";
 type Result = { ok: true } | { ok: false; error: string };
 
 const FREE_LIMIT =
-  "No plano Grátis é possível ter 1 profissional ativo. Libere o Completo para montar sua equipe.";
+  "No plano Grátis é possível ter 1 profissional ativo. Para montar sua equipe, assine o plano Equipe.";
+const PRO_LIMIT =
+  "O plano Profissional é para 1 profissional ativo. Para montar sua equipe, mude para o plano Equipe.";
+
+// erro do gatilho de limite (28a): Grátis ou Profissional
+const limitError = (message?: string) =>
+  message?.includes("LIMITE_PLANO_PROFISSIONAL") ? PRO_LIMIT : message?.includes("LIMITE_PLANO_GRATIS") ? FREE_LIMIT : null;
 
 export type ProfessionalInput = {
   id?: string;
@@ -74,7 +80,7 @@ export async function saveProfessional(input: ProfessionalInput): Promise<Result
       .insert({ ...row, business_id: business.id, sort_order: (last?.sort_order ?? 0) + 1 })
       .select("id")
       .single();
-    if (error?.message.includes("LIMITE_PLANO_GRATIS")) return { ok: false, error: FREE_LIMIT };
+    if (limitError(error?.message)) return { ok: false, error: limitError(error?.message)! };
     if (error || !data) return { ok: false, error: "Não foi possível cadastrar." };
     id = data.id;
   }
@@ -107,7 +113,7 @@ export async function toggleProfessional(id: string, active: boolean): Promise<R
   }
 
   const { error } = await supabase.from("professionals").update({ active }).eq("id", id).eq("business_id", business.id);
-  if (error?.message.includes("LIMITE_PLANO_GRATIS")) return { ok: false, error: FREE_LIMIT };
+  if (limitError(error?.message)) return { ok: false, error: limitError(error?.message)! };
   if (error) return { ok: false, error: "Não foi possível atualizar." };
   refresh(business.slug);
   return { ok: true };

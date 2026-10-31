@@ -18,6 +18,8 @@ type AsaasEvent = {
     dueDate?: string;
     invoiceUrl?: string;
     billingType?: string;
+    value?: number;
+    externalReference?: string;
   };
   subscription?: { id: string; status?: string };
 };
@@ -72,12 +74,48 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ received: true, result });
   };
 
+  // Cobrança avulsa da mudança para o Equipe (upgrade anual): paga → vira Equipe
+  // e a renovação passa a ter o valor do Equipe
+  if (!subscriptionId && body.payment && body.payment.externalReference?.startsWith("upgrade:")) {
+    const { data: up } = await admin
+      .from("subscriptions")
+      .select("business_id, upgrade_plan_id, upgrade_amount, asaas_subscription_id")
+      .eq("upgrade_payment_id", body.payment.id)
+      .maybeSingle();
+    if (!up?.upgrade_plan_id) return finish("ignorado: troca de plano não encontrada");
+    if (!PAID.includes(body.event)) return finish(`ignorado: evento ${body.event} da troca de plano`, up.business_id);
+    try {
+      if (up.asaas_subscription_id && up.upgrade_amount) {
+        await asaas(`/subscriptions/${up.asaas_subscription_id}`, {
+          method: "POST",
+          body: { value: Number(up.upgrade_amount), updatePendingPayments: true },
+        });
+      }
+      await admin
+        .from("subscriptions")
+        .update({
+          plan_id: up.upgrade_plan_id,
+          amount: up.upgrade_amount,
+          upgrade_plan_id: null,
+          upgrade_payment_id: null,
+          upgrade_amount: null,
+          upgrade_invoice_url: null,
+        })
+        .eq("business_id", up.business_id);
+      return finish(`mudou para ${up.upgrade_plan_id}`, up.business_id);
+    } catch (e) {
+      await admin.from("asaas_webhook_events").delete().eq("id", eventId);
+      console.error("Webhook Asaas (troca de plano) falhou", e);
+      return NextResponse.json({ error: "retry" }, { status: 500 });
+    }
+  }
+
   if (!subscriptionId) return finish("ignorado: sem assinatura vinculada");
 
   // Assinatura do Genix Agenda correspondente
   const { data: sub } = await admin
     .from("subscriptions")
-    .select("business_id, status, current_period_end")
+    .select("business_id, status, current_period_end, scheduled_plan_id, scheduled_at")
     .eq("asaas_subscription_id", subscriptionId)
     .maybeSingle();
   if (!sub) return finish("ignorado: assinatura não encontrada");
@@ -87,14 +125,23 @@ export async function POST(request: NextRequest) {
     // PARTE 3 — Regras por tipo de aviso
     // -----------------------------------------------------------------
 
-    // Pagamento confirmado/recebido → Completo ativo até a próxima cobrança
+    // Pagamento confirmado/recebido → plano pago ativo até a próxima cobrança
     if (PAID.includes(body.event)) {
       const s = await asaas<AsaasSubscription>(`/subscriptions/${subscriptionId}`);
       const periodEnd = s.nextDueDate ? new Date(`${s.nextDueDate}T23:59:59-03:00`).toISOString() : null;
 
+      // troca para o Profissional agendada: vale a partir da 1ª cobrança do ciclo seguinte
+      const scheduledFrom = sub.scheduled_at
+        ? new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date(sub.scheduled_at))
+        : null;
+      const applySchedule = !!sub.scheduled_plan_id && !!scheduledFrom && (body.payment?.dueDate ?? "") > scheduledFrom;
+
       await admin
         .from("subscriptions")
         .update({
+          ...(applySchedule
+            ? { plan_id: sub.scheduled_plan_id, amount: body.payment?.value ?? s.value, scheduled_plan_id: null, scheduled_at: null }
+            : {}),
           status: "active",
           current_period_end: periodEnd,
           pending_invoice_url: null,

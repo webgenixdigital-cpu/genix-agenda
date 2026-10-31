@@ -5,7 +5,6 @@ import { getActiveNiches } from "@/lib/niches";
 import { LinkForm } from "@/components/admin/configuracoes/link-form";
 import { HoursForm } from "@/components/admin/configuracoes/hours-form";
 import { WhatsappForm, type WhatsappPanelStatus } from "@/components/admin/configuracoes/whatsapp-form";
-import { LockedFeatureCard } from "@/components/admin/locked-feature";
 import { getPlanContext } from "@/lib/plan";
 import { loadFiscal } from "@/lib/faturamento-data";
 import { FiscalForm } from "@/components/admin/configuracoes/fiscal-form";
@@ -90,19 +89,16 @@ export default async function ConfiguracoesPage() {
         <ConfirmModeForm initial={isConfirmMode(b.online_confirm_mode ?? "") ? (b.online_confirm_mode as ConfirmMode) : "manual"} />
       </Section>
 
-      <Section
-        id="whatsapp"
-        title="WhatsApp automático (beta)"
-        description="Lembrete de véspera enviado sozinho do WhatsApp do seu espaço."
-      >
-        {plan.tier !== "completo" ? (
-          <LockedFeatureCard feature="whatsapp" />
-        ) : wa ? (
+      {/* WhatsApp automático (beta): só aparece para espaço liberado pela Genix, num plano pago */}
+      {plan.tier === "completo" && (wa as WhatsappPanelStatus | null)?.genix_enabled && (
+        <Section
+          id="whatsapp"
+          title="WhatsApp automático (beta)"
+          description="Lembrete de véspera enviado sozinho do WhatsApp do seu espaço."
+        >
           <WhatsappForm initial={wa as WhatsappPanelStatus} businessName={b.name} canEdit={role === "owner"} />
-        ) : (
-          <p className="text-sm text-muted-foreground">Não foi possível carregar o status do WhatsApp.</p>
-        )}
-      </Section>
+        </Section>
+      )}
 
       <Section
         id="enquadramento"

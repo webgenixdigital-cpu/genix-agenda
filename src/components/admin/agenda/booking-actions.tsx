@@ -59,7 +59,7 @@ export function BookingActions({
   booking: AgendaBooking;
   businessName: string;
   slug: string;
-  /** plano Completo: pergunta a forma de pagamento e lança no caixa */
+  /** plano pago (Profissional ou Equipe): pergunta a forma de pagamento e lança no caixa */
   fullAccess?: boolean;
   reschedule?: RescheduleProps;
 }) {

@@ -33,7 +33,7 @@ type Props = {
   defaultDate: string;
   services: { id: string; name: string; price: number; duration_min: number }[];
   professionals: { id: string; name: string }[];
-  /** plano Completo: libera "Repetir" (agendamentos recorrentes) */
+  /** plano pago (Profissional ou Equipe): libera "Repetir" (agendamentos recorrentes) */
   fullAccess?: boolean;
   /** modo controlado (grade semanal): abre por fora, sem o botão próprio */
   open?: boolean;
@@ -347,7 +347,7 @@ export function NewBookingDialog({
               <Textarea id="nb-notes" rows={2} value={notes} onChange={(e) => setNotes(e.target.value.slice(0, 500))} />
             </div>
 
-            {/* Repetir (recorrência) — recurso do Completo */}
+            {/* Repetir (recorrência) — recurso dos planos pagos */}
             {fullAccess ? (
               <div className="space-y-3 rounded-xl border p-3">
                 <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm font-semibold">
@@ -430,7 +430,7 @@ export function NewBookingDialog({
                 className="flex min-h-11 items-center gap-2 rounded-xl border border-dashed p-3 text-sm text-muted-foreground hover:text-foreground"
                 data-testid="link-repetir-bloqueado"
               >
-                <Lock className="h-4 w-4 text-primary" /> Repetir este horário · recurso do plano Completo
+                <Lock className="h-4 w-4 text-primary" /> Repetir este horário · planos Profissional e Equipe
               </Link>
             )}
 

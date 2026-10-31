@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Check, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { LOCKED_FEATURES, type LockedFeatureKey } from "@/lib/plan-features";
+import { LOCKED_FEATURES, minPlanLabel, type LockedFeatureKey } from "@/lib/plan-features";
 
 /** Versão em card, para um trecho de página (ex.: Pacotes dentro de Serviços) */
 export function LockedFeatureCard({ feature }: { feature: LockedFeatureKey }) {
@@ -9,10 +9,10 @@ export function LockedFeatureCard({ feature }: { feature: LockedFeatureKey }) {
   return (
     <div className="rounded-2xl border border-dashed bg-card p-5 text-center" data-testid={`recurso-bloqueado-${feature}`}>
       <Lock className="mx-auto h-6 w-6 text-primary" />
-      <p className="mt-2 font-semibold">{f.title} · plano Completo</p>
+      <p className="mt-2 font-semibold">{f.title} · {minPlanLabel(f.minPlan)}</p>
       <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">{f.description}</p>
       <Button asChild className="mt-4 h-11" data-testid={`btn-liberar-${feature}`}>
-        <Link href="/admin/assinatura">Liberar acesso completo</Link>
+        <Link href="/admin/assinatura">Ver planos</Link>
       </Button>
     </div>
   );
@@ -27,7 +27,7 @@ export function LockedFeature({ feature }: { feature: LockedFeatureKey }) {
         <span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-secondary text-primary">
           <Lock className="h-6 w-6" />
         </span>
-        <p className="mt-5 text-sm font-semibold text-primary">Recurso do plano Completo</p>
+        <p className="mt-5 text-sm font-semibold text-primary">Recurso dos {minPlanLabel(f.minPlan)}</p>
         <h1 className="mt-1 text-3xl md:text-4xl">{f.title}</h1>
         <p className="mx-auto mt-3 max-w-md text-muted-foreground">{f.description}</p>
 
@@ -40,7 +40,7 @@ export function LockedFeature({ feature }: { feature: LockedFeatureKey }) {
         </ul>
 
         <Button asChild className="mt-8 h-12 px-8 text-base" data-testid="btn-liberar-completo">
-          <Link href="/admin/assinatura">Liberar acesso completo</Link>
+          <Link href="/admin/assinatura">Ver planos</Link>
         </Button>
       </div>
     </main>

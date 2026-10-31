@@ -70,7 +70,7 @@ function NavContent({ businessName, slug, email, lockedHrefs = [], role = "owner
             >
               <Icon className={cn("h-[18px] w-[18px]", active && "text-primary")} />
               <span className="flex-1">{label}</span>
-              {lockedHrefs.includes(href) && <Lock className="h-3.5 w-3.5 text-muted-foreground" aria-label="Recurso do Completo" />}
+              {lockedHrefs.includes(href) && <Lock className="h-3.5 w-3.5 text-muted-foreground" aria-label="Recurso dos planos pagos" />}
             </Link>
           );
         })}

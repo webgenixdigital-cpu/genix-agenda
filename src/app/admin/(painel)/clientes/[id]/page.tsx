@@ -99,6 +99,10 @@ export default async function ClientePage({ params }: Props) {
 
   // pacotes do cliente (saldo calculado no banco) e modelos à venda
   const canSell = role === "owner" || role === "reception";
+  // WhatsApp automático liberado pela Genix (a função só responde para a matriz)
+  const { data: waStatus } =
+    role === "owner" ? await supabase.rpc("whatsapp_panel_status", { p_business: business.id }) : { data: null };
+  const waEnabled = !!(waStatus as { genix_enabled?: boolean } | null)?.genix_enabled;
   const [{ data: pkgs }, { data: templates }, plan] = await Promise.all([
     supabase
       .from("customer_package_balance")
@@ -190,8 +194,8 @@ export default async function ClientePage({ params }: Props) {
         </p>
       )}
 
-      {/* Lembretes automáticos (matriz e recepção, plano Completo) */}
-      {canSell && plan.tier === "completo" && (
+      {/* Lembretes automáticos (beta): só para espaço liberado pela Genix, num plano pago */}
+      {canSell && plan.tier === "completo" && waEnabled && (
         <AutoReminderToggle customerId={c.id} initial={c.no_auto_reminders} />
       )}
 

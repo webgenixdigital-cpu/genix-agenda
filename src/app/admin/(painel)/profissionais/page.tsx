@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { requireRoles } from "@/lib/admin";
-import { getPlanContext } from "@/lib/plan";
+import { getPlanContext, hasTeamFeatures } from "@/lib/plan";
 import { TeamManager } from "@/components/admin/profissionais/team-manager";
 import { ReceptionSection, type AccessInfo } from "@/components/admin/profissionais/team-access";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -74,7 +74,9 @@ export default async function ProfissionaisPage() {
       }
     }
   }
-  const canInvite = isOwner && plan.tier === "completo";
+  // acessos individuais, comissão e salão-parceiro: só no plano Equipe
+  const teamPlan = hasTeamFeatures(plan);
+  const canInvite = isOwner && teamPlan;
 
   return (
     <main className="mx-auto max-w-5xl space-y-6 p-4 md:p-8">
@@ -87,11 +89,12 @@ export default async function ProfissionaisPage() {
       <TeamManager
         team={team}
         services={services ?? []}
-        canAddMore={plan.tier === "completo" || !team.some((p) => p.active)}
+        canAddMore={teamPlan || !team.some((p) => p.active)}
         access={access}
         ownerUserId={isOwner ? userId : undefined}
         canInvite={canInvite}
-        partnerSalon={fiscal.partner_salon}
+        partnerSalon={fiscal.partner_salon && teamPlan}
+        teamFeatures={teamPlan}
         businessId={business.id}
         readOnly={!isOwner}
       />

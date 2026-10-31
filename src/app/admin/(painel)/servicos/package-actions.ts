@@ -17,7 +17,7 @@ export type PackageTemplateInput = {
 };
 
 const ONLY_OWNER = "Somente a matriz pode gerenciar os pacotes.";
-const FULL_ONLY = "Pacotes são um recurso do plano Completo.";
+const FULL_ONLY = "Pacotes são um recurso dos planos Profissional e Equipe.";
 
 // ---------------------------------------------------------------------
 // PARTE 1 — Criar / editar modelo de pacote

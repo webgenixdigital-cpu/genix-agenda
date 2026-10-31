@@ -1,15 +1,26 @@
 import Link from "next/link";
 import { Gift, Sparkles } from "lucide-react";
-import type { PlanContext } from "@/lib/plan";
+import { PLAN_NAMES, recommendedKind, type PlanContext } from "@/lib/plan";
 import { cn } from "@/lib/utils";
 
-export function PlanBanner({ plan }: { plan: PlanContext }) {
+export function PlanBanner({
+  plan,
+  freeLimit,
+  activePros,
+}: {
+  plan: PlanContext;
+  /** agendamentos online por dia no Grátis (vem do banco) */
+  freeLimit: number;
+  /** profissionais ativos: define a oferta do fim do teste */
+  activePros: number;
+}) {
   if (plan.internal || plan.status === "active") return null;
 
-  // Teste do Completo valendo
+  // Teste do Equipe valendo
   if (plan.trialDaysLeft !== null) {
     const urgent = plan.trialDaysLeft <= 3;
     const days = plan.trialDaysLeft === 1 ? "falta 1 dia" : `faltam ${plan.trialDaysLeft} dias`;
+    const offer = recommendedKind(activePros);
     return (
       <div
         className={cn(
@@ -21,12 +32,12 @@ export function PlanBanner({ plan }: { plan: PlanContext }) {
         <p className="flex items-center gap-2">
           <Gift className="h-4 w-4 shrink-0 text-primary" />
           <span>
-            <strong>Teste do Completo:</strong> {days}.
-            {urgent && " Depois, sua conta passa para o plano Grátis."}
+            <strong>Teste grátis do plano Equipe:</strong> {days}.
+            {urgent && ` Para continuar com tudo, assine o ${PLAN_NAMES[offer]}; senão, sua conta passa para o Grátis.`}
           </span>
         </p>
         <Link href="/admin/assinatura" className="font-semibold text-primary underline" data-testid="link-faixa-planos">
-          Ver planos
+          {urgent ? `Continuar no ${PLAN_NAMES[offer]}` : "Ver planos"}
         </Link>
       </div>
     );
@@ -42,11 +53,11 @@ export function PlanBanner({ plan }: { plan: PlanContext }) {
         <p className="flex items-center gap-2">
           <Sparkles className="h-4 w-4 shrink-0 text-primary" />
           <span>
-            <strong>Plano Grátis:</strong> até 10 agendamentos online por dia e 1 profissional.
+            <strong>Plano Grátis:</strong> até {freeLimit} agendamentos online por dia e 1 profissional.
           </span>
         </p>
         <Link href="/admin/assinatura" className="font-semibold text-primary underline" data-testid="link-faixa-liberar">
-          Liberar o Completo
+          Ver planos pagos
         </Link>
       </div>
     );

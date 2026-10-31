@@ -113,7 +113,7 @@ export function SignupForm({
       }
     }
 
-    // 2) cria o espaço com 15 dias do Completo
+    // 2) cria o espaço com 15 dias do plano Equipe
     const { error: rpcError } = await supabase.rpc("create_business_for_user", {
       p_owner_name: ownerName.trim(),
       p_business_name: businessName.trim(),

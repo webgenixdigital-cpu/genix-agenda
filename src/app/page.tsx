@@ -1,20 +1,22 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import {
-  BellRing, CalendarCheck, CalendarOff, Link2, MessageCircle, PlayCircle, Search, Star, Wallet,
+  PlayCircle, Search, Star,
 } from "lucide-react";
-import { createPublicClient } from "@/lib/supabase/public";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { NicheHighlights } from "@/components/niche-highlights";
-import { Pricing, type Plan } from "@/components/marketing/pricing";
+import { BenefitBlocks } from "@/components/marketing/benefit-blocks";
+import { Pricing } from "@/components/marketing/pricing";
 import { Button } from "@/components/ui/button";
 import { getFeaturedNiches } from "@/lib/niches";
+import { planFaq } from "@/lib/plans-public";
+import { getPublicPlans } from "@/lib/plans-server";
 
 export const metadata: Metadata = {
   title: "Genix Agenda | Agenda online grátis e vitrine digital para profissionais",
   description:
-    "Agenda online, vitrine digital e lembretes por WhatsApp para salões, barbearias, clínicas de estética e outros profissionais. Grátis para sempre para 1 profissional, sem cartão.",
+    "Agenda online, vitrine digital e lembretes de véspera para salões, barbearias, clínicas de estética e outros profissionais. Grátis para sempre para 1 profissional, sem cartão.",
   alternates: { canonical: "/" },
 };
 
@@ -25,67 +27,18 @@ export const revalidate = 3600;
 // ---------------------------------------------------------------------
 // PARTE 1 — Conteúdo
 // ---------------------------------------------------------------------
-// completo: recurso do plano Completo (aparece com etiqueta, para não prometer como grátis)
-const BENEFITS = [
-  { icon: Link2, title: "Sua vitrine com link próprio", text: "Serviços, preços, equipe e avaliações numa página bonita para colocar na bio do Instagram.", completo: false },
-  { icon: CalendarCheck, title: "Agendamento 24 horas", text: "O cliente escolhe serviço e horário sozinho, até de madrugada. Você só confere o dia e atende.", completo: false },
-  { icon: MessageCircle, title: "WhatsApp em um toque", text: "Confirmações, remarcações e agradecimentos já saem com a mensagem pronta. Nada de digitar tudo de novo.", completo: false },
-  { icon: BellRing, title: "Lembretes de véspera", text: "Uma fila simples para lembrar todos os clientes de amanhã e reduzir as faltas.", completo: true },
-  { icon: CalendarOff, title: "Férias e folgas sem dor de cabeça", text: "Bloqueie um dia, um período ou toda segunda-feira. Quem já estava marcado aparece para você avisar.", completo: true },
-  { icon: Wallet, title: "Financeiro sob controle", text: "Faturamento do dia e do mês, ticket médio e caixa com Pix, cartão e dinheiro.", completo: true },
-];
-
 const STEPS = [
   { n: "1", title: "Crie sua conta", text: "Leva 2 minutos, sem cartão. O plano Grátis é seu para sempre." },
   { n: "2", title: "Siga o passo a passo", text: "O sistema guia você: serviços, horários, equipe e WhatsApp." },
   { n: "3", title: "Divulgue seu link", text: "Coloque na bio, no status e mande para os clientes. Pronto." },
 ];
 
-const FAQ = [
-  {
-    q: "Preciso cadastrar cartão para testar?",
-    a: "Não. Você usa tudo do Completo por 15 dias sem informar nenhum dado de pagamento. Só assina se quiser continuar com ele.",
-  },
-  {
-    q: "O plano Grátis é para sempre mesmo?",
-    a: "Sim. Vitrine com link próprio e agenda online para 1 profissional, com até 10 agendamentos online por dia, sem prazo para acabar e sem cartão. Lembretes, bloqueios, financeiro e acessos da equipe ficam no Completo.",
-  },
-  {
-    q: "O que acontece se o teste acabar e eu não assinar?",
-    a: "Sua conta passa automaticamente para o plano Grátis. Nada é apagado: a vitrine continua recebendo pedidos (até 10 por dia, com 1 profissional) e os recursos do Completo ficam disponíveis para assinar quando quiser.",
-  },
-  {
-    q: "Como funciona o valor por profissional?",
-    a: "O plano já inclui até 3 profissionais. A partir do 4º, cada pessoa ativa na equipe soma R$ 35,00 por mês (ou R$ 350,00 no plano anual).",
-  },
-  {
-    q: "Quais formas de pagamento são aceitas?",
-    a: "Pix e cartão de crédito com cobrança recorrente.",
-  },
-  {
-    q: "Tem fidelidade?",
-    a: "No plano mensal, não: cancele quando quiser. O plano anual é pago uma vez por ano, com 2 meses de desconto.",
-  },
-];
-
 // ---------------------------------------------------------------------
 // PARTE 2 — Página
 // ---------------------------------------------------------------------
 export default async function Home() {
-  const supabase = createPublicClient();
-  const [{ data }, niches] = await Promise.all([
-    supabase
-      .from("plans")
-      .select("id, name, billing_cycle, base_price, included_professionals, extra_professional_price")
-      .eq("active", true),
-    getFeaturedNiches(),
-  ]);
-
-  const plans = (data ?? []).map((p) => ({
-    ...p,
-    base_price: Number(p.base_price),
-    extra_professional_price: Number(p.extra_professional_price),
-  })) as Plan[];
+  const [plans, niches] = await Promise.all([getPublicPlans(), getFeaturedNiches()]);
+  const faq = planFaq(plans);
 
   return (
     <>
@@ -214,24 +167,9 @@ export default async function Home() {
             Simples de usar, com o seu dia sob controle
           </h2>
           <p className="mt-3 max-w-2xl text-muted-foreground">
-            Tudo o que um espaço que atende pessoas precisa, num lugar só. Comece no Grátis e libere o resto quando quiser.
+            Tudo o que um espaço que atende pessoas precisa, num lugar só. Cada item mostra o plano que já inclui o recurso.
           </p>
-          <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {BENEFITS.map(({ icon: Icon, title, text, completo }) => (
-              <div key={title} className="rounded-2xl border bg-card p-6">
-                <div className="flex items-start justify-between gap-3">
-                  <span className="grid h-11 w-11 place-items-center rounded-full bg-secondary text-primary">
-                    <Icon className="h-5 w-5" />
-                  </span>
-                  {completo && (
-                    <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">Completo</span>
-                  )}
-                </div>
-                <h3 className="mt-4 font-sans text-lg font-semibold">{title}</h3>
-                <p className="mt-1.5 text-muted-foreground">{text}</p>
-              </div>
-            ))}
-          </div>
+          <BenefitBlocks className="mt-10" />
         </section>
 
         {/* ---------- COMO FUNCIONA ---------- */}
@@ -253,9 +191,9 @@ export default async function Home() {
         {/* ---------- PLANOS ---------- */}
         <section id="planos" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-16 md:px-6 md:py-20">
           <div className="text-center">
-            <h2 className="text-3xl md:text-[42px]">Comece grátis. Cresça com o Completo.</h2>
+            <h2 className="text-3xl md:text-[42px]">Comece grátis. Cresça no seu ritmo.</h2>
             <p className="mx-auto mt-3 max-w-xl text-muted-foreground">
-              Toda conta nova ganha 15 dias do Completo. Depois, assine ou continue no Grátis, sem prazo para acabar.
+              Toda conta nova ganha 15 dias do plano Equipe. Depois, escolha o Profissional ou o Equipe, ou continue no Grátis para sempre.
             </p>
           </div>
           <div className="mt-10">
@@ -268,7 +206,7 @@ export default async function Home() {
           <div className="mx-auto max-w-3xl px-4 py-16 md:px-6 md:py-20">
             <h2 className="text-3xl md:text-[42px]">Perguntas frequentes</h2>
             <div className="mt-8 space-y-3">
-              {FAQ.map((f) => (
+              {faq.map((f) => (
                 <details key={f.q} className="group rounded-2xl border bg-white p-5 open:shadow-sm">
                   <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-semibold">
                     {f.q}

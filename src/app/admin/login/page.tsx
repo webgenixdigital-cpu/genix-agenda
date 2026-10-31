@@ -3,7 +3,7 @@ import { BrandLogo } from "@/components/brand-logo";
 import { Star } from "lucide-react";
 import { LoginForm } from "./login-form";
 
-export const metadata = { title: "Entrar | Genix Agenda" };
+export const metadata = { title: "Entrar | Genix Agenda", robots: { index: false, follow: false } };
 
 type Props = { searchParams: { next?: string } };
 

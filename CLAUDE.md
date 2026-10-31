@@ -78,6 +78,7 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
   - `viewer` (Demonstração): só leitura.
   - **1 login = 1 espaço** (índice único em `business_members.user_id`). Acessos individuais são recurso do Completo.
 - **Demo pública** (`/demo`) entra no Lumina como `viewer`; ao salvar, o servidor redireciona com `?demo=bloqueado`.
+- **Buscadores (Google, 30):** `sitemap.ts` lista estáticas, nichos ativos (`/para`, `/explorar`) e vitrines publicadas que não são demo nem `businesses.search_hidden`; `robots.ts` bloqueia painel, `/genix`, `/api`, `/auth`, `/demo`, cadastro/senha e `/v/*/avaliar`. `search_hidden` só a Genix muda (`/genix?aba=buscadores`; gatilho no banco); contas novas nascem visíveis. Vitrine oculta/demo e o painel têm `noindex`.
 - **Avaliações** próprias pós-atendimento (link único por atendimento concluído), não Google.
 - **WhatsApp:** links `wa.me` (fila de um toque) + **lembrete automático beta via Z-API** (Completo, liberado pela Genix
   por espaço em `/genix?aba=whatsapp`; credenciais só no servidor; camada `lib/whatsapp/provider.ts`; relógio pg_cron →
@@ -132,14 +133,14 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
 src/app/                     páginas públicas: / (página do profissional, com busca e nichos em destaque),
                              /espacos (diretório para clientes: ?q, ?nicho, ?seg), /explorar/[nicho], /para/[nicho],
                              /v/[slug], /v/[slug]/avaliar/[id], /cadastro, /esqueci-senha, /redefinir-senha, /termos,
-                             /privacidade · /profissional → 301 para "/" (redirects no next.config.mjs)
+                             /privacidade · sitemap.ts e robots.ts (buscadores) · /profissional → 301 para "/" (redirects no next.config.mjs)
                              rotas: /demo, /demo/sair, /auth/confirm (route.ts)
 src/app/admin/login/         login do painel (page.tsx, login-form.tsx); admin/actions.ts na raiz
 src/app/admin/(painel)/      layout.tsx e page.tsx (Início) na raiz; pastas com page.tsx + actions.ts:
                              agenda, clientes (+ [id]/page.tsx), lembretes, bloqueios, servicos, financeiro,
                              assinatura, configuracoes; profissionais (+ access-actions.ts);
                              ganhos (só page.tsx); onboarding (só actions.ts)
-src/app/genix/               administração da plataforma (page.tsx, actions.ts, field-actions.ts)
+src/app/genix/               administração da plataforma (page.tsx, actions.ts, field-actions.ts, search-actions.ts...)
 src/app/api/asaas/webhook/   webhook de pagamento
 src/components/              admin/* (por tela do painel), genix/, vitrine/, marketing/, auth/, ui/ (shadcn)
                              + componentes soltos (site-header, site-footer, business-card, niche-*...)
@@ -167,7 +168,7 @@ supabase-templates/          modelos de e-mail do Supabase
    - avaliar atualização do Next.js depois que os testes E2E existirem.
 6. Depois: WhatsApp API oficial (cota no Completo), comanda/comissões, lista de espera, sinal via Pix,
    busca de clientes sem acentos (unaccent + coluna name_search),
-   cache da /para/[nicho] (cliente público sem cookies, como a /), sitemap e robots,
+   cache da /para/[nicho] (cliente público sem cookies, como a /),
    trocar window.confirm() por diálogo de confirmação próprio (visual da marca, melhor no celular).
 
 ## 10. Como trabalhar neste projeto

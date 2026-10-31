@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import { AlertTriangle, PauseCircle, WifiOff } from "lucide-react";
@@ -16,6 +17,9 @@ import { PlanBanner } from "@/components/admin/plan-banner";
 import { EmailConfirmedToast, EmailVerifyBanner } from "@/components/admin/email-verify-banner";
 
 export const dynamic = "force-dynamic";
+
+// painel inteiro fora dos buscadores (o robots.txt também bloqueia /admin)
+export const metadata: Metadata = { robots: { index: false, follow: false } };
 
 export default async function PainelLayout({ children }: { children: React.ReactNode }) {
   const ctx = await getAdminContext();

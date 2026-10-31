@@ -6,7 +6,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "Genix Agenda",
     short_name: "Genix Agenda",
     description: "Vitrine digital e agenda online para quem atende com hora marcada.",
-    start_url: "/",
+    start_url: "/admin",
     display: "standalone",
     theme_color: "#99582A",
     background_color: "#FAF7F2",

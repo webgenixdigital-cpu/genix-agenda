@@ -1,6 +1,7 @@
 import Link from "next/link";
+import { BrandLogo } from "@/components/brand-logo";
 import { redirect } from "next/navigation";
-import { CalendarHeart, Check } from "lucide-react";
+import { Check } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { SignupForm } from "./signup-form";
 import { getActiveNiches } from "@/lib/niches";
@@ -32,11 +33,8 @@ export default async function CadastroPage({ searchParams }: { searchParams: { n
     <div className="grid min-h-svh lg:grid-cols-[1fr_1.1fr]">
       {/* ---------- LATERAL ---------- */}
       <aside className="hidden flex-col justify-between bg-foreground p-12 text-background lg:flex">
-        <Link href="/" className="flex items-center gap-2">
-          <span className="grid h-9 w-9 place-items-center rounded-full bg-primary text-primary-foreground">
-            <CalendarHeart className="h-5 w-5" />
-          </span>
-          <span className="font-heading text-xl">Genix Agenda</span>
+        <Link href="/" className="flex w-fit items-center" data-testid="link-home-aside">
+          <BrandLogo tone="escuro" />
         </Link>
 
         <div className="max-w-md">
@@ -59,11 +57,8 @@ export default async function CadastroPage({ searchParams }: { searchParams: { n
       {/* ---------- FORMULÁRIO ---------- */}
       <main className="flex justify-center p-6 md:p-12">
         <div className="w-full max-w-md py-4">
-          <Link href="/" className="mb-8 flex items-center gap-2 lg:hidden">
-            <span className="grid h-9 w-9 place-items-center rounded-full bg-primary text-primary-foreground">
-              <CalendarHeart className="h-5 w-5" />
-            </span>
-            <span className="font-heading text-xl">Genix Agenda</span>
+          <Link href="/" className="mb-8 flex min-h-11 w-fit items-center lg:hidden" data-testid="link-home">
+            <BrandLogo priority />
           </Link>
 
           <h2 className="text-3xl">{mode === "full" ? "Criar conta grátis" : "Falta pouco"}</h2>

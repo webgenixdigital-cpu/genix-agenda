@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { CalendarHeart, Star } from "lucide-react";
+import { BrandLogo } from "@/components/brand-logo";
+import { Star } from "lucide-react";
 import { LoginForm } from "./login-form";
 
 export const metadata = { title: "Entrar | Genix Agenda" };
@@ -14,11 +15,8 @@ export default function LoginPage({ searchParams }: Props) {
     <div className="grid min-h-svh lg:grid-cols-2">
       {/* ---------- PAINEL INSTITUCIONAL ---------- */}
       <aside className="relative hidden flex-col justify-between bg-foreground p-12 text-background lg:flex">
-        <Link href="/" className="flex items-center gap-2">
-          <span className="grid h-9 w-9 place-items-center rounded-full bg-primary text-primary-foreground">
-            <CalendarHeart className="h-5 w-5" />
-          </span>
-          <span className="font-heading text-xl">Genix Agenda</span>
+        <Link href="/" className="flex w-fit items-center" data-testid="link-home-aside">
+          <BrandLogo tone="escuro" />
         </Link>
 
         <div className="max-w-md">
@@ -46,11 +44,8 @@ export default function LoginPage({ searchParams }: Props) {
       {/* ---------- FORMULÁRIO ---------- */}
       <main className="flex items-center justify-center p-6 md:p-12">
         <div className="w-full max-w-sm">
-          <Link href="/" className="mb-10 flex items-center gap-2 lg:hidden">
-            <span className="grid h-9 w-9 place-items-center rounded-full bg-primary text-primary-foreground">
-              <CalendarHeart className="h-5 w-5" />
-            </span>
-            <span className="font-heading text-xl">Genix Agenda</span>
+          <Link href="/" className="mb-10 flex min-h-11 w-fit items-center lg:hidden" data-testid="link-home">
+            <BrandLogo priority />
           </Link>
           <h2 className="text-3xl">Entrar no painel</h2>
                     <p className="mt-2 text-muted-foreground">

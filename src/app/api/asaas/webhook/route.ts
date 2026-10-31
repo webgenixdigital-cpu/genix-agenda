@@ -5,6 +5,7 @@ import { timingSafeEqual } from "crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { asaas, type AsaasSubscription } from "@/lib/asaas";
+import { billingQuote, syncSubscriptionBilling } from "@/lib/billing";
 
 export const dynamic = "force-dynamic";
 
@@ -74,6 +75,31 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ received: true, result });
   };
 
+  // Avulsa do profissional extra (anual, migration 29): só atualiza o status dela.
+  // Vencida não derruba a conta: bloqueia novas ativações e, após 15 dias, os extras
+  // não pagos saem do agendamento online (regra no banco). Paga → tudo volta na hora.
+  if (!subscriptionId && body.payment && body.payment.externalReference?.startsWith("extra:")) {
+    const { data: charge } = await admin
+      .from("subscription_billing_changes")
+      .select("id, business_id")
+      .eq("payment_id", body.payment.id)
+      .maybeSingle();
+    if (!charge) return finish("ignorado: avulsa de extra não encontrada");
+    const status = PAID.includes(body.event)
+      ? "PAID"
+      : body.event === "PAYMENT_OVERDUE"
+        ? "OVERDUE"
+        : body.event === "PAYMENT_DELETED" || body.event === "PAYMENT_REFUNDED"
+          ? "CANCELED"
+          : null;
+    if (!status) return finish(`ignorado: evento ${body.event} da avulsa de extra`, charge.business_id);
+    await admin
+      .from("subscription_billing_changes")
+      .update({ payment_status: status, paid_at: status === "PAID" ? new Date().toISOString() : null })
+      .eq("id", charge.id);
+    return finish(`avulsa de extra: ${status}`, charge.business_id);
+  }
+
   // Cobrança avulsa da mudança para o Equipe (upgrade anual): paga → vira Equipe
   // e a renovação passa a ter o valor do Equipe
   if (!subscriptionId && body.payment && body.payment.externalReference?.startsWith("upgrade:")) {
@@ -115,7 +141,7 @@ export async function POST(request: NextRequest) {
   // Assinatura do Genix Agenda correspondente
   const { data: sub } = await admin
     .from("subscriptions")
-    .select("business_id, status, current_period_end, scheduled_plan_id, scheduled_at")
+    .select("business_id, status, current_period_end, scheduled_plan_id, scheduled_at, billing_sync_status, billing_auto")
     .eq("asaas_subscription_id", subscriptionId)
     .maybeSingle();
   if (!sub) return finish("ignorado: assinatura não encontrada");
@@ -149,15 +175,43 @@ export async function POST(request: NextRequest) {
           canceled_at: null,
         })
         .eq("business_id", sub.business_id);
+
+      // anual: a fatura paga cobre os extras do novo período (zera a conta das avulsas)
+      const q = await billingQuote(sub.business_id);
+      if (q?.cycle === "YEARLY") {
+        const paid = Number(body.payment?.value ?? s.value);
+        const covered = q.extra_price > 0 ? Math.max(0, Math.round((paid - q.base_price) / q.extra_price)) : 0;
+        await admin.from("subscriptions").update({ billed_extra_professionals: covered }).eq("business_id", sub.business_id);
+      }
+      if (sub.billing_sync_status === "pendente") await syncSubscriptionBilling(sub.business_id, { reason: "sincronia" });
       return finish(`ativada até ${s.nextDueDate}`, sub.business_id);
     }
 
-    // Nova cobrança (renovação) → guarda o link da próxima fatura
+    // Nova cobrança (renovação) → guarda o link da próxima fatura e confere o valor
     if (body.event === "PAYMENT_CREATED" && body.payment) {
       await admin
         .from("subscriptions")
         .update({ pending_invoice_url: body.payment.invoiceUrl ?? null, pending_due_date: body.payment.dueDate ?? null })
         .eq("business_id", sub.business_id);
+
+      // Rede de segurança (29): valor da cobrança diferente do esperado → corrige
+      // a assinatura e esta cobrança (updatePendingPayments)
+      const value = body.payment.value;
+      if (typeof value === "number" && (body.payment.status ?? "PENDING") === "PENDING") {
+        const q = await billingQuote(sub.business_id);
+        const differs = !!q && Math.round(q.total * 100) !== Math.round(value * 100);
+        if (differs && !sub.billing_auto) {
+          await admin
+            .from("subscriptions")
+            .update({ billing_sync_status: "pendente", billing_sync_error: `Cobrança criada com ${value}; esperado ${q!.total}.` })
+            .eq("business_id", sub.business_id);
+          return finish("fatura registrada; valor diferente (correção manual)", sub.business_id);
+        }
+        if (differs || sub.billing_sync_status === "pendente") {
+          const r = await syncSubscriptionBilling(sub.business_id, { reason: "webhook", observedValue: value });
+          return finish(`fatura registrada; valor ${r.status === "ok" ? "corrigido" : "a sincronizar"}`, sub.business_id);
+        }
+      }
       return finish("fatura registrada", sub.business_id);
     }
 
@@ -182,6 +236,8 @@ export async function POST(request: NextRequest) {
       return finish("ignorado: não estava ativa", sub.business_id);
     }
 
+    // qualquer outro aviso da assinatura: nova tentativa se estiver "a sincronizar"
+    if (sub.billing_sync_status === "pendente") await syncSubscriptionBilling(sub.business_id, { reason: "sincronia" });
     return finish(`ignorado: evento ${body.event}`, sub.business_id);
   } catch (e) {
     // falha ao falar com o Asaas: libera o evento para nova tentativa

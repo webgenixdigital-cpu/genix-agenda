@@ -131,6 +131,10 @@ export async function startSubscription(input: {
         pending_due_date: first?.dueDate ?? nextDueDate,
         scheduled_plan_id: null,
         scheduled_at: null,
+        // cobrança do extra (29): a 1ª fatura já cobre os extras de agora
+        billed_extra_professionals: q.extra_professionals,
+        billing_sync_status: "ok",
+        billing_sync_error: null,
       })
       .eq("business_id", biz.id);
 
@@ -170,6 +174,7 @@ export async function cancelSubscription(): Promise<Result> {
   const clearChanges = {
     scheduled_plan_id: null, scheduled_at: null,
     upgrade_plan_id: null, upgrade_payment_id: null, upgrade_amount: null, upgrade_invoice_url: null,
+    billing_sync_status: "ok", billing_sync_error: null,
   };
   await admin
     .from("subscriptions")

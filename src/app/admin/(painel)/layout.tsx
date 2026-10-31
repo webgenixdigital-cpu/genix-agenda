@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { PauseCircle, WifiOff } from "lucide-react";
+import { AlertTriangle, PauseCircle, WifiOff } from "lucide-react";
+import { todayISO } from "@/lib/dates";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/admin/actions";
 import { Button } from "@/components/ui/button";
@@ -45,6 +46,22 @@ export default async function PainelLayout({ children }: { children: React.React
     waDisconnected = !!w?.genix_enabled && w.auto_enabled && w.status === "disconnected";
   }
 
+  // Avulsa de profissional extra vencida (29): aviso só para a matriz, com o link de pagamento
+  let overdueExtra: { invoice_url: string | null } | null = null;
+  if (isOwner && !plan.internal) {
+    const { data } = await createClient()
+      .from("subscription_billing_changes")
+      .select("invoice_url")
+      .eq("business_id", ctx.business.id)
+      .eq("kind", "avulsa")
+      .in("payment_status", ["PENDING", "OVERDUE"])
+      .lt("payment_due_date", todayISO())
+      .order("payment_due_date")
+      .limit(1)
+      .maybeSingle();
+    overdueExtra = data;
+  }
+
   // Sem o plano Equipe (Grátis ou Profissional) só a matriz usa o painel: os acessos da
   // equipe ficam pausados (nunca apagados) e voltam quando o espaço assina o Equipe
   if (isTeam && !hasTeamFeatures(plan)) {
@@ -82,6 +99,21 @@ export default async function PainelLayout({ children }: { children: React.React
         <div className="min-w-0 flex-1">
           {!isDemo && !plan.internal && !ctx.emailVerified && <EmailVerifyBanner email={ctx.email} />}
           {isOwner && <PlanBanner plan={plan} freeLimit={freeLimit} activePros={activePros} />}
+          {overdueExtra && (
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 md:px-8" data-testid="aviso-extra-em-aberto">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              <span className="font-medium">Há uma cobrança de profissional extra em aberto.</span>
+              {overdueExtra.invoice_url ? (
+                <a href={overdueExtra.invoice_url} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center font-semibold underline" data-testid="link-pagar-extra">
+                  Pagar agora
+                </a>
+              ) : (
+                <Link href="/admin/assinatura" className="inline-flex min-h-11 items-center font-semibold underline" data-testid="link-pagar-extra">
+                  Ver na Assinatura
+                </Link>
+              )}
+            </div>
+          )}
           {waDisconnected && (
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900 md:px-8" data-testid="aviso-whatsapp-desconectado">
               <WifiOff className="h-4 w-4 shrink-0" />

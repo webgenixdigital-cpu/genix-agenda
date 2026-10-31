@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { SubscribeForm, type Quotes } from "@/components/admin/assinatura/subscribe-form";
 import { CancelSubscriptionButton } from "@/components/admin/assinatura/cancel-button";
 import { CancelPlanChangeButton, ChangePlanButton } from "@/components/admin/assinatura/change-plan";
+import { BillingSummary, type BillingChange } from "@/components/admin/assinatura/billing-summary";
 
 export const dynamic = "force-dynamic";
 
@@ -45,18 +46,31 @@ export default async function AssinaturaPage() {
   const supabase = createClient();
 
   const ids: PaidPlanId[] = ["profissional_mensal", "profissional_anual", "equipe_mensal", "equipe_anual"];
-  const [quoteRows, { data: sub }, freeLimit, available] = await Promise.all([
+  const [quoteRows, { data: sub }, freeLimit, available, { data: changes }] = await Promise.all([
     Promise.all(ids.map((id) => supabase.rpc("subscription_quote", { bid: business.id, p_plan: id }))),
     supabase
       .from("subscriptions")
       .select(
-        "plan_id, amount, billing_type, asaas_subscription_id, pending_invoice_url, pending_due_date, current_period_end, scheduled_plan_id, upgrade_plan_id, upgrade_invoice_url"
+        "plan_id, amount, billing_type, asaas_subscription_id, pending_invoice_url, pending_due_date, current_period_end, scheduled_plan_id, upgrade_plan_id, upgrade_invoice_url, billing_sync_status"
       )
       .eq("business_id", business.id)
       .maybeSingle(),
     getFreeDailyLimit(),
     availablePaidPlans(),
+    // histórico da cobrança do profissional extra (29; a RLS mostra só para a matriz)
+    supabase
+      .from("subscription_billing_changes")
+      .select("id, kind, reason, professionals, extra_professionals, old_amount, new_amount, payment_value, payment_due_date, payment_status, invoice_url, created_at")
+      .eq("business_id", business.id)
+      .order("created_at", { ascending: false })
+      .limit(12),
   ]);
+  // valor esperado da próxima cobrança (plano da renovação + extras de agora)
+  const renewalPlan = sub?.scheduled_plan_id ?? sub?.plan_id ?? null;
+  const { data: renewalQuote } = renewalPlan
+    ? await supabase.rpc("subscription_quote", { bid: business.id, p_plan: renewalPlan })
+    : { data: null };
+  const rq = renewalQuote as (Quote & { included: number }) | null;
   const q = Object.fromEntries(ids.map((id, i) => [id, quoteRows[i].data as Quote | null])) as Record<PaidPlanId, Quote | null>;
   // planos novos só aparecem ativos depois da 28b (ou no modo de prévia local)
   const quotesOk = ids.every((id) => q[id] && available.has(id));
@@ -182,6 +196,24 @@ export default async function AssinaturaPage() {
             )}
           </div>
         </section>
+      )}
+
+      {/* Equipe: profissionais que entram no valor, avulsas de extra e histórico */}
+      {(isActive || hasPending) && role === "owner" && currentKind === "equipe" && !sub?.scheduled_plan_id && rq && (
+        <BillingSummary
+          professionals={Number(rq.professionals)}
+          included={Number(rq.included)}
+          extras={Number(rq.extra_professionals)}
+          amount={sub?.amount != null ? Number(sub.amount) : null}
+          expected={Number(rq.total)}
+          syncPending={sub?.billing_sync_status === "pendente"}
+          changes={((changes ?? []) as BillingChange[]).map((c) => ({
+            ...c,
+            old_amount: c.old_amount != null ? Number(c.old_amount) : null,
+            new_amount: c.new_amount != null ? Number(c.new_amount) : null,
+            payment_value: c.payment_value != null ? Number(c.payment_value) : null,
+          }))}
+        />
       )}
 
       {/* Assinatura ativa: forma de pagamento, troca de plano e cancelamento */}

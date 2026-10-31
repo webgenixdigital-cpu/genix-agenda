@@ -96,6 +96,11 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
 - Clientes (`customers`) identificados por WhatsApp normalizado; trigger liga cada agendamento ao cliente.
   `booking_events` registra o histórico automaticamente (criado, confirmado, remarcado...).
 - Webhook Asaas: `/api/asaas/webhook`, valida header `asaas-access-token`, idempotente (`asaas_webhook_events`).
+- **Cobrança do profissional extra (29):** valor sempre por `billing_quote` (servidor) / `subscription_quote` (painel).
+  Toda mudança na equipe ativa passa por `syncSubscriptionBilling` (`lib/billing.ts`); o gatilho em `professionals`
+  marca a assinatura `billing_sync_status = 'pendente'`. Mensal: muda o valor; anual: avulsa proporcional
+  (`externalReference: extra:`) + renovação. Falha do Asaas nunca bloqueia: fica pendente (/genix → Assinaturas).
+  Avulsa vencida: bloqueia ativações; após 15 dias os extras não pagos saem do agendamento online.
 - Migrations em `supabase/migrations` (01→17, já aplicadas). Novas: `18_...` em diante, **aditivas e reversíveis**.
   Nada destrutivo sem autorização. **Nunca rodar `supabase/seed` em produção.**
 
@@ -138,7 +143,7 @@ src/app/genix/               administração da plataforma (page.tsx, actions.ts
 src/app/api/asaas/webhook/   webhook de pagamento
 src/components/              admin/* (por tela do painel), genix/, vitrine/, marketing/, auth/, ui/ (shadcn)
                              + componentes soltos (site-header, site-footer, business-card, niche-*...)
-src/lib/                     admin, asaas, cash, cpf-cnpj, dates, format, legal, messages, niches, onboarding,
+src/lib/                     admin, asaas, billing (cobrança do extra), cash, cpf-cnpj, dates, format, legal, messages, niches, onboarding,
                              plan, plan-features, segments, types, utils;
                              supabase/{client,server,admin,public,middleware} (public = sem cookies, só dados públicos)
 src/middleware.ts            sessão do Supabase e proteção das rotas
@@ -148,8 +153,6 @@ supabase-templates/          modelos de e-mail do Supabase
 
 ## 9. Roadmap pendente (em ordem)
 
-**Prioritário:** cobrança de profissional extra acompanhar a equipe ativa (hoje o valor do Asaas não muda ao ativar
-o 4º+ profissional no Equipe; só a assinatura nova ou a troca de plano recalculam pelo `subscription_quote`).
 
 1. **N3.2 Retornos:** prazo de retorno por serviço (`services.return_after_days`) e fila "hora de voltar" com WhatsApp pronto.
 2. **N4 Pacotes e recorrência:** pacotes de sessões (ex.: 10 drenagens) e agendamentos recorrentes.

@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { deleteProfessional, toggleProfessional } from "@/app/admin/(painel)/profissionais/actions";
 import { ProfessionalDialog, type EditablePro } from "@/components/admin/profissionais/professional-dialog";
 import { ProAccess, type AccessInfo } from "@/components/admin/profissionais/team-access";
+import { confirmTeamBilling } from "@/components/admin/profissionais/billing-confirm";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
@@ -50,7 +51,9 @@ export function TeamManager({
 
   function toggle(p: Row, active: boolean) {
     start(async () => {
-      const r = await toggleProfessional(p.id, active);
+      const billing = await confirmTeamBilling(active ? 1 : -1);
+      if (!billing?.proceed) return;
+      const r = await toggleProfessional(p.id, active, billing.ack);
       if (!r) return; // demonstração: o servidor redirecionou
       if (r.ok) toast.success(active ? `${p.name} está ativo` : `${p.name} foi desativado`);
       else toast.error(r.error);
@@ -60,6 +63,10 @@ export function TeamManager({
   function remove(p: Row) {
     if (!confirm(`Excluir ${p.name}?`)) return;
     start(async () => {
+      if (p.active) {
+        const billing = await confirmTeamBilling(-1);
+        if (!billing?.proceed) return;
+      }
       const r = await deleteProfessional(p.id);
       if (!r) return; // demonstração: o servidor redirecionou
       if (r.ok) toast.success("Profissional excluído");

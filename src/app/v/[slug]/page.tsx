@@ -30,7 +30,7 @@ async function loadVitrine(slug: string) {
 
   if (!business) return null;
 
-  const [services, professionals, hours, reviews, rating, niche] = await Promise.all([
+  const [services, professionals, hours, reviews, rating, niche, planInfo] = await Promise.all([
     supabase.from("services").select("id, name, description, category, price, duration_min, image_url, sort_order, bookable_online")
       .eq("business_id", business.id).eq("active", true).order("sort_order"),
     supabase.from("professionals").select("id, name, role, bio, photo_url, specialties")
@@ -41,7 +41,10 @@ async function loadVitrine(slug: string) {
       .eq("business_id", business.id).eq("visible", true).order("created_at", { ascending: false }).limit(6),
     supabase.from("public_directory").select("rating_avg, rating_count").eq("id", business.id).maybeSingle(),
     supabase.from("niches").select("name").eq("id", business.subcategory ?? "").maybeSingle(),
+    supabase.rpc("public_plan_info", { p_slug: slug }),
   ]);
+  // extras com cobrança vencida há 15+ dias (29): fora do agendamento online
+  const blocked = ((planInfo.data as { blocked_professional_ids?: string[] } | null)?.blocked_professional_ids ?? []);
 
   return {
     business: {
@@ -53,6 +56,7 @@ async function loadVitrine(slug: string) {
     professionals: (professionals.data ?? []) as Professional[],
     hours: (hours.data ?? []) as BusinessHour[],
     reviews: reviews.data ?? [],
+    blocked,
   };
 }
 
@@ -77,7 +81,7 @@ export default async function VitrinePage({ params }: Props) {
   const data = await loadVitrine(params.slug);
   if (!data) notFound();
 
-  const { business: b, services, professionals, hours, reviews } = data;
+  const { business: b, services, professionals, hours, reviews, blocked } = data;
   const wa = whatsappLink(b.whatsapp, b.whatsapp_message ?? undefined);
   const today = todayWeekday();
   const todayHours = hours.find((h) => h.weekday === today);
@@ -329,7 +333,7 @@ export default async function VitrinePage({ params }: Props) {
         businessName={b.name}
         whatsapp={b.whatsapp}
         services={onlineServices}
-        professionals={professionals}
+        professionals={professionals.filter((p) => !blocked.includes(p.id))}
         hours={hours}
       />
 

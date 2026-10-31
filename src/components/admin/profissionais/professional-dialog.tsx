@@ -5,6 +5,7 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { saveProfessional } from "@/app/admin/(painel)/profissionais/actions";
 import { PhotoUpload, removeUploaded } from "@/components/admin/photo/photo-upload";
+import { confirmTeamBilling } from "@/components/admin/profissionais/billing-confirm";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -91,6 +92,13 @@ export function ProfessionalDialog({
   function submit() {
     setError(null);
     start(async () => {
+      // cadastro novo nasce ativo: aviso do profissional extra
+      let ack: number | null = null;
+      if (!pro) {
+        const billing = await confirmTeamBilling(1);
+        if (!billing?.proceed) return;
+        ack = billing.ack;
+      }
       const r = await saveProfessional({
         id: pro?.id,
         name,
@@ -102,7 +110,7 @@ export function ProfessionalDialog({
         is_partner: isPartner,
         allServices,
         serviceIds: selected,
-      });
+      }, ack);
       if (!r) return; // demonstração: o servidor redirecionou
       if (r.ok) {
         toast.success(pro ? "Profissional atualizado" : "Profissional cadastrado");

@@ -9,14 +9,42 @@ import { WhatsappManager, type WhatsappOverview } from "@/components/genix/whats
 import { RevenueLimitsManager } from "@/components/genix/revenue-limits-manager";
 import { loadLimits } from "@/lib/faturamento-data";
 import { todayISO } from "@/lib/dates";
+import { BillingManager, type BillingOverview } from "@/components/genix/billing-manager";
+import { asaas, type AsaasSubscription } from "@/lib/asaas";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Administração | Genix Agenda", robots: { index: false, follow: false } };
 
 type Props = { searchParams: { aba?: string } };
 
+/** Assinaturas (29): visão do banco + valor lido agora no Asaas */
+async function loadBilling(supabase: ReturnType<typeof createClient>): Promise<BillingOverview[]> {
+  const { data } = await supabase.rpc("genix_billing_overview");
+  const rows = (data ?? []) as Omit<BillingOverview, "asaas_value">[];
+  const num = (v: unknown) => (v == null ? null : Number(v));
+  return Promise.all(
+    rows.map(async (r) => {
+      let asaasValue: number | null = null;
+      if (r.asaas_subscription_id) {
+        asaasValue = await asaas<AsaasSubscription>(`/subscriptions/${r.asaas_subscription_id}`)
+          .then((s) => Number(s.value))
+          .catch(() => null);
+      }
+      return {
+        ...r,
+        amount: num(r.amount),
+        expected: num(r.expected),
+        asaas_value: asaasValue,
+        open_extras: Number(r.open_extras),
+        overdue_extras: Number(r.overdue_extras),
+        blocked_professionals: Number(r.blocked_professionals),
+      };
+    })
+  );
+}
+
 export default async function GenixAdminPage({ searchParams }: Props) {
-  const aba = (["fichas", "whatsapp", "limites"] as const).find((a) => a === searchParams.aba) ?? "nichos";
+  const aba = (["fichas", "whatsapp", "limites", "assinaturas"] as const).find((a) => a === searchParams.aba) ?? "nichos";
   const supabase = createClient();
 
   // Só administradores da plataforma. Para os demais, a página "não existe".
@@ -42,6 +70,7 @@ export default async function GenixAdminPage({ searchParams }: Props) {
     aba === "whatsapp" ? supabase.rpc("genix_whatsapp_overview") : Promise.resolve({ data: [] }),
   ]);
   const limits = aba === "limites" ? await loadLimits() : [];
+  const billing = aba === "assinaturas" ? await loadBilling(supabase) : [];
 
   const usageMap = new Map(((usage ?? []) as { niche_id: string; businesses: number }[]).map((u) => [u.niche_id, u.businesses]));
 
@@ -81,6 +110,7 @@ export default async function GenixAdminPage({ searchParams }: Props) {
             { key: "fichas", label: "Fichas técnicas", href: "/genix?aba=fichas" },
             { key: "whatsapp", label: "WhatsApp", href: "/genix?aba=whatsapp" },
             { key: "limites", label: "Limites de faturamento", href: "/genix?aba=limites" },
+            { key: "assinaturas", label: "Assinaturas", href: "/genix?aba=assinaturas" },
           ].map((t) => (
             <Link
               key={t.key}
@@ -98,6 +128,8 @@ export default async function GenixAdminPage({ searchParams }: Props) {
 
         {aba === "nichos" ? (
           <NicheManager niches={list} />
+        ) : aba === "assinaturas" ? (
+          <BillingManager rows={billing} />
         ) : aba === "limites" ? (
           <RevenueLimitsManager limits={limits} today={todayISO()} />
         ) : aba === "whatsapp" ? (

@@ -80,7 +80,7 @@ export function NicheSearch({
   }
 
   return (
-    <form action="/espacos" onSubmit={submit} role="search" className="mt-8 max-w-3xl" data-testid="form-busca-espacos">
+    <form action="/espacos" onSubmit={submit} role="search" className="mx-auto mt-10 max-w-3xl text-left" data-testid="form-busca-espacos">
       <div className="grid gap-2 rounded-3xl border bg-white p-2 shadow-lg shadow-stone-900/5 md:grid-cols-[1.2fr_1fr_auto] md:rounded-full">
         {/* ---------- O que você procura? (combobox) ---------- */}
         <div className="relative">

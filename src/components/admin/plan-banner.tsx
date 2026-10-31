@@ -24,7 +24,7 @@ export function PlanBanner({
     return (
       <div
         className={cn(
-          "flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b px-4 py-2.5 text-sm md:px-8",
+          "flex flex-wrap items-center justify-center gap-x-4 gap-y-2 border-b px-4 py-2.5 text-center text-sm md:px-8",
           urgent ? "border-amber-300 bg-amber-50 text-amber-900" : "bg-secondary text-foreground"
         )}
         data-testid="faixa-teste"
@@ -47,7 +47,7 @@ export function PlanBanner({
   if (plan.tier === "gratis") {
     return (
       <div
-        className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b bg-secondary px-4 py-2.5 text-sm md:px-8"
+        className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 border-b bg-secondary px-4 py-2.5 text-center text-sm md:px-8"
         data-testid="faixa-gratis"
       >
         <p className="flex items-center gap-2">

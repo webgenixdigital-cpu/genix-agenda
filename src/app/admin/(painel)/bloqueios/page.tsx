@@ -41,11 +41,11 @@ export default async function BloqueiosPage() {
   const list = blocks ?? [];
 
   return (
-    <main className="mx-auto max-w-4xl space-y-6 p-4 md:p-8">
-      <header className="flex flex-wrap items-end justify-between gap-4">
+    <main className="mx-auto max-w-4xl space-y-8 p-4 md:p-8">
+      <header className="flex flex-col items-center gap-4 text-center">
         <div>
           <h1 className="text-3xl md:text-4xl">Bloqueios</h1>
-          <p className="mt-1 max-w-lg text-sm text-muted-foreground">
+          <p className="mx-auto mt-1 max-w-lg text-sm text-muted-foreground">
             Férias, folgas, cursos e manutenção. Nos períodos bloqueados a vitrine não oferece horários.
           </p>
         </div>

@@ -140,7 +140,7 @@ export default async function ClientePage({ params }: Props) {
   // PARTE 2 — Página
   // -------------------------------------------------------------------
   return (
-    <main className="mx-auto max-w-4xl space-y-6 p-4 md:p-8">
+    <main className="mx-auto max-w-4xl space-y-8 p-4 md:p-8">
       <Link href="/admin/clientes" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="h-4 w-4" /> Clientes
       </Link>

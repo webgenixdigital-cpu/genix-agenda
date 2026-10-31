@@ -37,9 +37,9 @@ export default async function CadastroPage({ searchParams }: { searchParams: { n
           <BrandLogo tone="escuro" />
         </Link>
 
-        <div className="max-w-md">
+        <div className="mx-auto max-w-md text-center">
           <h1 className="text-5xl leading-[1.08]">Em 2 minutos sua vitrine está no ar.</h1>
-          <ul className="mt-10 space-y-4">
+          <ul className="mx-auto mt-12 w-fit space-y-5 text-left">
             {PERKS.map((p) => (
               <li key={p} className="flex gap-3 text-lg text-stone-200">
                 <span className="mt-1 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary">
@@ -57,12 +57,12 @@ export default async function CadastroPage({ searchParams }: { searchParams: { n
       {/* ---------- FORMULÁRIO ---------- */}
       <main className="flex justify-center p-6 md:p-12">
         <div className="w-full max-w-md py-4">
-          <Link href="/" className="mb-8 flex min-h-11 w-fit items-center lg:hidden" data-testid="link-home">
+          <Link href="/" className="mx-auto mb-10 flex min-h-11 w-fit items-center lg:hidden" data-testid="link-home">
             <BrandLogo priority />
           </Link>
 
-          <h2 className="text-3xl">{mode === "full" ? "Criar conta grátis" : "Falta pouco"}</h2>
-          <p className="mb-8 mt-2 text-muted-foreground">
+          <h2 className="text-center text-3xl">{mode === "full" ? "Criar conta grátis" : "Falta pouco"}</h2>
+          <p className="mb-10 mt-3 text-center leading-relaxed text-muted-foreground">
             {mode === "full"
               ? "15 dias do plano Equipe, sem cartão."
               : "Sua conta foi criada. Agora conte sobre o seu espaço para concluir."}

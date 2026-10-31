@@ -40,7 +40,7 @@ const TEAM_INCLUDES = [
 
 function Item({ children, strong }: { children: React.ReactNode; strong?: boolean }) {
   return (
-    <li className={cn("flex gap-2.5", strong && "font-semibold")}>
+    <li className={cn("flex gap-2.5 text-left", strong && "font-semibold")}>
       <Check className="mt-0.5 h-5 w-5 shrink-0 text-primary" /> {children}
     </li>
   );
@@ -67,7 +67,7 @@ export function Pricing({ plans }: { plans: Plan[] }) {
   const teamTotal = team.base_price + extras * team.extra_professional_price;
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="mx-auto max-w-6xl text-center">
       {/* Alternância mensal / anual */}
       <div className="flex flex-col items-center gap-2">
         <div className="inline-flex rounded-full border bg-white p-1" role="tablist" aria-label="Forma de pagamento">
@@ -90,16 +90,16 @@ export function Pricing({ plans }: { plans: Plan[] }) {
         <p className="text-sm font-semibold text-green-700">2 meses grátis no plano anual</p>
       </div>
 
-      <div className="mt-8 grid items-start gap-6 lg:grid-cols-3">
+      <div className="mt-10 grid items-start gap-8 lg:grid-cols-3">
         {/* ---------- GRÁTIS ---------- */}
         <div className="rounded-3xl border bg-card p-6 md:p-8" data-testid="card-plano-gratis">
           <p className="text-sm font-semibold text-muted-foreground">Grátis</p>
-          <div className="mt-3 flex items-end gap-2">
+          <div className="mt-3 flex items-end justify-center gap-2">
             <p className="font-heading text-5xl leading-none">R$ 0</p>
             <p className="pb-1 text-muted-foreground">para sempre</p>
           </div>
           <p className="mt-2 text-sm text-muted-foreground">Para começar a receber agendamentos hoje, sem pagar nada.</p>
-          <ul className="mt-6 space-y-2.5">
+          <ul className="mx-auto mt-8 w-fit space-y-3">
             {freeIncludes(free?.online_daily_limit ?? 6).map((f) => (
               <Item key={f}>{f}</Item>
             ))}
@@ -107,48 +107,48 @@ export function Pricing({ plans }: { plans: Plan[] }) {
           <Button asChild variant="outline" className="mt-8 h-12 w-full text-base" data-testid="btn-plano-gratis">
             <Link href="/cadastro">Criar conta grátis</Link>
           </Button>
-          <p className="mt-2 text-center text-xs text-muted-foreground">Com o selo “Feito com Genix Agenda” na vitrine.</p>
+          <p className="mt-3 text-xs text-muted-foreground">Com o selo “Feito com Genix Agenda” na vitrine.</p>
         </div>
 
         {/* ---------- PROFISSIONAL ---------- */}
         <div className="relative rounded-3xl border-2 border-primary bg-card p-6 shadow-sm md:p-8" data-testid="card-plano-profissional">
-          <span className="absolute -top-3 left-6 rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground">
+          <span className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground">
             Para quem atende sozinho
           </span>
           <p className="text-sm font-semibold text-primary">Profissional</p>
-          <div className="mt-3 flex items-end gap-2">
+          <div className="mt-3 flex items-end justify-center gap-2">
             <p className="font-heading text-5xl leading-none" data-testid="preco-profissional">{brl(pro.base_price)}</p>
             <p className="pb-1 text-muted-foreground">{per}</p>
           </div>
           <p className="mt-2 text-sm text-muted-foreground">
             {yearly ? `Equivale a ${brl(pro.base_price / 12)}/mês.` : "Sem fidelidade. Cancele quando quiser."}
           </p>
-          <ul className="mt-6 space-y-2.5">
+          <ul className="mx-auto mt-8 w-fit space-y-3">
             <Item strong>Tudo do Grátis, mais:</Item>
             {PRO_INCLUDES.map((f) => (
               <Item key={f}>{f}</Item>
             ))}
           </ul>
-          <p className="mt-4 text-sm text-muted-foreground">Para 1 profissional. Se a equipe crescer, é só mudar para o Equipe.</p>
-          <Button asChild className="mt-6 h-12 w-full text-base active:scale-95" data-testid="btn-plano-profissional">
+          <p className="mt-6 text-sm text-muted-foreground">Para 1 profissional. Se a equipe crescer, é só mudar para o Equipe.</p>
+          <Button asChild className="mt-8 h-12 w-full text-base active:scale-95" data-testid="btn-plano-profissional">
             <Link href="/cadastro">Testar 15 dias grátis</Link>
           </Button>
         </div>
 
         {/* ---------- EQUIPE ---------- */}
         <div className="relative rounded-3xl border-2 border-[#C47B47] bg-card p-6 shadow-sm md:p-8" data-testid="card-plano-equipe">
-          <span className="absolute -top-3 left-6 rounded-full bg-[#C47B47] px-3 py-1 text-xs font-semibold text-white">
+          <span className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-[#C47B47] px-3 py-1 text-xs font-semibold text-white">
             Para salões e equipes
           </span>
           <p className="text-sm font-semibold text-[#99582A]">Equipe</p>
-          <div className="mt-3 flex items-end gap-2">
+          <div className="mt-3 flex items-end justify-center gap-2">
             <p className="font-heading text-5xl leading-none" data-testid="preco-total">{brl(teamTotal)}</p>
             <p className="pb-1 text-muted-foreground">{per}</p>
           </div>
           <p className="mt-2 text-sm text-muted-foreground">
             {yearly ? `Equivale a ${brl(teamTotal / 12)}/mês.` : "Sem fidelidade. Cancele quando quiser."}
           </p>
-          <ul className="mt-6 space-y-2.5">
+          <ul className="mx-auto mt-8 w-fit space-y-3">
             <Item strong>Tudo do Profissional, mais:</Item>
             <Item>Até {included} profissionais inclusos</Item>
             {TEAM_INCLUDES.map((f) => (
@@ -157,9 +157,9 @@ export function Pricing({ plans }: { plans: Plan[] }) {
           </ul>
 
           {/* Calculadora (só no Equipe) */}
-          <div className="mt-6 rounded-2xl bg-secondary p-4">
+          <div className="mt-8 rounded-2xl bg-secondary p-4">
             <p className="text-sm font-semibold">Quantas pessoas atendem no seu espaço?</p>
-            <div className="mt-3 flex items-center gap-4">
+            <div className="mt-3 flex flex-col items-center gap-3">
               <div className="flex items-center rounded-xl bg-white p-1">
                 <Button
                   variant="ghost"
@@ -197,13 +197,13 @@ export function Pricing({ plans }: { plans: Plan[] }) {
             )}
           </div>
 
-          <Button asChild className="mt-6 h-12 w-full text-base active:scale-95" data-testid="btn-plano-teste">
+          <Button asChild className="mt-8 h-12 w-full text-base active:scale-95" data-testid="btn-plano-teste">
             <Link href="/cadastro">Testar 15 dias grátis</Link>
           </Button>
         </div>
       </div>
 
-      <p className="mt-6 text-center text-sm text-muted-foreground">
+      <p className="copy mt-8 text-sm text-muted-foreground">
         O teste de 15 dias é do plano Equipe, sem cartão. No fim, escolha o seu plano ou continue no Grátis.
       </p>
     </div>

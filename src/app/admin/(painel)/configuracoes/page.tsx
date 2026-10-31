@@ -54,15 +54,15 @@ export default async function ConfiguracoesPage() {
   const canReviewOnboarding = !!onboarding && onboarding.doneCount < onboarding.total;
 
   return (
-    <main className="mx-auto max-w-3xl space-y-8 p-4 md:p-8">
-      <header>
+    <main className="mx-auto max-w-3xl space-y-10 p-4 md:p-8">
+      <header className="text-center">
         <h1 className="text-3xl md:text-4xl">Configurações</h1>
         <p className="mt-1 text-sm text-muted-foreground">Como seu espaço aparece na vitrine e como os clientes agendam.</p>
         {canReviewOnboarding && <ReviewOnboardingLink />}
       </header>
 
       {role !== "owner" && (
-        <p className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+        <p className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-center text-sm text-amber-900">
           Você pode ver as configurações, mas só o dono do espaço consegue salvar alterações.
         </p>
       )}

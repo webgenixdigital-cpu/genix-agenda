@@ -53,15 +53,15 @@ const TAG: Record<MinPlan, string> = {
 
 export function BenefitBlocks({ className }: { className?: string }) {
   return (
-    <div className={cn("grid gap-6 lg:grid-cols-3", className)}>
+    <div className={cn("grid gap-8 lg:grid-cols-3", className)}>
       {BLOCKS.map(({ icon: Icon, title, text, items }) => (
-        <div key={title} className="flex flex-col rounded-2xl border bg-card p-6" data-testid={`bloco-${title.split(" ")[0].toLowerCase()}`}>
-          <span className="grid h-11 w-11 place-items-center rounded-full bg-secondary text-primary">
+        <div key={title} className="flex flex-col rounded-2xl border bg-card p-6 text-center md:p-7" data-testid={`bloco-${title.split(" ")[0].toLowerCase()}`}>
+          <span className="mx-auto grid h-11 w-11 place-items-center rounded-full bg-secondary text-primary">
             <Icon className="h-5 w-5" />
           </span>
           <h3 className="mt-4 font-sans text-lg font-semibold">{title}</h3>
-          <p className="mt-1 text-sm text-muted-foreground">{text}</p>
-          <ul className="mt-5 space-y-2.5">
+          <p className="copy mt-2 text-sm text-muted-foreground">{text}</p>
+          <ul className="mt-6 space-y-3 text-left">
             {items.map(([item, plan]) => (
               <li key={item} className="flex items-start justify-between gap-3 text-sm">
                 <span>{item}</span>

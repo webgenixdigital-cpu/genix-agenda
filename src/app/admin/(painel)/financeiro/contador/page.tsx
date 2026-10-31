@@ -27,8 +27,8 @@ export default async function ContadorPage({ searchParams }: Props) {
   const qs = `de=${from}&ate=${to}`;
 
   return (
-    <main className="mx-auto max-w-6xl space-y-6 p-4 md:p-8">
-      <header className="space-y-3">
+    <main className="mx-auto max-w-6xl space-y-8 p-4 md:p-8">
+      <header className="space-y-3 text-center">
         <h1 className="text-3xl md:text-4xl">Financeiro</h1>
         <FinanceTabs active="contador" />
       </header>

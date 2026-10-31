@@ -78,15 +78,15 @@ export function OnboardingCard({ items, doneCount, total, initialExpanded, slug,
       data-state={expanded ? "expanded" : "collapsed"}
     >
       {welcome && (
-        <p className="mb-2 text-sm font-semibold text-primary">
+        <p className="mb-3 text-center text-sm font-semibold text-primary">
           Boas-vindas{ownerName ? `, ${ownerName.split(" ")[0]}` : ""}! Sua conta está criada.
         </p>
       )}
 
       {/* Barra compacta: progresso + ações */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-6">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-baseline justify-between gap-3">
+      <div className="flex flex-col items-center gap-4 text-center">
+        <div className="w-full min-w-0">
+          <div className="flex flex-wrap items-baseline justify-center gap-x-3 gap-y-1">
             <h2 className="text-lg leading-tight" data-testid="onboarding-resumo">
               Configuração inicial: {doneCount} de {total} concluídos
             </h2>
@@ -103,7 +103,7 @@ export function OnboardingCard({ items, doneCount, total, initialExpanded, slug,
             <div className="h-full rounded-full bg-primary transition-all duration-500" style={{ width: `${pct}%` }} />
           </div>
         </div>
-        <div className="flex shrink-0 gap-2">
+        <div className="flex shrink-0 justify-center gap-2">
           <Button
             variant={expanded ? "outline" : "default"}
             className="h-11"
@@ -123,7 +123,7 @@ export function OnboardingCard({ items, doneCount, total, initialExpanded, slug,
 
       {expanded && (
         <div id="onboarding-passos">
-          <p className="mt-4 text-sm text-muted-foreground">Siga a lista para deixar sua vitrine pronta para receber clientes.</p>
+          <p className="mt-5 text-center text-sm text-muted-foreground">Siga a lista para deixar sua vitrine pronta para receber clientes.</p>
           <ol className="mt-4 space-y-3">
             {visible.map((item) => {
               const isNext = item.key === nextKey;

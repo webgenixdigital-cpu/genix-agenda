@@ -55,10 +55,10 @@ export default async function GanhosPage({ searchParams }: Props) {
   // PARTE 2 — Página
   // -------------------------------------------------------------------
   return (
-    <main className="mx-auto max-w-4xl space-y-6 p-4 md:p-8">
-      <header>
+    <main className="mx-auto max-w-4xl space-y-8 p-4 md:p-8">
+      <header className="text-center">
         <h1 className="text-3xl md:text-4xl">Meus ganhos</h1>
-        <div className="mt-3 flex items-center gap-1">
+        <div className="mt-3 flex items-center justify-center gap-1">
           <Button asChild variant="outline" size="icon" className="h-10 w-10">
             <Link href={`/admin/ganhos?mes=${prev}`} aria-label="Mês anterior"><ChevronLeft className="h-5 w-5" /></Link>
           </Button>

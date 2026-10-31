@@ -31,7 +31,7 @@ export function LockedFeature({ feature }: { feature: LockedFeatureKey }) {
         <h1 className="mt-1 text-3xl md:text-4xl">{f.title}</h1>
         <p className="mx-auto mt-3 max-w-md text-muted-foreground">{f.description}</p>
 
-        <ul className="mx-auto mt-6 max-w-sm space-y-2.5 text-left">
+        <ul className="mx-auto mt-8 w-fit max-w-sm space-y-3 text-left">
           {f.bullets.map((b) => (
             <li key={b} className="flex gap-2.5">
               <Check className="mt-0.5 h-5 w-5 shrink-0 text-primary" /> {b}

@@ -10,46 +10,95 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { saveView } from "@/components/admin/agenda/view-preference";
+import { saveView, type AgendaView } from "@/components/admin/agenda/view-preference";
+import { addMonths, monthTitle } from "@/lib/agenda";
 import { cn } from "@/lib/utils";
 
 type Props = {
-  view: "dia" | "semana";
-  /** na Semana: a segunda-feira */
+  view: AgendaView;
+  /** Dia: yyyy-mm-dd · Semana: a segunda-feira · Mês: yyyy-mm */
   date: string;
   today: string;
   status: string;
   professionalId: string;
   pendingMode: boolean;
   professionals: { id: string; name: string }[];
-  /** Semana: chave "Mostrar cancelados" */
+  /** Semana e Mês: chave "Mostrar cancelados" */
   showCancelled?: boolean;
 };
 
-export function AgendaToolbar({ view, date, today, status, professionalId, pendingMode, professionals, showCancelled = false }: Props) {
+const VIEW_LABEL: Record<AgendaView, string> = { dia: "Dia", semana: "Semana", mes: "Mês" };
+
+/** Troca parâmetros da URL da Agenda (null = remove) */
+export function useAgendaNav() {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
-  const [calOpen, setCalOpen] = useState(false);
-
-  function go(patch: Record<string, string | null>) {
+  return (patch: Record<string, string | null>, replace = false) => {
     const p = new URLSearchParams(params.toString());
     Object.entries(patch).forEach(([k, v]) => (v ? p.set(k, v) : p.delete(k)));
-    router.push(`${pathname}?${p.toString()}`);
-  }
+    const url = `${pathname}?${p.toString()}`;
+    if (replace) router.replace(url);
+    else router.push(url);
+  };
+}
+
+export function ProfessionalFilter({
+  value,
+  professionals,
+  onChange,
+  className,
+}: {
+  value: string;
+  professionals: { id: string; name: string }[];
+  onChange: (v: string | null) => void;
+  className?: string;
+}) {
+  if (professionals.length <= 1) return null;
+  return (
+    <Select value={value} onValueChange={(v) => onChange(v === "all" ? null : v)}>
+      <SelectTrigger className={cn("h-11 md:w-48", className)} data-testid="filtro-profissional">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="all">Todos os profissionais</SelectItem>
+        {professionals.map((p) => (
+          <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+export function CancelledToggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm">
+      <Switch checked={checked} onCheckedChange={onChange} data-testid="toggle-mostrar-cancelados" />
+      Mostrar cancelados
+    </label>
+  );
+}
+
+
+export function AgendaToolbar({ view, date, today, status, professionalId, pendingMode, professionals, showCancelled = false }: Props) {
+  const go = useAgendaNav();
+  const [calOpen, setCalOpen] = useState(false);
 
   const shift = (n: number) => go({ data: format(addDays(parseISO(date), n), "yyyy-MM-dd") });
-  const week = view === "semana";
 
-  function switchView(v: "dia" | "semana") {
+  function switchView(v: AgendaView) {
     saveView(v);
-    // ao trocar de visão, o filtro de status (só do Dia) e o de cancelados (só da Semana) saem
-    go({ visao: v, status: null, cancelados: null });
+    // data: o Mês usa yyyy-mm; ao sair dele, o 1º dia do mês (ou hoje, se for o mês atual)
+    let data: string | null = date;
+    if (v === "mes") data = date.slice(0, 7);
+    else if (view === "mes") data = date === today.slice(0, 7) ? null : `${date}-01`;
+    // ao trocar de visão, o filtro de status (só do Dia) e o de cancelados (Semana/Mês) saem
+    go({ visao: v, data, status: null, cancelados: null });
   }
 
   const viewSwitch = (
     <div className="hidden rounded-lg border bg-card p-1 md:flex" role="tablist" aria-label="Visão da agenda">
-      {(["dia", "semana"] as const).map((v) => (
+      {(["dia", "semana", "mes"] as const).map((v) => (
         <button
           key={v}
           role="tab"
@@ -61,27 +110,50 @@ export function AgendaToolbar({ view, date, today, status, professionalId, pendi
           )}
           data-testid={`btn-visao-${v}`}
         >
-          {v === "dia" ? "Dia" : "Semana"}
+          {VIEW_LABEL[v]}
         </button>
       ))}
     </div>
   );
 
-  const proFilter = professionals.length > 1 && (
-    <Select value={professionalId} onValueChange={(v) => go({ prof: v === "all" ? null : v })}>
-      <SelectTrigger className="h-11 md:w-48" data-testid="filtro-profissional">
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="all">Todos os profissionais</SelectItem>
-        {professionals.map((p) => (
-          <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+  const proFilter = (
+    <ProfessionalFilter value={professionalId} professionals={professionals} onChange={(v) => go({ prof: v })} />
+  );
+  const cancelledToggle = (
+    <CancelledToggle checked={showCancelled} onChange={(v) => go({ cancelados: v ? "1" : null })} />
   );
 
-  if (week) {
+  if (view === "mes") {
+    const thisMonth = date === today.slice(0, 7);
+    return (
+      <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center md:justify-between">
+        <div className="flex flex-wrap items-center gap-2">
+          {viewSwitch}
+          <div className="flex items-center gap-1">
+            <Button variant="outline" size="icon" className="h-11 w-11" onClick={() => go({ data: addMonths(date, -1) })} aria-label="Mês anterior" data-testid="btn-mes-anterior">
+              <ChevronLeft className="h-5 w-5" />
+            </Button>
+            <span className="min-w-[170px] px-2 text-center text-sm font-semibold first-letter:uppercase" data-testid="titulo-mes">
+              {monthTitle(date)}
+            </span>
+            <Button variant="outline" size="icon" className="h-11 w-11" onClick={() => go({ data: addMonths(date, 1) })} aria-label="Próximo mês" data-testid="btn-mes-proximo">
+              <ChevronRight className="h-5 w-5" />
+            </Button>
+            <Button variant="ghost" className="h-11" disabled={thisMonth} onClick={() => go({ data: null })} data-testid="btn-mes-hoje">
+              Hoje
+            </Button>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          {cancelledToggle}
+          {proFilter}
+        </div>
+      </div>
+    );
+  }
+
+  if (view === "semana") {
     const end = addDays(parseISO(date), 6);
     const thisWeek = today >= date && today <= format(end, "yyyy-MM-dd");
     return (
@@ -105,14 +177,7 @@ export function AgendaToolbar({ view, date, today, status, professionalId, pendi
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm">
-            <Switch
-              checked={showCancelled}
-              onCheckedChange={(v) => go({ cancelados: v ? "1" : null })}
-              data-testid="toggle-mostrar-cancelados"
-            />
-            Mostrar cancelados
-          </label>
+          {cancelledToggle}
           {proFilter}
         </div>
       </div>

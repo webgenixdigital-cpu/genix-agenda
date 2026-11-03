@@ -20,6 +20,8 @@ type Options = {
 };
 
 const NO_ONE = "00000000-0000-0000-0000-000000000000";
+const PAGE = 1000; // máximo de linhas por resposta do PostgREST
+const MAX_PAGES = 5; // trava de segurança (mês de equipe grande)
 
 /** Profissional que o filtro usa: staff sempre o próprio */
 export function agendaProfessional(wholeTeam: boolean, requested: string | undefined, own: string | null) {
@@ -30,20 +32,34 @@ export async function loadAgenda(ctx: AdminContext, wholeTeam: boolean, o: Optio
   const { business, role, professionalId } = ctx;
   const supabase = createClient();
 
-  let q = supabase
-    .from("bookings")
-    .select("id, booking_date, start_time, end_time, customer_name, customer_phone, customer_notes, customer_id, service_name, professional_name, professional_id, service_id, price, status, source, customer_package_id, series_id, auto_confirm_reason, items_count")
-    .eq("business_id", business.id)
-    .order("booking_date")
-    .order("start_time");
-  q = o.pendingMode ? q.gte("booking_date", o.from) : q.gte("booking_date", o.from).lte("booking_date", o.to);
-  if (o.status !== "all") q = q.eq("status", o.status);
-  if (o.hideCancelled) q = q.neq("status", "cancelled");
-  if (o.prof !== "all") q = q.eq("professional_id", o.prof);
+  // mesma consulta, em páginas de PAGE linhas (limite do PostgREST); quase sempre 1 ida só
+  const page = (n: number) => {
+    let q = supabase
+      .from("bookings")
+      .select("id, booking_date, start_time, end_time, customer_name, customer_phone, customer_notes, customer_id, service_name, professional_name, professional_id, service_id, price, status, source, customer_package_id, series_id, auto_confirm_reason, items_count")
+      .eq("business_id", business.id)
+      .order("booking_date")
+      .order("start_time")
+      .order("id");
+    q = o.pendingMode ? q.gte("booking_date", o.from) : q.gte("booking_date", o.from).lte("booking_date", o.to);
+    if (o.status !== "all") q = q.eq("status", o.status);
+    if (o.hideCancelled) q = q.neq("status", "cancelled");
+    if (o.prof !== "all") q = q.eq("professional_id", o.prof);
+    return q.range(n * PAGE, n * PAGE + PAGE - 1);
+  };
+  const allBookings = async () => {
+    const rows: unknown[] = [];
+    for (let n = 0; n < MAX_PAGES; n++) {
+      const { data } = await page(n);
+      rows.push(...(data ?? []));
+      if (!data || data.length < PAGE) break;
+    }
+    return { data: rows };
+  };
 
   const [{ data: bookings }, { data: allServices }, { data: professionals }, { data: blocks }, { data: hours }, { data: comboItems }, plan] =
     await Promise.all([
-      q,
+      allBookings(),
       supabase.from("services").select("id, kind, name, price, duration_min")
         .eq("business_id", business.id).eq("active", true).order("sort_order"),
       supabase.from("professionals").select("id, name")

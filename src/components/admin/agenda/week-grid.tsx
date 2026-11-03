@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { addDaysISO } from "@/lib/dates";
 import { brl, maskPhone } from "@/lib/format";
 import { blockAppliesOn, type AgendaBlock, type AgendaHour, type AgendaItem } from "@/lib/agenda";
+import { STATUS_STYLE } from "@/components/admin/agenda/status-colors";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------
@@ -47,13 +48,6 @@ const DRAG_THRESHOLD = 5; // px: menos que isso é clique
 
 // cor por profissional (borda do bloco + legenda)
 const PRO_COLORS = ["#99582A", "#2563EB", "#16A34A", "#9333EA", "#DB2777", "#0891B2", "#CA8A04", "#4B5563"];
-
-const STATUS_STYLE: Record<string, string> = {
-  pending: "bg-amber-50 border-amber-300 text-amber-950",
-  confirmed: "bg-blue-50 border-blue-300 text-blue-950",
-  completed: "bg-green-50 border-green-300 text-green-950",
-  cancelled: "bg-red-50 border-red-200 text-red-900 opacity-60 line-through decoration-red-300",
-};
 
 const toMin = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
 const toTime = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;

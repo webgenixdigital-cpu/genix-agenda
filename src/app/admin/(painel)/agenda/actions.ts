@@ -15,6 +15,10 @@ const PACKAGE_ERRORS: Record<string, string> = {
   PACOTE_SEM_SALDO: "Esse pacote não tem mais sessões disponíveis.",
   PACOTE_VENCIDO: "Esse pacote vence antes da data escolhida.",
   PACOTE_INVALIDO: "Esse pacote não pode ser usado aqui (cancelado, de outro cliente ou de outro serviço).",
+  // combos (32_combos), no gatilho do item 0
+  PROFISSIONAL_NAO_FAZ: "Esse profissional não faz todos os serviços deste combo.",
+  PLANO_GRATIS: "Combos são um recurso dos planos Profissional e Equipe.",
+  COMBO_INCOMPLETO: "Esse combo está incompleto. Edite o combo em Serviços.",
 };
 const packageError = (message?: string) =>
   PACKAGE_ERRORS[Object.keys(PACKAGE_ERRORS).find((k) => message?.includes(k)) ?? ""];
@@ -401,8 +405,19 @@ export type EditItem = {
   position: number;
   extends_time: boolean;
   paid_by_package: boolean;
+  /** 32_combos: itens do mesmo combo têm o mesmo grupo (removidos juntos) */
+  combo_group: string | null;
+  combo_name: string | null;
 };
-export type EditService = { id: string; name: string; price: number; duration: number };
+export type EditService = {
+  id: string;
+  name: string;
+  price: number;
+  duration: number;
+  kind?: "servico" | "combo";
+  /** combo: soma dos preços normais */
+  normal_price?: number | null;
+};
 export type DiscountKind = "valor" | "percentual";
 export type BookingEditInfo = {
   status: string;
@@ -431,6 +446,8 @@ const EDIT_ERRORS: Record<string, string> = {
   PROFISSIONAL_NAO_FAZ: "Esse profissional não faz esse serviço.",
   LIMITE_ITENS: "O agendamento já tem o máximo de 10 serviços.",
   ITEM_ORIGINAL: "O serviço original não pode ser removido.",
+  PLANO_GRATIS: "Combos são um recurso dos planos Profissional e Equipe.",
+  COMBO_INCOMPLETO: "Esse combo está incompleto. Edite o combo em Serviços.",
   ITEM_INVALIDO: "Esse serviço já não está no agendamento.",
   DESCONTO_INVALIDO: "Informe um desconto válido (em % no máximo 100).",
   SEM_VALOR: "Não há valor a descontar neste agendamento.",
@@ -472,7 +489,11 @@ export async function getBookingEditInfo(id: string): Promise<{ ok: true; info: 
       discount_amount: Number(r.discount_amount),
       discount_limit: r.discount_limit === null ? null : Number(r.discount_limit),
       items: r.items.map((i) => ({ ...i, price: Number(i.price) })),
-      services: r.services.map((s) => ({ ...s, price: Number(s.price) })),
+      services: r.services.map((s) => ({
+        ...s,
+        price: Number(s.price),
+        normal_price: s.normal_price == null ? null : Number(s.normal_price),
+      })),
     },
   };
 }

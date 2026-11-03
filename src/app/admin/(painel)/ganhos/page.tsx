@@ -40,7 +40,7 @@ export default async function GanhosPage({ searchParams }: Props) {
       .order("booking_date", { ascending: false })
       .order("start_time", { ascending: false }),
     supabase.from("professional_services").select("service_id").eq("professional_id", professionalId ?? ""),
-    supabase.from("services").select("id, name, price, duration_min").eq("business_id", business.id).eq("active", true).order("sort_order"),
+    supabase.from("services").select("id, name, price, duration_min").eq("business_id", business.id).eq("active", true).eq("kind", "servico").order("sort_order"),
   ]);
 
   const list = done ?? [];

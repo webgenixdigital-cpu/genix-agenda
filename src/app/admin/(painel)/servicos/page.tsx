@@ -3,6 +3,7 @@ import { requireRoles } from "@/lib/admin";
 import { getPlanContext } from "@/lib/plan";
 import { ServicesManager } from "@/components/admin/servicos/services-manager";
 import { PackageTemplates } from "@/components/admin/servicos/package-templates";
+import { CombosManager, type ComboRow } from "@/components/admin/servicos/combos-manager";
 import { LockedFeatureCard } from "@/components/admin/locked-feature";
 
 export const dynamic = "force-dynamic";
@@ -11,10 +12,10 @@ export default async function ServicosPage() {
   const { business } = await requireRoles(["owner", "viewer"]);
   const supabase = createClient();
 
-  const [{ data }, { data: templates }, plan] = await Promise.all([
+  const [{ data }, { data: templates }, { data: comboItems }, plan] = await Promise.all([
     supabase
       .from("services")
-      .select("id, name, description, category, price, duration_min, return_after_days, active, bookable_online, show_in_catalog, sort_order")
+      .select("id, kind, name, description, category, price, duration_min, return_after_days, active, bookable_online, show_in_catalog, sort_order")
       .eq("business_id", business.id)
       .order("active", { ascending: false })
       .order("sort_order"),
@@ -24,9 +25,18 @@ export default async function ServicosPage() {
       .eq("business_id", business.id)
       .order("active", { ascending: false })
       .order("sort_order"),
+    supabase.from("combo_items").select("combo_id, service_id, position").eq("business_id", business.id).order("position"),
     getPlanContext(business.id),
   ]);
-  const services = (data ?? []).map((s) => ({ ...s, price: Number(s.price) }));
+  const all = (data ?? []).map((s) => ({ ...s, price: Number(s.price) }));
+  // combos (32_combos) ficam numa seção própria; a lista e os pacotes são só de serviços
+  const services = all.filter((s) => s.kind !== "combo");
+  const combos: ComboRow[] = all
+    .filter((s) => s.kind === "combo")
+    .map((c) => ({
+      ...c,
+      serviceIds: (comboItems ?? []).filter((i) => i.combo_id === c.id).map((i) => i.service_id as string),
+    }));
 
   return (
     <main className="mx-auto max-w-4xl space-y-8 p-4 md:p-8">
@@ -37,6 +47,15 @@ export default async function ServicosPage() {
         </p>
       </header>
       <ServicesManager services={services} />
+
+      {plan.tier === "completo" ? (
+        <CombosManager
+          combos={combos}
+          services={services.map((s) => ({ id: s.id, name: s.name, price: s.price, duration_min: s.duration_min, active: s.active }))}
+        />
+      ) : (
+        <LockedFeatureCard feature="combos" />
+      )}
 
       {plan.tier === "completo" ? (
         <PackageTemplates

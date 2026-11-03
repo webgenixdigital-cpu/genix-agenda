@@ -3,7 +3,7 @@
 
 export const FREE_LOCKED_HREFS = ["/admin/bloqueios", "/admin/financeiro"];
 
-export type LockedFeatureKey = "bloqueios" | "retornos" | "financeiro" | "faturamento" | "pacotes";
+export type LockedFeatureKey = "bloqueios" | "retornos" | "financeiro" | "faturamento" | "pacotes" | "combos";
 
 export const LOCKED_FEATURES: Record<
   LockedFeatureKey,
@@ -56,6 +56,16 @@ export const LOCKED_FEATURES: Record<
       "Modelos de pacote com preço e validade",
       "Saldo de sessões na ficha do cliente",
       "Venda lançada no caixa uma vez só",
+    ],
+    minPlan: "profissional",
+  },
+  combos: {
+    title: "Combos de serviços",
+    description: "Junte serviços como “Corte + Barba” com um preço especial e mostre a economia na vitrine.",
+    bullets: [
+      "De 2 a 6 serviços com preço especial",
+      "Vitrine mostra “de R$ X por R$ Y”",
+      "Agendado como um serviço só, com a duração somada",
     ],
     minPlan: "profissional",
   },

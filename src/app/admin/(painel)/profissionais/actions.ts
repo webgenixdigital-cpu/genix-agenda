@@ -121,7 +121,7 @@ export async function saveProfessional(input: ProfessionalInput, ack?: number | 
   await supabase.from("professional_services").delete().eq("professional_id", id);
   if (!input.allServices) {
     const { data: valid } = await supabase
-      .from("services").select("id").eq("business_id", business.id).in("id", input.serviceIds);
+      .from("services").select("id").eq("business_id", business.id).eq("kind", "servico").in("id", input.serviceIds);
     const rows = (valid ?? []).map((s) => ({ professional_id: id!, service_id: s.id }));
     if (rows.length) await supabase.from("professional_services").insert(rows);
   }

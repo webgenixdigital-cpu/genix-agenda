@@ -25,6 +25,7 @@ export default async function ProfissionaisPage() {
       .select("id, name, category")
       .eq("business_id", business.id)
       .eq("active", true)
+      .eq("kind", "servico") // combo: o profissional faz se fizer todos os serviços dele
       .order("sort_order"),
     loadFiscal(business.id),
   ]);

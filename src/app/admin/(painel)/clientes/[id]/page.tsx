@@ -44,7 +44,7 @@ function editDetail(action: string, d: Record<string, unknown> | null) {
   if (!d) return "";
   if (action === "item_added" || action === "item_removed") {
     const extra = action === "item_added" && d.extended === false ? " (sem aumentar o tempo)" : "";
-    return `: ${String(d.service ?? "")} · ${brl(Number(d.price ?? 0))}${extra}`;
+    return `: ${d.combo ? "combo " : ""}${String(d.service ?? "")} · ${brl(Number(d.price ?? 0))}${extra}`;
   }
   if (action === "discount_set") {
     const pct = d.kind === "percentual" ? `${Number(d.input).toLocaleString("pt-BR")}% · ` : "";

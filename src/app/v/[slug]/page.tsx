@@ -30,8 +30,8 @@ async function loadVitrine(slug: string) {
 
   if (!business) return null;
 
-  const [services, professionals, hours, reviews, rating, niche, planInfo] = await Promise.all([
-    supabase.from("services").select("id, name, description, category, price, duration_min, image_url, sort_order, bookable_online")
+  const [services, professionals, hours, reviews, rating, niche, planInfo, comboItems] = await Promise.all([
+    supabase.from("services").select("id, kind, name, description, category, price, duration_min, image_url, sort_order, bookable_online")
       .eq("business_id", business.id).eq("active", true).order("sort_order"),
     supabase.from("professionals").select("id, name, role, bio, photo_url, specialties")
       .eq("business_id", business.id).eq("active", true).order("sort_order"),
@@ -42,9 +42,24 @@ async function loadVitrine(slug: string) {
     supabase.from("public_directory").select("rating_avg, rating_count").eq("id", business.id).maybeSingle(),
     supabase.from("niches").select("name").eq("id", business.subcategory ?? "").maybeSingle(),
     supabase.rpc("public_plan_info", { p_slug: slug }),
+    supabase.from("combo_items").select("combo_id, service_id, position").eq("business_id", business.id).order("position"),
   ]);
+  const plan = planInfo.data as { blocked_professional_ids?: string[]; tier?: string } | null;
   // extras com cobrança vencida há 15+ dias (29): fora do agendamento online
-  const blocked = ((planInfo.data as { blocked_professional_ids?: string[] } | null)?.blocked_professional_ids ?? []);
+  const blocked = plan?.blocked_professional_ids ?? [];
+
+  // combos (32): só nos planos pagos; "de R$ X" = soma dos serviços
+  const rows = (services.data ?? []) as Service[];
+  const priceOf = new Map(rows.map((s) => [s.id, Number(s.price)]));
+  const list = rows
+    .filter((s) => s.kind !== "combo" || plan?.tier === "completo")
+    .map((s) => {
+      if (s.kind !== "combo") return s;
+      const ids = (comboItems.data ?? []).filter((i) => i.combo_id === s.id).map((i) => i.service_id as string);
+      return { ...s, combo_service_ids: ids, normal_price: ids.reduce((t, id) => t + (priceOf.get(id) ?? 0), 0) };
+    })
+    // combo com serviço desativado fica inativo no banco; aqui só por garantia
+    .filter((s) => s.kind !== "combo" || ((s.combo_service_ids?.length ?? 0) >= 2 && s.combo_service_ids!.every((id) => priceOf.has(id))));
 
   return {
     business: {
@@ -52,7 +67,7 @@ async function loadVitrine(slug: string) {
       ...(rating.data ?? { rating_avg: 0, rating_count: 0 }),
       niche_name: niche.data?.name ?? null,
     } as Business,
-    services: (services.data ?? []) as Service[],
+    services: list,
     professionals: (professionals.data ?? []) as Professional[],
     hours: (hours.data ?? []) as BusinessHour[],
     reviews: reviews.data ?? [],
@@ -99,8 +114,10 @@ export default async function VitrinePage({ params }: Props) {
   const todayHours = hours.find((h) => h.weekday === today);
   const onlineServices = services.filter((s) => s.bookable_online);
 
-  // agrupa serviços por categoria, mantendo a ordem
-  const groups = services.reduce<Record<string, Service[]>>((acc, s) => {
+  const combos = services.filter((s) => s.kind === "combo");
+
+  // agrupa serviços por categoria, mantendo a ordem (combos têm seção própria)
+  const groups = services.filter((s) => s.kind !== "combo").reduce<Record<string, Service[]>>((acc, s) => {
     const key = s.category ?? "Serviços";
     (acc[key] ??= []).push(s);
     return acc;
@@ -178,6 +195,67 @@ export default async function VitrinePage({ params }: Props) {
           <div className="space-y-16">
             {b.description && (
               <p className="copy text-center text-lg text-muted-foreground">{b.description}</p>
+            )}
+
+            {/* Combos (32): "de R$ X por R$ Y" */}
+            {combos.length > 0 && (
+              <section aria-labelledby="combos">
+                <h2 id="combos" className="text-center text-3xl">Combos</h2>
+                <ul className="mt-8 divide-y rounded-2xl border bg-card">
+                  {combos.map((c) => {
+                    const normal = c.normal_price ?? 0;
+                    const saving = normal - Number(c.price);
+                    const parts = (c.combo_service_ids ?? [])
+                      .map((id) => services.find((s) => s.id === id)?.name)
+                      .filter(Boolean)
+                      .join(" + ");
+                    return (
+                      <li key={c.id} className="flex items-center gap-4 p-4 md:p-5" data-testid={`vitrine-combo-${c.id}`}>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-semibold">{c.name}</p>
+                          {parts !== c.name && <p className="mt-0.5 text-sm text-muted-foreground">{parts}</p>}
+                          {c.description && <p className="mt-0.5 text-sm text-muted-foreground">{c.description}</p>}
+                          <p className="mt-1.5 text-sm">
+                            {saving > 0 && (
+                              <span className="text-muted-foreground">
+                                de <span className="line-through">{brl(normal)}</span> por{" "}
+                              </span>
+                            )}
+                            <strong>{brl(c.price)}</strong>
+                            <span className="text-muted-foreground"> / {duration(c.duration_min)}</span>
+                          </p>
+                          {saving > 0 && (
+                            <p className="mt-1 inline-block rounded-full bg-green-50 px-2.5 py-0.5 text-xs font-semibold text-green-800">
+                              Economize {brl(saving)}
+                            </p>
+                          )}
+                        </div>
+                        {c.bookable_online ? (
+                          <BookTrigger
+                            serviceId={c.id}
+                            variant="outline"
+                            className="h-11 shrink-0 active:scale-95"
+                            data-testid={`btn-agendar-combo-${c.id}`}
+                          >
+                            Agendar
+                          </BookTrigger>
+                        ) : b.whatsapp ? (
+                          <Button asChild variant="outline" className="h-11 shrink-0">
+                            <a
+                              href={whatsappLink(b.whatsapp, `Olá! Quero agendar o combo: ${c.name}`) ?? "#"}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              data-testid={`btn-agendar-whatsapp-combo-${c.id}`}
+                            >
+                              Agendar pelo WhatsApp
+                            </a>
+                          </Button>
+                        ) : null}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
             )}
 
             {/* Serviços */}

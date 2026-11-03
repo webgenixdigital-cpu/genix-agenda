@@ -115,12 +115,13 @@ export function BookingWizard({ slug, businessName, whatsapp, services, professi
       .then(({ data }) => setLinks(data ?? []));
   }, [open, links, professionals, supabase]);
 
-  // Profissionais que fazem o serviço escolhido (sem vínculo = faz todos)
+  // Profissionais que fazem o serviço escolhido (sem vínculo = faz todos; combo = faz todos os serviços dele)
   const eligiblePros = useMemo(() => {
     if (!service || !links) return professionals;
+    const needed = service.kind === "combo" ? service.combo_service_ids ?? [] : [service.id];
     return professionals.filter((p) => {
       const own = links.filter((l) => l.professional_id === p.id);
-      return own.length === 0 || own.some((l) => l.service_id === service.id);
+      return own.length === 0 || needed.every((id) => own.some((l) => l.service_id === id));
     });
   }, [service, links, professionals]);
 
@@ -301,10 +302,20 @@ export function BookingWizard({ slug, businessName, whatsapp, services, professi
                         data-testid={`wizard-servico-${s.id}`}
                       >
                         <span>
-                          <span className="block font-semibold">{s.name}</span>
+                          <span className="block font-semibold">
+                            {s.kind === "combo" && (
+                              <span className="mr-1.5 rounded-full bg-secondary px-2 py-0.5 text-xs font-semibold text-primary">Combo</span>
+                            )}
+                            {s.name}
+                          </span>
                           <span className="text-sm text-muted-foreground">{duration(s.duration_min)}</span>
                         </span>
-                        <span className="font-semibold">{brl(s.price)}</span>
+                        <span className="shrink-0 text-right font-semibold">
+                          {s.kind === "combo" && (s.normal_price ?? 0) > Number(s.price) && (
+                            <span className="block text-xs font-normal text-muted-foreground line-through">{brl(s.normal_price)}</span>
+                          )}
+                          {brl(s.price)}
+                        </span>
                       </button>
                     </li>
                   ))}

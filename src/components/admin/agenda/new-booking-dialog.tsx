@@ -31,7 +31,7 @@ import { brl, duration, maskPhone } from "@/lib/format";
 
 type Props = {
   defaultDate: string;
-  services: { id: string; name: string; price: number; duration_min: number }[];
+  services: { id: string; name: string; price: number; duration_min: number; kind?: string | null }[];
   professionals: { id: string; name: string }[];
   /** plano pago (Profissional ou Equipe): libera "Repetir" (agendamentos recorrentes) */
   fullAccess?: boolean;
@@ -217,7 +217,7 @@ export function NewBookingDialog({
                 <SelectContent>
                   {services.map((s) => (
                     <SelectItem key={s.id} value={s.id}>
-                      {s.name} · {duration(s.duration_min)} · {brl(s.price)}
+                      {s.kind === "combo" ? "Combo " : ""}{s.name} · {duration(s.duration_min)} · {brl(s.price)}
                     </SelectItem>
                   ))}
                 </SelectContent>

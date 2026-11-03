@@ -39,6 +39,12 @@ export type Service = {
   image_url: string | null;
   sort_order: number;
   bookable_online?: boolean;
+  /** 32_combos: combo = serviços juntos com preço especial */
+  kind?: "servico" | "combo";
+  /** combo: serviços que o compõem (o profissional precisa fazer todos) */
+  combo_service_ids?: string[];
+  /** combo: soma dos preços normais ("de R$ X") */
+  normal_price?: number;
 };
 
 export type Professional = {

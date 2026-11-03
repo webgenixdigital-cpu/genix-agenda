@@ -38,7 +38,7 @@ export async function savePackageTemplate(input: PackageTemplateInput): Promise<
 
   const supabase = createClient();
   const { data: service } = await supabase
-    .from("services").select("id").eq("id", input.service_id).eq("business_id", business.id).maybeSingle();
+    .from("services").select("id").eq("id", input.service_id).eq("business_id", business.id).eq("kind", "servico").maybeSingle();
   if (!service) return { ok: false, error: "Escolha o serviço do pacote." };
 
   const row = {

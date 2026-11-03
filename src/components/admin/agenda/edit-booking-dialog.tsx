@@ -34,6 +34,49 @@ export function bookingTotals(info: BookingEditInfo) {
   };
 }
 
+/** Itens agrupados para exibir: cada combo vira uma linha ("Combo Corte + Barba") */
+export type ItemGroup = {
+  key: string;
+  /** id usado para remover (qualquer item do grupo remove o combo inteiro) */
+  itemId: string;
+  name: string;
+  combo: boolean;
+  parts: string[];
+  price: number;
+  duration: number;
+  extends_time: boolean;
+  paid_by_package: boolean;
+  /** tem o item 0: não pode ser removido */
+  original: boolean;
+};
+
+export function itemGroups(items: BookingEditInfo["items"]): ItemGroup[] {
+  const out: ItemGroup[] = [];
+  for (const i of items) {
+    const g = i.combo_group ? out.find((x) => x.key === i.combo_group) : undefined;
+    if (g) {
+      g.parts.push(i.name);
+      g.price += i.price;
+      g.duration += i.duration;
+      g.original ||= i.position === 0;
+      continue;
+    }
+    out.push({
+      key: i.combo_group ?? i.id,
+      itemId: i.id,
+      name: i.combo_group ? `Combo ${i.combo_name ?? ""}`.trim() : i.name,
+      combo: !!i.combo_group,
+      parts: [i.name],
+      price: i.price,
+      duration: i.duration,
+      extends_time: i.extends_time,
+      paid_by_package: i.paid_by_package,
+      original: i.position === 0,
+    });
+  }
+  return out;
+}
+
 const pctText = (n: number) => n.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
 
 /** Carrega os dados de edição do agendamento quando `open` */
@@ -184,28 +227,29 @@ export function EditBookingDialog({
             <section className="space-y-2">
               <h3 className="text-sm font-semibold">Serviços</h3>
               <ul className="divide-y rounded-xl border">
-                {info.items.map((i) => (
-                  <li key={i.id} className="flex min-h-[44px] items-center gap-2 px-3 py-2" data-testid={`item-${i.position}`}>
+                {itemGroups(info.items).map((g, n) => (
+                  <li key={g.key} className="flex min-h-[44px] items-center gap-2 px-3 py-2" data-testid={`item-${n}`}>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold">{i.name}</p>
+                      <p className="truncate text-sm font-semibold">{g.name}</p>
+                      {g.combo && <p className="truncate text-xs text-muted-foreground">{g.parts.join(" + ")}</p>}
                       <p className="text-xs text-muted-foreground">
-                        {i.position === 0
-                          ? "serviço original"
-                          : i.extends_time
-                            ? `+ ${duration(i.duration)} no atendimento`
+                        {g.original
+                          ? g.combo ? "combo original" : "serviço original"
+                          : g.extends_time
+                            ? `+ ${duration(g.duration)} no atendimento`
                             : "sem aumentar o tempo"}
                       </p>
                     </div>
-                    <span className="shrink-0 text-sm">{i.paid_by_package ? "pacote" : brl(i.price)}</span>
-                    {i.position > 0 && canEdit && (
+                    <span className="shrink-0 text-sm">{g.paid_by_package ? "pacote" : brl(g.price)}</span>
+                    {!g.original && canEdit && (
                       <Button
                         variant="ghost"
                         size="icon"
                         className="h-11 w-11 shrink-0 text-muted-foreground hover:text-destructive"
                         disabled={pending}
-                        onClick={() => remove(i.id, i.name)}
-                        aria-label={`Remover ${i.name}`}
-                        data-testid={`btn-remover-item-${i.position}`}
+                        onClick={() => remove(g.itemId, g.name)}
+                        aria-label={`Remover ${g.name}`}
+                        data-testid={`btn-remover-item-${n}`}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -232,7 +276,11 @@ export function EditBookingDialog({
                   <SelectContent>
                     {info.services.map((s) => (
                       <SelectItem key={s.id} value={s.id}>
-                        {s.name} · {duration(s.duration)} · {brl(s.price)}
+                        {s.kind === "combo" ? "Combo " : ""}
+                        {s.name} · {duration(s.duration)} ·{" "}
+                        {s.kind === "combo" && (s.normal_price ?? 0) > s.price
+                          ? `de ${brl(s.normal_price)} por ${brl(s.price)}`
+                          : brl(s.price)}
                       </SelectItem>
                     ))}
                   </SelectContent>

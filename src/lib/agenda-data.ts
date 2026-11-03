@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import type { AdminContext } from "@/lib/admin";
 import { todayISO } from "@/lib/dates";
+import { getPlanContext } from "@/lib/plan";
 import type { RescheduleProps } from "@/components/admin/agenda/booking-actions";
 import type { AgendaBlock, AgendaHour, AgendaItem } from "@/lib/agenda";
 
@@ -40,10 +41,10 @@ export async function loadAgenda(ctx: AdminContext, wholeTeam: boolean, o: Optio
   if (o.hideCancelled) q = q.neq("status", "cancelled");
   if (o.prof !== "all") q = q.eq("professional_id", o.prof);
 
-  const [{ data: bookings }, { data: services }, { data: professionals }, { data: blocks }, { data: hours }] =
+  const [{ data: bookings }, { data: allServices }, { data: professionals }, { data: blocks }, { data: hours }, { data: comboItems }, plan] =
     await Promise.all([
       q,
-      supabase.from("services").select("id, name, price, duration_min")
+      supabase.from("services").select("id, kind, name, price, duration_min")
         .eq("business_id", business.id).eq("active", true).order("sort_order"),
       supabase.from("professionals").select("id, name")
         .eq("business_id", business.id).eq("active", true).order("sort_order"),
@@ -55,7 +56,14 @@ export async function loadAgenda(ctx: AdminContext, wholeTeam: boolean, o: Optio
       o.withHours
         ? supabase.from("business_hours").select("weekday, open_time, close_time, closed").eq("business_id", business.id)
         : Promise.resolve({ data: [] }),
+      supabase.from("combo_items").select("combo_id, service_id").eq("business_id", business.id),
+      getPlanContext(business.id),
     ]);
+
+  // combos (32_combos) só nos planos pagos; components = serviços de cada combo
+  const services = (allServices ?? []).filter((s) => s.kind !== "combo" || plan.tier === "completo");
+  const components = new Map<string, string[]>();
+  for (const i of comboItems ?? []) components.set(i.combo_id, [...(components.get(i.combo_id) ?? []), i.service_id]);
 
   const list = (bookings ?? []) as AgendaItem[];
 
@@ -81,7 +89,11 @@ export async function loadAgenda(ctx: AdminContext, wholeTeam: boolean, o: Optio
   const reschedule: RescheduleProps = {
     professionals: pros.map((p) => {
       const ids = (links ?? []).filter((l) => l.professional_id === p.id).map((l) => l.service_id as string);
-      return { id: p.id, name: p.name, serviceIds: ids.length ? ids : null };
+      // combo: faz se fizer todos os serviços dele
+      const combos = services
+        .filter((s) => s.kind === "combo" && (components.get(s.id) ?? []).every((c) => ids.includes(c)))
+        .map((s) => s.id);
+      return { id: p.id, name: p.name, serviceIds: ids.length ? [...ids, ...combos] : null };
     }),
     canChooseProfessional: role === "owner" || role === "reception",
     today: todayISO(),
@@ -90,7 +102,7 @@ export async function loadAgenda(ctx: AdminContext, wholeTeam: boolean, o: Optio
   return {
     list,
     sessionLabel,
-    services: services ?? [],
+    services,
     pros,
     blocks: (blocks ?? []) as AgendaBlock[],
     hours: (hours ?? []) as AgendaHour[],

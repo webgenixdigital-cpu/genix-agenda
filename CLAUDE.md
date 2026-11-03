@@ -99,6 +99,10 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
   `recalc_booking`; editar só por `booking_add_item`, `booking_remove_item`, `booking_set_discount` (gatilho
   `guard_booking_totals` barra update direto; as funções ligam `genix.booking_edit`). Caixa = cobrado
   (`price` − itens `paid_by_package`). Limite de desconto do profissional: `businesses.staff_discount_max_pct`.
+- **Combos (32, só planos pagos):** linha em `services` com `kind = 'combo'` (preço especial, duração = soma) +
+  `combo_items`; grava só por `save_combo` (gatilho `guard_service_combo`). Agendar combo: `bookings.service_id` = combo e
+  o gatilho do item 0 abre um item por serviço (`add_service_items`, preço proporcional, `combo_group`).
+  `professional_does_service` exige todos os serviços do combo. Serviço desativado/excluído → combo inativo.
 - Clientes (`customers`) identificados por WhatsApp normalizado; trigger liga cada agendamento ao cliente.
   `booking_events` registra o histórico automaticamente (criado, confirmado, remarcado...).
 - Webhook Asaas: `/api/asaas/webhook`, valida header `asaas-access-token`, idempotente (`asaas_webhook_events`).

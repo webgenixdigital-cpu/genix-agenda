@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { brl, whatsappLink } from "@/lib/format";
 import { customerMessage } from "@/lib/messages";
 import { RescheduleDialog, type ProOption } from "@/components/admin/agenda/reschedule-dialog";
-import { EditBookingDialog, bookingTotals, useBookingEditInfo } from "@/components/admin/agenda/edit-booking-dialog";
+import { EditBookingDialog, bookingTotals, itemGroups, useBookingEditInfo } from "@/components/admin/agenda/edit-booking-dialog";
 import type { BookingStatus } from "@/lib/types";
 
 export type AgendaBooking = {
@@ -243,10 +243,10 @@ export function BookingActions({
           {summary.info && totals && (
             <div className="space-y-2 rounded-xl border p-3 text-sm" data-testid="resumo-concluir">
               <ul className="space-y-1">
-                {summary.info.items.map((i) => (
-                  <li key={i.id} className="flex justify-between gap-2">
-                    <span className="min-w-0 truncate">{i.name}</span>
-                    <span className="shrink-0 text-muted-foreground">{i.paid_by_package ? "pacote" : brl(i.price)}</span>
+                {itemGroups(summary.info.items).map((g) => (
+                  <li key={g.key} className="flex justify-between gap-2">
+                    <span className="min-w-0 truncate">{g.name}</span>
+                    <span className="shrink-0 text-muted-foreground">{g.paid_by_package ? "pacote" : brl(g.price)}</span>
                   </li>
                 ))}
                 {totals.discount > 0 && (

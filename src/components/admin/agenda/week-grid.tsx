@@ -33,7 +33,7 @@ type Props = {
   showProfessionalColors: boolean;
   /** profissional filtrado (staff: sempre o próprio) */
   selectedProfessional: string | null;
-  services: { id: string; name: string; price: number; duration_min: number }[];
+  services: { id: string; name: string; price: number; duration_min: number; kind?: string | null }[];
   /** demonstração (viewer) = false: sem arrastar */
   canEdit: boolean;
   fullAccess: boolean;

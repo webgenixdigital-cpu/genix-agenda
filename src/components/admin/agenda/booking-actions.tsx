@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { CalendarClock, Check, CheckCheck, Loader2, MessageCircle, Repeat, Star, X } from "lucide-react";
+import { CalendarClock, Check, CheckCheck, Loader2, MessageCircle, Pencil, Plus, Repeat, Star, X } from "lucide-react";
 import { toast } from "sonner";
 import { cancelSeriesFuture, completeBooking, updateBookingStatus } from "@/app/admin/(painel)/agenda/actions";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { brl, whatsappLink } from "@/lib/format";
 import { customerMessage } from "@/lib/messages";
 import { RescheduleDialog, type ProOption } from "@/components/admin/agenda/reschedule-dialog";
+import { EditBookingDialog, bookingTotals, useBookingEditInfo } from "@/components/admin/agenda/edit-booking-dialog";
 import type { BookingStatus } from "@/lib/types";
 
 export type AgendaBooking = {
@@ -32,6 +33,8 @@ export type AgendaBooking = {
   auto_confirm_reason?: string | null;
   professional_id: string;
   service_id: string | null;
+  /** quantos serviços (original + adicionais); mais de 1 mostra o total nas mensagens */
+  items_count?: number;
 };
 
 /** Dados para o botão "Remarcar" (opcional: sem ele, o botão não aparece) */
@@ -66,6 +69,13 @@ export function BookingActions({
   const [pending, start] = useTransition();
   const [completeOpen, setCompleteOpen] = useState(false);
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  // "Adicionar serviço ou desconto" dentro do Concluir: ao fechar a edição, volta ao Concluir
+  const [editFromComplete, setEditFromComplete] = useState(false);
+  const summary = useBookingEditInfo(b.id, completeOpen);
+  const totals = summary.info ? bookingTotals(summary.info) : null;
+  // forma de pagamento só no plano pago e com valor a cobrar (sessão de pacote sem adicional: não)
+  const askMethod = fullAccess && (totals?.charge ?? 0) > 0;
   const [origin, setOrigin] = useState("");
 
   useEffect(() => setOrigin(window.location.origin), []);
@@ -102,16 +112,26 @@ export function BookingActions({
           size="sm"
           className="h-10"
           disabled={pending}
-          onClick={() =>
-            b.customer_package_id
-              ? run(() => completeBooking(b.id, null), "Sessão do pacote concluída")
-              : fullAccess
-                ? setCompleteOpen(true)
-                : run(() => completeBooking(b.id, null), "Atendimento concluído")
-          }
+          onClick={() => setCompleteOpen(true)}
           data-testid={`btn-concluir-${b.id}`}
         >
           <CheckCheck className="mr-1.5 h-4 w-4" /> Concluir
+        </Button>
+      )}
+
+      {(b.status === "pending" || b.status === "confirmed") && (
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-10"
+          disabled={pending}
+          onClick={() => {
+            setEditFromComplete(false);
+            setEditOpen(true);
+          }}
+          data-testid={`btn-editar-${b.id}`}
+        >
+          <Pencil className="mr-1.5 h-4 w-4" /> Editar
         </Button>
       )}
 
@@ -193,43 +213,120 @@ export function BookingActions({
         />
       )}
 
-      {/* Concluir: escolher forma de pagamento */}
+      <EditBookingDialog
+        open={editOpen}
+        onOpenChange={(o) => {
+          setEditOpen(o);
+          if (!o && editFromComplete) setCompleteOpen(true);
+        }}
+        bookingId={b.id}
+        customerName={b.customer_name}
+      />
+
+      {/* Concluir: resumo, vender na hora e forma de pagamento */}
       <Dialog open={completeOpen} onOpenChange={setCompleteOpen}>
-        <DialogContent className="max-w-sm rounded-2xl">
+        <DialogContent className="max-h-[92svh] max-w-sm overflow-y-auto rounded-2xl">
           <DialogHeader>
             <DialogTitle className="font-heading text-2xl">Concluir atendimento</DialogTitle>
             <DialogDescription>
-              {b.service_name} de {b.customer_name}, {brl(b.price)}. Como foi o pagamento?
+              {b.customer_name}
+              {askMethod ? ". Como foi o pagamento?" : ""}
             </DialogDescription>
           </DialogHeader>
-          <div className="grid grid-cols-2 gap-2">
-            {METHODS.map((m) => (
-              <Button
-                key={m.value}
-                variant="outline"
-                className="h-12"
-                disabled={pending}
-                onClick={() => {
-                  setCompleteOpen(false);
-                  run(() => completeBooking(b.id, m.value), `Concluído e lançado no caixa (${m.label})`);
-                }}
-                data-testid={`pagamento-${m.value}`}
-              >
-                {m.label}
-              </Button>
-            ))}
-          </div>
+
+          {summary.error && <p className="rounded-xl bg-red-50 p-3 text-sm text-destructive">{summary.error}</p>}
+          {!summary.info && !summary.error && (
+            <p className="flex items-center justify-center gap-2 py-4 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" /> Carregando…
+            </p>
+          )}
+          {summary.info && totals && (
+            <div className="space-y-2 rounded-xl border p-3 text-sm" data-testid="resumo-concluir">
+              <ul className="space-y-1">
+                {summary.info.items.map((i) => (
+                  <li key={i.id} className="flex justify-between gap-2">
+                    <span className="min-w-0 truncate">{i.name}</span>
+                    <span className="shrink-0 text-muted-foreground">{i.paid_by_package ? "pacote" : brl(i.price)}</span>
+                  </li>
+                ))}
+                {totals.discount > 0 && (
+                  <li className="flex justify-between gap-2 text-muted-foreground">
+                    <span>Desconto</span>
+                    <span>− {brl(totals.discount)}</span>
+                  </li>
+                )}
+              </ul>
+              <p className="flex justify-between border-t pt-2 text-base font-semibold">
+                <span>{totals.byPackage > 0 ? "A cobrar" : "Total"}</span>
+                <span>{brl(totals.charge)}</span>
+              </p>
+            </div>
+          )}
+
           <Button
-            variant="ghost"
+            variant="outline"
             className="h-11"
-            disabled={pending}
+            disabled={pending || !summary.info}
             onClick={() => {
               setCompleteOpen(false);
-              run(() => completeBooking(b.id, null), "Atendimento concluído");
+              setEditFromComplete(true);
+              setEditOpen(true);
             }}
+            data-testid={`btn-concluir-editar-${b.id}`}
           >
-            Concluir sem lançar no caixa
+            <Plus className="mr-1.5 h-4 w-4" /> Adicionar serviço ou desconto
           </Button>
+
+          {!askMethod && (
+            <Button
+              className="h-12"
+              disabled={pending || !summary.info}
+              onClick={() => {
+                setCompleteOpen(false);
+                run(
+                  () => completeBooking(b.id, null),
+                  b.customer_package_id && !totals?.charge ? "Sessão do pacote concluída" : "Atendimento concluído"
+                );
+              }}
+              data-testid={`btn-concluir-confirmar-${b.id}`}
+            >
+              <CheckCheck className="mr-1.5 h-4 w-4" /> Concluir
+            </Button>
+          )}
+
+          {askMethod && (
+            <div className="grid grid-cols-2 gap-2">
+              {METHODS.map((m) => (
+                <Button
+                  key={m.value}
+                  variant="outline"
+                  className="h-12"
+                  disabled={pending}
+                  onClick={() => {
+                    setCompleteOpen(false);
+                    run(() => completeBooking(b.id, m.value), `Concluído e lançado no caixa (${m.label})`);
+                  }}
+                  data-testid={`pagamento-${m.value}`}
+                >
+                  {m.label}
+                </Button>
+              ))}
+            </div>
+          )}
+          {askMethod && (
+            <Button
+              variant="ghost"
+              className="h-11"
+              disabled={pending}
+              onClick={() => {
+                setCompleteOpen(false);
+                run(() => completeBooking(b.id, null), "Atendimento concluído");
+              }}
+              data-testid={`btn-concluir-sem-caixa-${b.id}`}
+            >
+              Concluir sem lançar no caixa
+            </Button>
+          )}
         </DialogContent>
       </Dialog>
     </div>

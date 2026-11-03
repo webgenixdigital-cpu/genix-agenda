@@ -9,6 +9,7 @@ import { getPlanContext } from "@/lib/plan";
 import { loadFiscal } from "@/lib/faturamento-data";
 import { FiscalForm } from "@/components/admin/configuracoes/fiscal-form";
 import { ConfirmModeForm } from "@/components/admin/configuracoes/confirm-mode-form";
+import { DiscountForm } from "@/components/admin/configuracoes/discount-form";
 import { isConfirmMode, type ConfirmMode } from "@/lib/confirm-mode";
 import { getOnboarding } from "@/lib/onboarding";
 import { ReviewOnboardingLink } from "@/components/admin/configuracoes/review-onboarding-link";
@@ -35,6 +36,7 @@ type FullBusiness = {
   slot_step_min: number;
   booking_notice_min: number;
   online_confirm_mode: string | null;
+  staff_discount_max_pct: number | string | null;
 };
 
 export default async function ConfiguracoesPage() {
@@ -94,6 +96,14 @@ export default async function ConfiguracoesPage() {
         description="Decide se o pedido feito na vitrine já entra confirmado ou espera você confirmar."
       >
         <ConfirmModeForm initial={isConfirmMode(b.online_confirm_mode ?? "") ? (b.online_confirm_mode as ConfirmMode) : "manual"} />
+      </Section>
+
+      <Section
+        id="descontos"
+        title="Descontos"
+        description="Quanto o profissional pode descontar ao editar um agendamento."
+      >
+        <DiscountForm initial={Number(b.staff_discount_max_pct ?? 0)} readOnly={role !== "owner"} />
       </Section>
 
       {/* WhatsApp automático (beta): só aparece para espaço liberado pela Genix, num plano pago */}

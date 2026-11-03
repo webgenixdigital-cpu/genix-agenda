@@ -11,6 +11,7 @@ import { CustomerDialog, DeleteCustomerButton } from "@/components/admin/cliente
 import { ProfileCard, type ProfileField } from "@/components/admin/clientes/profile-card";
 import { PackagesCard, type CustomerPackage } from "@/components/admin/clientes/packages-card";
 import { AutoReminderToggle } from "@/components/admin/clientes/auto-reminder-toggle";
+import { EditBookingButton } from "@/components/admin/agenda/edit-booking-dialog";
 import { Button } from "@/components/ui/button";
 import { getPlanContext } from "@/lib/plan";
 import type { BookingStatus } from "@/lib/types";
@@ -32,7 +33,26 @@ const ACTION_LABEL: Record<string, string> = {
   rescheduled: "Remarcado",
   reminder: "Lembrete enviado",
   return_contact: "Chamado para voltar",
+  item_added: "Serviço adicionado",
+  item_removed: "Serviço removido",
+  discount_set: "Desconto aplicado",
+  discount_removed: "Desconto removido",
 };
+
+/** Detalhe dos eventos de edição (31_editar_agendamento): serviço, valores e motivo */
+function editDetail(action: string, d: Record<string, unknown> | null) {
+  if (!d) return "";
+  if (action === "item_added" || action === "item_removed") {
+    const extra = action === "item_added" && d.extended === false ? " (sem aumentar o tempo)" : "";
+    return `: ${String(d.service ?? "")} · ${brl(Number(d.price ?? 0))}${extra}`;
+  }
+  if (action === "discount_set") {
+    const pct = d.kind === "percentual" ? `${Number(d.input).toLocaleString("pt-BR")}% · ` : "";
+    return `: ${pct}${brl(Number(d.amount ?? 0))}${typeof d.reason === "string" && d.reason ? ` · ${d.reason}` : ""}`;
+  }
+  if (action === "discount_removed") return `: ${brl(Number(d.amount ?? 0))}`;
+  return "";
+}
 /** motivo da confirmação automática gravado no histórico */
 const autoReason = (d: Record<string, unknown> | null) =>
   typeof d?.reason === "string" ? AUTO_CONFIRM_REASON[d.reason as AutoConfirmReason] ?? null : null;
@@ -64,7 +84,7 @@ export default async function ClientePage({ params }: Props) {
 
   const { data: bookings } = await supabase
     .from("bookings")
-    .select("id, booking_date, start_time, service_name, professional_name, price, status, customer_package_id, auto_confirm_reason")
+    .select("id, booking_date, start_time, service_name, professional_name, price, status, customer_package_id, auto_confirm_reason, booking_items(price, paid_by_package)")
     .eq("customer_id", c.id)
     .order("booking_date", { ascending: false })
     .order("start_time", { ascending: false })
@@ -128,11 +148,20 @@ export default async function ClientePage({ params }: Props) {
   })) as CustomerPackage[];
   const pkgById = new Map(packages.map((p) => [p.id, p]));
 
-  // total gasto: sessão de pacote conta pelo valor proporcional (igual a customer_summary)
+  // valor cobrado no atendimento: total final menos o que o pacote já pagou
+  const charged = (b: (typeof list)[number]) => {
+    const items = (b.booking_items ?? []) as { price: number; paid_by_package: boolean }[];
+    const byPackage = items.length
+      ? items.filter((i) => i.paid_by_package).reduce((s, i) => s + Number(i.price), 0)
+      : b.customer_package_id ? Number(b.price) : 0;
+    return Math.max(Number(b.price) - byPackage, 0);
+  };
+
+  // total gasto: sessão de pacote conta pelo valor proporcional + adicionais (igual a customer_summary)
   const done = list.filter((b) => b.status === "completed");
   const total = done.reduce((s, b) => {
     const p = b.customer_package_id ? pkgById.get(b.customer_package_id) : undefined;
-    return s + (p ? p.price / p.sessions_total : Number(b.price));
+    return s + (p ? p.price / p.sessions_total + charged(b) : Number(b.price));
   }, 0);
   const wa = whatsappLink(c.phone, `Olá, ${c.name.split(" ")[0]}! Aqui é do ${business.name}.`);
 
@@ -242,11 +271,15 @@ export default async function ClientePage({ params }: Props) {
                     <p className="text-sm text-muted-foreground">
                       {br(b.booking_date)} às {b.start_time.slice(0, 5)} · {b.professional_name} ·{" "}
                       {b.customer_package_id ? `pacote ${pkgById.get(b.customer_package_id)?.name ?? ""}`.trim() : brl(b.price)}
+                      {b.customer_package_id && charged(b) > 0 && ` + ${brl(charged(b))}`}
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <AutoConfirmBadge status={b.status} reason={b.auto_confirm_reason} testId={`selo-auto-confirmado-${b.id}`} />
                     <StatusBadge status={b.status as BookingStatus} />
+                    {(b.status === "pending" || b.status === "confirmed") && (
+                      <EditBookingButton bookingId={b.id} customerName={c.name} />
+                    )}
                   </div>
                 </div>
                 {(byBooking.get(b.id) ?? []).length > 0 && (
@@ -259,6 +292,7 @@ export default async function ClientePage({ params }: Props) {
                           {ROLE_LABEL[e.actor_role ?? ""] ?? ""} · {when(e.created_at)}
                           {e.action === "rescheduled" && to?.date && ` → ${br(to.date)} às ${to.time}`}
                           {e.action === "confirmed" && autoReason(e.details) && ` · ${autoReason(e.details)}`}
+                          {editDetail(e.action, e.details)}
                         </li>
                       );
                     })}

@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 
 type Item = {
   booking_id: string;
+  service_id: string;
   customer_name: string;
   customer_phone: string;
   service_name: string;
@@ -61,9 +62,9 @@ export async function ReturnQueue({ business }: { business: { id: string; name: 
             );
             return (
               <li
-                key={i.booking_id}
+                key={`${i.booking_id}-${i.service_id}`}
                 className="flex flex-col gap-3 rounded-2xl border bg-card p-4 sm:flex-row sm:items-center"
-                data-testid={`retorno-${i.booking_id}`}
+                data-testid={`retorno-${i.booking_id}-${i.service_id}`}
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
@@ -120,7 +121,7 @@ export async function ReturnQueue({ business }: { business: { id: string; name: 
           <h2 className="font-sans text-sm font-semibold text-muted-foreground">Já chamados</h2>
           <ul className="divide-y rounded-2xl border bg-card">
             {contacted.map((i) => (
-              <li key={i.booking_id} className="flex items-center gap-3 p-4">
+              <li key={`${i.booking_id}-${i.service_id}`} className="flex items-center gap-3 p-4">
                 <CheckCircle2 className="h-5 w-5 shrink-0 text-green-600" />
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold">

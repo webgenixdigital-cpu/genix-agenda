@@ -47,7 +47,7 @@ export default async function LembretesPage({ searchParams }: Props) {
 
   const { data } = await supabase
     .from("bookings")
-    .select("id, start_time, customer_name, customer_phone, service_name, professional_name, status, reminder_sent_at")
+    .select("id, start_time, customer_name, customer_phone, service_name, professional_name, status, reminder_sent_at, price, items_count")
     .eq("business_id", business.id)
     .eq("booking_date", date)
     .in("status", ["pending", "confirmed"])
@@ -133,7 +133,10 @@ export default async function LembretesPage({ searchParams }: Props) {
           {queue.map((b) => {
             const href = whatsappLink(
               b.customer_phone,
-              reminderMessage(b.customer_name, b.service_name, b.professional_name, date, b.start_time, business.name, isToday)
+              reminderMessage(b.customer_name, b.service_name, b.professional_name, date, b.start_time, business.name, isToday, {
+                itemsCount: b.items_count,
+                price: Number(b.price),
+              })
             );
             return (
               <li key={b.id} className="flex flex-col gap-3 rounded-2xl border bg-card p-4 sm:flex-row sm:items-center" data-testid={`lembrete-${b.id}`}>

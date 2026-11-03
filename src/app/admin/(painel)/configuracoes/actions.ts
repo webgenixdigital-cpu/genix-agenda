@@ -260,3 +260,22 @@ export async function dismissConfirmIntro(): Promise<Result> {
   revalidatePath("/admin");
   return { ok: true };
 }
+
+// ---------------------------------------------------------------------
+// PARTE 6 — Limite de desconto do profissional (31_editar_agendamento.sql)
+// Matriz e recepção dão desconto sem limite; 0 = profissional não dá desconto.
+// ---------------------------------------------------------------------
+export async function updateStaffDiscountLimit(pct: number): Promise<Result> {
+  const { business, role } = await getEditorContext();
+  if (role !== "owner") return { ok: false, error: NOT_OWNER };
+  if (!Number.isFinite(pct) || pct < 0 || pct > 100) return { ok: false, error: "Informe um limite de 0 a 100%." };
+
+  const { error } = await createClient()
+    .from("businesses")
+    .update({ staff_discount_max_pct: Math.round(pct * 100) / 100 })
+    .eq("id", business.id);
+  if (error) return { ok: false, error: "Não foi possível salvar o limite de desconto." };
+
+  revalidatePath("/admin", "layout");
+  return { ok: true };
+}

@@ -38,7 +38,7 @@ export function BusinessCard({ b }: { b: DirectoryItem }) {
       <div className="flex flex-1 flex-col p-5">
         <p className="text-sm font-medium text-primary">{b.niche_name ?? ""}</p>
         <h3 className="mt-1 text-2xl leading-tight">
-          <Link href={`/v/${b.slug}`} className="hover:underline">{b.name}</Link>
+          <Link href={`/v/${b.slug}`} className="tap-target hover:underline">{b.name}</Link>
         </h3>
         {b.tagline && <p className="mt-2 text-sm text-muted-foreground">{b.tagline}</p>}
 

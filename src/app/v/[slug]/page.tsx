@@ -396,7 +396,7 @@ export default async function VitrinePage({ params }: Props) {
                     href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${b.address}, ${b.city ?? ""}`)}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex gap-2 hover:underline"
+                    className="flex min-h-11 gap-2 py-1 hover:underline"
                   >
                     <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                     <span>{b.address}{b.city ? `, ${b.city}` : ""}{b.state ? ` - ${b.state}` : ""}</span>
@@ -407,7 +407,7 @@ export default async function VitrinePage({ params }: Props) {
                     href={`https://instagram.com/${b.instagram.replace("@", "")}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-2 hover:underline"
+                    className="flex min-h-11 items-center gap-2 hover:underline"
                   >
                     <AtSign className="h-4 w-4 text-primary" /> {b.instagram.replace("@", "")}
                   </a>

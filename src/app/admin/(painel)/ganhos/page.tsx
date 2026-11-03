@@ -58,16 +58,16 @@ export default async function GanhosPage({ searchParams }: Props) {
     <main className="mx-auto max-w-4xl space-y-8 p-4 md:p-8">
       <header className="text-center">
         <h1 className="text-3xl md:text-4xl">Meus ganhos</h1>
-        <div className="mt-3 flex items-center justify-center gap-1">
-          <Button asChild variant="outline" size="icon" className="h-10 w-10">
+        <div className="mt-3 flex flex-wrap items-center justify-center gap-1">
+          <Button asChild variant="outline" size="icon" className="shrink-0">
             <Link href={`/admin/ganhos?mes=${prev}`} aria-label="Mês anterior"><ChevronLeft className="h-5 w-5" /></Link>
           </Button>
-          <p className="min-w-[150px] text-center font-semibold capitalize">{format(monthDate, "MMMM 'de' yyyy", { locale: ptBR })}</p>
-          <Button asChild variant="outline" size="icon" className="h-10 w-10">
+          <p className="min-w-0 flex-1 text-center font-semibold capitalize sm:min-w-[150px] sm:flex-none">{format(monthDate, "MMMM 'de' yyyy", { locale: ptBR })}</p>
+          <Button asChild variant="outline" size="icon" className="shrink-0">
             <Link href={`/admin/ganhos?mes=${next}`} aria-label="Próximo mês"><ChevronRight className="h-5 w-5" /></Link>
           </Button>
           {!isCurrent && (
-            <Button asChild variant="ghost" className="h-10"><Link href="/admin/ganhos">Mês atual</Link></Button>
+            <Button asChild variant="ghost" className="h-11 shrink-0 px-3"><Link href="/admin/ganhos">Mês atual</Link></Button>
           )}
         </div>
       </header>

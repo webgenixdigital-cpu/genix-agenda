@@ -102,7 +102,7 @@ export default async function LembretesPage({ searchParams }: Props) {
             href={t.href}
             data-testid={`tab-lembretes-${t.key}`}
             className={cn(
-              "inline-flex h-10 items-center rounded-lg px-5 text-sm font-medium transition-colors",
+              "inline-flex h-11 items-center rounded-lg px-5 text-sm font-medium transition-colors",
               t.active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
             )}
           >

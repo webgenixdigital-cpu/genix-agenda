@@ -129,17 +129,17 @@ export function AgendaToolbar({ view, date, today, status, professionalId, pendi
       <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center md:justify-between">
         <div className="flex flex-wrap items-center gap-2">
           {viewSwitch}
-          <div className="flex items-center gap-1">
-            <Button variant="outline" size="icon" className="h-11 w-11" onClick={() => go({ data: addMonths(date, -1) })} aria-label="Mês anterior" data-testid="btn-mes-anterior">
+          <div className="flex min-w-0 flex-1 items-center gap-1 sm:flex-none">
+            <Button variant="outline" size="icon" className="h-11 w-11 shrink-0" onClick={() => go({ data: addMonths(date, -1) })} aria-label="Mês anterior" data-testid="btn-mes-anterior">
               <ChevronLeft className="h-5 w-5" />
             </Button>
-            <span className="min-w-[170px] px-2 text-center text-sm font-semibold first-letter:uppercase" data-testid="titulo-mes">
+            <span className="min-w-0 flex-1 px-2 text-center text-sm font-semibold first-letter:uppercase sm:min-w-[170px] sm:flex-none" data-testid="titulo-mes">
               {monthTitle(date)}
             </span>
-            <Button variant="outline" size="icon" className="h-11 w-11" onClick={() => go({ data: addMonths(date, 1) })} aria-label="Próximo mês" data-testid="btn-mes-proximo">
+            <Button variant="outline" size="icon" className="h-11 w-11 shrink-0" onClick={() => go({ data: addMonths(date, 1) })} aria-label="Próximo mês" data-testid="btn-mes-proximo">
               <ChevronRight className="h-5 w-5" />
             </Button>
-            <Button variant="ghost" className="h-11" disabled={thisMonth} onClick={() => go({ data: null })} data-testid="btn-mes-hoje">
+            <Button variant="ghost" className="h-11 shrink-0 px-3" disabled={thisMonth} onClick={() => go({ data: null })} data-testid="btn-mes-hoje">
               Hoje
             </Button>
           </div>
@@ -160,17 +160,17 @@ export function AgendaToolbar({ view, date, today, status, professionalId, pendi
       <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center md:justify-between">
         <div className="flex flex-wrap items-center gap-2">
           {viewSwitch}
-          <div className="flex items-center gap-1">
-            <Button variant="outline" size="icon" className="h-11 w-11" onClick={() => shift(-7)} aria-label="Semana anterior" data-testid="btn-semana-anterior">
+          <div className="flex min-w-0 flex-1 items-center gap-1 sm:flex-none">
+            <Button variant="outline" size="icon" className="h-11 w-11 shrink-0" onClick={() => shift(-7)} aria-label="Semana anterior" data-testid="btn-semana-anterior">
               <ChevronLeft className="h-5 w-5" />
             </Button>
-            <span className="min-w-[150px] px-2 text-center text-sm font-semibold" data-testid="titulo-semana">
+            <span className="min-w-0 flex-1 px-2 text-center text-sm font-semibold sm:min-w-[150px] sm:flex-none" data-testid="titulo-semana">
               {format(parseISO(date), "dd/MM")} – {format(end, "dd/MM/yyyy")}
             </span>
-            <Button variant="outline" size="icon" className="h-11 w-11" onClick={() => shift(7)} aria-label="Próxima semana" data-testid="btn-semana-proxima">
+            <Button variant="outline" size="icon" className="h-11 w-11 shrink-0" onClick={() => shift(7)} aria-label="Próxima semana" data-testid="btn-semana-proxima">
               <ChevronRight className="h-5 w-5" />
             </Button>
-            <Button variant="ghost" className="h-11" disabled={thisWeek} onClick={() => go({ data: null })} data-testid="btn-semana-hoje">
+            <Button variant="ghost" className="h-11 shrink-0 px-3" disabled={thisWeek} onClick={() => go({ data: null })} data-testid="btn-semana-hoje">
               Hoje
             </Button>
           </div>
@@ -185,48 +185,50 @@ export function AgendaToolbar({ view, date, today, status, professionalId, pendi
   }
 
   return (
-    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+    <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center md:justify-between">
       {/* Navegação por dia */}
-      <div className="flex items-center gap-1">
-        <span className="mr-2">{viewSwitch}</span>
-        <Button variant="outline" size="icon" className="h-11 w-11" onClick={() => shift(-1)} disabled={pendingMode} aria-label="Dia anterior" data-testid="btn-dia-anterior">
-          <ChevronLeft className="h-5 w-5" />
-        </Button>
-
-        <Popover open={calOpen} onOpenChange={setCalOpen}>
-          <PopoverTrigger asChild>
-            <Button variant="outline" className="h-11 min-w-[190px] justify-start gap-2 capitalize" disabled={pendingMode} data-testid="btn-escolher-data">
-              <CalendarDays className="h-4 w-4 text-primary" />
-              {format(parseISO(date), "EEE, dd 'de' MMM", { locale: ptBR })}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
-              mode="single"
-              locale={ptBR}
-              selected={parseISO(date)}
-              onSelect={(d) => {
-                if (!d) return;
-                setCalOpen(false);
-                go({ data: format(d, "yyyy-MM-dd") });
-              }}
-            />
-          </PopoverContent>
-        </Popover>
-
-        <Button variant="outline" size="icon" className="h-11 w-11" onClick={() => shift(1)} disabled={pendingMode} aria-label="Próximo dia" data-testid="btn-dia-seguinte">
-          <ChevronRight className="h-5 w-5" />
-        </Button>
-
-        {date !== today && !pendingMode && (
-          <Button variant="ghost" className="h-11" onClick={() => go({ data: null })} data-testid="btn-hoje">
-            Hoje
+      <div className="flex flex-wrap items-center gap-2">
+        {viewSwitch}
+        <div className="flex min-w-0 flex-1 items-center gap-1 sm:flex-none">
+          <Button variant="outline" size="icon" className="h-11 w-11 shrink-0" onClick={() => shift(-1)} disabled={pendingMode} aria-label="Dia anterior" data-testid="btn-dia-anterior">
+            <ChevronLeft className="h-5 w-5" />
           </Button>
-        )}
+
+          <Popover open={calOpen} onOpenChange={setCalOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="h-11 min-w-0 flex-1 justify-start gap-2 capitalize sm:min-w-[190px] sm:flex-none" disabled={pendingMode} data-testid="btn-escolher-data">
+                <CalendarDays className="h-4 w-4 text-primary" />
+                {format(parseISO(date), "EEE, dd 'de' MMM", { locale: ptBR })}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                locale={ptBR}
+                selected={parseISO(date)}
+                onSelect={(d) => {
+                  if (!d) return;
+                  setCalOpen(false);
+                  go({ data: format(d, "yyyy-MM-dd") });
+                }}
+              />
+            </PopoverContent>
+          </Popover>
+
+          <Button variant="outline" size="icon" className="h-11 w-11 shrink-0" onClick={() => shift(1)} disabled={pendingMode} aria-label="Próximo dia" data-testid="btn-dia-seguinte">
+            <ChevronRight className="h-5 w-5" />
+          </Button>
+
+          {date !== today && !pendingMode && (
+            <Button variant="ghost" className="h-11 shrink-0 px-3" onClick={() => go({ data: null })} data-testid="btn-hoje">
+              Hoje
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Filtros */}
-      <div className="grid grid-cols-2 gap-2 md:flex">
+      <div className="grid grid-cols-2 gap-2 md:flex md:flex-wrap">
         <Select value={status} onValueChange={(v) => go({ status: v === "all" ? null : v })}>
           <SelectTrigger className="h-11 md:w-44" data-testid="filtro-status">
             <SelectValue />

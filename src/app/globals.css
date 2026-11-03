@@ -84,6 +84,33 @@
   .copy {
     @apply mx-auto max-w-[60ch] leading-relaxed;
   }
+
+  /* Área de toque de no mínimo 44 × 44 px sem mudar o desenho (switch, aba, botão pequeno, link curto).
+     Fica em components: utilitários como `absolute` no mesmo elemento continuam valendo. */
+  .tap-target {
+    position: relative;
+  }
+  .tap-target::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 100%;
+    height: 100%;
+    min-width: 44px;
+    min-height: 44px;
+    transform: translate(-50%, -50%);
+  }
+
+  /* Rolagem lateral só dentro do bloco (tabelas largas no celular), com sombra na borda que tem mais conteúdo */
+  .scroll-shadow-x {
+    overflow-x: auto;
+    background:
+      linear-gradient(to right, hsl(var(--card)) 30%, transparent) left / 2rem 100% no-repeat local,
+      linear-gradient(to left, hsl(var(--card)) 30%, transparent) right / 2rem 100% no-repeat local,
+      radial-gradient(farthest-side at 0 50%, rgb(28 25 23 / 0.18), transparent) left / 0.75rem 100% no-repeat scroll,
+      radial-gradient(farthest-side at 100% 50%, rgb(28 25 23 / 0.18), transparent) right / 0.75rem 100% no-repeat scroll;
+  }
 }
 
 @layer utilities {

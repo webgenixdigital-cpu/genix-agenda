@@ -180,7 +180,7 @@ export function SignupForm({
                 autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)}
                 data-testid="input-cadastro-senha" />
               <button type="button" onClick={() => setShowPass(!showPass)}
-                className="absolute right-1 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-md text-muted-foreground hover:text-foreground"
+                className="absolute right-0 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-md text-muted-foreground hover:text-foreground"
                 aria-label={showPass ? "Esconder senha" : "Mostrar senha"}>
                 {showPass ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
               </button>
@@ -251,7 +251,7 @@ export function SignupForm({
       </fieldset>
 
       {/* ---------- TERMOS ---------- */}
-      <label className="flex cursor-pointer items-start gap-3 text-sm">
+      <label className="flex min-h-11 cursor-pointer items-start gap-3 text-sm">
         <input type="checkbox" checked={terms} onChange={(e) => setTerms(e.target.checked)}
           className="mt-0.5 h-5 w-5 shrink-0 accent-[#99582A]" data-testid="check-termos" />
         <span className="text-muted-foreground">

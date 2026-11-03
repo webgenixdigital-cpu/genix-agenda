@@ -95,9 +95,9 @@ function InstanceCard({ row }: { row: WhatsappOverview }) {
   return (
     <li className="rounded-2xl border bg-card p-4 md:p-5" data-testid={`whatsapp-espaco-${row.slug}`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="font-semibold">{row.name}</p>
-          <p className="text-sm text-muted-foreground">
+        <div className="min-w-0">
+          <p className="break-words font-semibold">{row.name}</p>
+          <p className="break-words text-sm text-muted-foreground">
             /v/{row.slug} · plano {row.tier === "completo" ? "pago" : "Grátis"} ·{" "}
             {row.auto_enabled ? "automático ligado pelo espaço" : "automático desligado pelo espaço"}
           </p>

@@ -195,7 +195,7 @@ export function ProfileForm({
           />
         </Field>
         {testLink && (
-          <a href={testLink} target="_blank" rel="noopener noreferrer" className="inline-block text-sm font-semibold text-primary underline">
+          <a href={testLink} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center text-sm font-semibold text-primary underline">
             Testar o link do WhatsApp
           </a>
         )}

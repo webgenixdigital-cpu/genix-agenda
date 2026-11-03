@@ -170,19 +170,19 @@ export default async function ClientePage({ params }: Props) {
   // -------------------------------------------------------------------
   return (
     <main className="mx-auto max-w-4xl space-y-8 p-4 md:p-8">
-      <Link href="/admin/clientes" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+      <Link href="/admin/clientes" className="inline-flex min-h-11 items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="h-4 w-4" /> Clientes
       </Link>
 
       {/* Cabeçalho */}
       <header className="flex flex-wrap items-start justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <span className="grid h-14 w-14 place-items-center rounded-full bg-secondary font-heading text-2xl text-primary">
+        <div className="flex min-w-0 items-center gap-4">
+          <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-secondary font-heading text-2xl text-primary">
             {c.name.charAt(0).toUpperCase()}
           </span>
-          <div>
-            <h1 className="text-3xl">{c.name}</h1>
-            <p className="text-muted-foreground">
+          <div className="min-w-0">
+            <h1 className="break-words text-3xl">{c.name}</h1>
+            <p className="break-words text-muted-foreground [overflow-wrap:anywhere]">
               {maskPhone(c.phone)}
               {c.email && ` · ${c.email}`}
             </p>
@@ -202,18 +202,18 @@ export default async function ClientePage({ params }: Props) {
       </header>
 
       {/* Resumo */}
-      <section className="grid grid-cols-3 gap-3">
-        <div className="rounded-2xl border bg-card p-4">
+      <section className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <div className="min-w-0 rounded-2xl border bg-card p-4">
           <p className="text-sm text-muted-foreground">Visitas</p>
-          <p className="mt-1 font-heading text-3xl">{done.length}</p>
+          <p className="mt-1 break-words font-heading text-2xl sm:text-3xl">{done.length}</p>
         </div>
-        <div className="rounded-2xl border bg-card p-4">
+        <div className="min-w-0 rounded-2xl border bg-card p-4">
           <p className="text-sm text-muted-foreground">Total gasto</p>
-          <p className="mt-1 font-heading text-3xl">{brl(total)}</p>
+          <p className="mt-1 break-words font-heading text-2xl sm:text-3xl">{brl(total)}</p>
         </div>
-        <div className="rounded-2xl border bg-card p-4">
+        <div className="col-span-2 min-w-0 rounded-2xl border bg-card p-4 sm:col-span-1">
           <p className="text-sm text-muted-foreground">Cliente desde</p>
-          <p className="mt-1 font-heading text-3xl">{br(c.created_at.slice(0, 10)).slice(3)}</p>
+          <p className="mt-1 break-words font-heading text-2xl sm:text-3xl">{br(c.created_at.slice(0, 10)).slice(3)}</p>
         </div>
       </section>
 

@@ -11,7 +11,7 @@ export function AuthShell({ title, subtitle, children }: { title: string; subtit
         </Link>
         <div className="rounded-2xl border bg-card p-6 shadow-sm md:p-8">
           <h1 className="text-center text-3xl">{title}</h1>
-          {subtitle && <p className="mt-3 text-center leading-relaxed text-muted-foreground">{subtitle}</p>}
+          {subtitle && <p className="mt-3 text-center leading-relaxed text-muted-foreground [overflow-wrap:anywhere]">{subtitle}</p>}
           <div className="mt-8">{children}</div>
         </div>
       </div>

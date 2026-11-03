@@ -33,7 +33,7 @@ export default async function CadastroPage({ searchParams }: { searchParams: { n
     <div className="grid min-h-svh lg:grid-cols-[1fr_1.1fr]">
       {/* ---------- LATERAL ---------- */}
       <aside className="hidden flex-col justify-between bg-foreground p-12 text-background lg:flex">
-        <Link href="/" className="flex w-fit items-center" data-testid="link-home-aside">
+        <Link href="/" className="flex min-h-11 w-fit items-center" data-testid="link-home-aside">
           <BrandLogo tone="escuro" />
         </Link>
 

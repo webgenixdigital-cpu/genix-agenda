@@ -57,7 +57,7 @@ export function LinkForm({
           </span>
           <input
             id="lk-slug"
-            className="h-full flex-1 bg-transparent px-3 text-sm outline-none"
+            className="-my-px h-11 min-w-0 flex-1 bg-transparent px-3 text-sm outline-none"
             value={slug}
             onChange={(e) => setSlug(toSlug(e.target.value))}
             data-testid="input-config-slug"

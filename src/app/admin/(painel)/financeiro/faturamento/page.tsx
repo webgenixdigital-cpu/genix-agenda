@@ -173,9 +173,9 @@ export default async function FaturamentoPage() {
 
 function Stat({ label, value, total, testId }: { label: string; value: number; total: number | null; testId: string }) {
   return (
-    <div className="rounded-2xl border bg-card p-4 md:p-5" data-testid={testId}>
+    <div className="min-w-0 rounded-2xl border bg-card p-4 md:p-5" data-testid={testId}>
       <p className="text-sm text-muted-foreground">{label}</p>
-      <p className="mt-2 font-heading text-2xl md:text-3xl">{brl(value)}</p>
+      <p className="mt-2 break-words font-heading text-2xl lg:text-3xl">{brl(value)}</p>
       {total !== null && <p className="mt-1 text-xs text-muted-foreground">Receita total: {brl(total)}</p>}
     </div>
   );
@@ -183,9 +183,9 @@ function Stat({ label, value, total, testId }: { label: string; value: number; t
 
 function Line({ label, value, strong }: { label: string; value: number; strong?: boolean }) {
   return (
-    <div className="rounded-xl bg-secondary/60 p-3">
+    <div className="min-w-0 rounded-xl bg-secondary/60 p-3">
       <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className={cn("mt-1 text-lg", strong && "font-semibold")}>{brl(value)}</dd>
+      <dd className={cn("mt-1 break-words text-lg", strong && "font-semibold")}>{brl(value)}</dd>
     </div>
   );
 }

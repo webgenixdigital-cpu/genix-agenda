@@ -62,7 +62,7 @@ export function LoginForm({ next }: { next: string }) {
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
             <Label htmlFor="password">Senha</Label>
-            <Link href="/esqueci-senha" className="text-sm font-semibold text-primary underline" data-testid="link-esqueci-senha">
+            <Link href="/esqueci-senha" className="tap-target text-sm font-semibold text-primary underline" data-testid="link-esqueci-senha">
               Esqueci minha senha
             </Link>
           </div>

@@ -84,7 +84,7 @@ export function ServicesManager({ services }: { services: Row[] }) {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-10 w-10"
+                    className="h-11 w-11"
                     aria-label={`Editar ${s.name}`}
                     onClick={() => {
                       setEditing(s);
@@ -97,7 +97,7 @@ export function ServicesManager({ services }: { services: Row[] }) {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-10 w-10 text-muted-foreground hover:bg-red-50 hover:text-destructive"
+                    className="h-11 w-11 text-muted-foreground hover:bg-red-50 hover:text-destructive"
                     aria-label={`Excluir ${s.name}`}
                     disabled={pending}
                     onClick={() => remove(s)}

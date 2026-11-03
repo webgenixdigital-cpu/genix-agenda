@@ -124,7 +124,7 @@ export function TeamManager({
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-10 w-10"
+                className="h-11 w-11"
                 aria-label={`Editar ${p.name}`}
                 onClick={() => {
                   setEditing(p);

@@ -116,7 +116,7 @@ export function Pricing({ plans }: { plans: Plan[] }) {
             Para quem atende sozinho
           </span>
           <p className="text-sm font-semibold text-primary">Profissional</p>
-          <div className="mt-3 flex items-end justify-center gap-2">
+          <div className="mt-3 flex flex-wrap items-end justify-center gap-x-2 gap-y-1">
             <p className="font-heading text-5xl leading-none" data-testid="preco-profissional">{brl(pro.base_price)}</p>
             <p className="pb-1 text-muted-foreground">{per}</p>
           </div>
@@ -141,7 +141,7 @@ export function Pricing({ plans }: { plans: Plan[] }) {
             Para salões e equipes
           </span>
           <p className="text-sm font-semibold text-[#99582A]">Equipe</p>
-          <div className="mt-3 flex items-end justify-center gap-2">
+          <div className="mt-3 flex flex-wrap items-end justify-center gap-x-2 gap-y-1">
             <p className="font-heading text-5xl leading-none" data-testid="preco-total">{brl(teamTotal)}</p>
             <p className="pb-1 text-muted-foreground">{per}</p>
           </div>

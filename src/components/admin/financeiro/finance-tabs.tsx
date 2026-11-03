@@ -9,7 +9,7 @@ const TABS = [
 
 export function FinanceTabs({ active }: { active: (typeof TABS)[number]["key"] }) {
   return (
-    <nav className="inline-flex rounded-xl border bg-card p-1" aria-label="Seções do financeiro">
+    <nav className="inline-flex max-w-full overflow-x-auto rounded-xl border bg-card p-1" aria-label="Seções do financeiro">
       {TABS.map((t) => (
         <Link
           key={t.key}

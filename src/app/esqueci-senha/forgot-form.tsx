@@ -38,7 +38,7 @@ export function ForgotForm() {
         <MailCheck className="mx-auto h-12 w-12 text-primary" />
         <p className="mt-4 font-semibold">Confira seu e-mail</p>
         <p className="mt-2 text-sm text-muted-foreground">
-          Se existir uma conta com <strong>{email}</strong>, enviamos um link para criar uma senha nova.
+          Se existir uma conta com <strong className="break-all">{email}</strong>, enviamos um link para criar uma senha nova.
           Ele vale por 1 hora. Confira também a caixa de spam.
         </p>
         <Button asChild variant="outline" className="mt-6 h-11 w-full">

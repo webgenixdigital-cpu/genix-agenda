@@ -28,6 +28,25 @@ beleza, estética e outros profissionais. Produto da Genix Sistemas Integrativos
 Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run build`.
 **Antes de todo commit:** `tsc` e `lint` sem erros.
 
+**Auditoria de responsividade** (Playwright, só leitura):
+- `npm run test:responsivo` faz o `next build` e sobe o `next start` na porta 3100. Antes, pare o `npm run dev`, porque o build reescreve a `.next`.
+- `BASE_URL=http://localhost:3000 npm run test:responsivo:rapido` mede um servidor que já está rodando, sem build.
+- O que ele faz:
+  - abre as rotas públicas sem login e o painel pela `/demo` (viewer);
+  - mede cada rota em 360, 390, 768, 1024 e 1440 px: rolagem lateral, elementos fora da tela, texto cortado e alvos menores que 44 px;
+  - abre os diálogos principais em 360 e 768 px, e o assistente da vitrine até “Seus dados”, medindo também o Turnstile. Nunca salva nada.
+- Um teste por rota × largura e por diálogo × tamanho, com reporter `line` (progresso ao vivo). Cada espera dura no máximo 12 s: se o gatilho ou o diálogo não aparece, o item vira “não auditado (sem dados)” e o script segue.
+- Saída em `responsivo-report/` (ignorada pelo Git): `relatorio-<rótulo>.md`, o `.json` e `prints/<rótulo>/`. Só há print quando a tela tem problema de layout.
+- Envs opcionais:
+  - `RESPONSIVO_ROTULO` (ex.: `antes`/`depois`);
+  - `RESPONSIVO_ROTAS=agenda,ficha,/espacos` roda só o que contém um desses trechos no nome ou na URL;
+  - `RESPONSIVO_LARGURAS=360,768` roda só essas larguras.
+
+    Entre uma correção e outra, rode só o que ainda tem problema, na largura afetada, com `test:responsivo:rapido` depois de um `next build`. A rodada completa fica para o final, porque é ela que gera a tabela “depois” do PR;
+  - `RESPONSIVO_AVALIAR_URL`, um link `/v/<slug>/avaliar/<id>` para medir a tela de avaliação.
+- `/genix` e “Meus ganhos” aparecem como “não auditado” porque a demo não tem esses papéis.
+- Meta: **zero rolagem lateral** em todas as rotas e larguras.
+
 ## 3. Variáveis de ambiente
 
 | Variável | Onde | Observação |
@@ -135,6 +154,8 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
 - Supabase Auth: "Confirm email" desligado (acesso livre); confirmação posterior via `signInWithOtp` + `/auth/confirm`.
   Templates (Reset, Magic Link, Invite) usam `{{ .RedirectTo }}?token_hash=...&type=...`.
 - Variáveis novas na Vercel só valem após **redeploy**.
+- **Classes Tailwind não podem ficar em `src/lib`**: a pasta não está no `content` do `tailwind.config.ts`, e a classe some do CSS de produção. Strings de classe (mapas de cor/status) moram em `src/components`.
+- Responsividade: o `DialogContent` base já tem `max-h-[92svh]`, rolagem interna, margem lateral e X de 44 px. Para alvo pequeno que não pode crescer (switch, aba, botão `sm`, link curto), use `.tap-target` (`globals.css`). Para tabela larga, use `.scroll-shadow-x`, que rola só dentro dela. Entre md e lg o menu lateral fica sempre recolhido.
 
 ## 8. Mapa rápido
 

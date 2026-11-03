@@ -137,7 +137,7 @@ export function NicheManager({ niches }: { niches: AdminNiche[] }) {
                       </p>
                       {n.description && <p className="mt-1 text-sm text-muted-foreground">{n.description}</p>}
                     </div>
-                    <Button variant="ghost" size="icon" className="h-10 w-10" aria-label={`Editar ${n.name}`}
+                    <Button variant="ghost" size="icon" className="h-11 w-11" aria-label={`Editar ${n.name}`}
                       onClick={() => setNicheDialog({ open: true, niche: n })}>
                       <Pencil className="h-4 w-4" />
                     </Button>

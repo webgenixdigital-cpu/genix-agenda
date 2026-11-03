@@ -1,24 +1,24 @@
 import Link from "next/link";
-import { CalendarOff, Globe, Package, Phone, Repeat, StickyNote } from "lucide-react";
+import { CalendarDays } from "lucide-react";
 import { getAdminContext, seesWholeTeam } from "@/lib/admin";
 import { getPlanContext } from "@/lib/plan";
 import { addDaysISO, mondayOf, todayISO } from "@/lib/dates";
 import { agendaProfessional, blockAppliesOn, loadAgenda } from "@/lib/agenda-data";
-import { brl, longDate, maskPhone } from "@/lib/format";
-import { StatusBadge } from "@/components/admin/status-badge";
-import { AutoConfirmBadge } from "@/components/admin/auto-confirm-badge";
+import { monthOf, monthRange, monthTitle } from "@/lib/agenda";
+import { brl, longDate } from "@/lib/format";
 import { AgendaToolbar } from "@/components/admin/agenda/agenda-toolbar";
-import { BookingActions } from "@/components/admin/agenda/booking-actions";
+import { BlockNotice, BookingCard } from "@/components/admin/agenda/booking-card";
+import { MobileCalendar, MonthCalendar } from "@/components/admin/agenda/month-calendar";
 import { ViewPreference } from "@/components/admin/agenda/view-preference";
 import { WeekGrid } from "@/components/admin/agenda/week-grid";
 import { NewBookingDialog } from "@/components/admin/agenda/new-booking-dialog";
-import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
-type Props = { searchParams: { data?: string; status?: string; prof?: string; visao?: string; cancelados?: string } };
+type Props = {
+  searchParams: { data?: string; status?: string; prof?: string; visao?: string; cancelados?: string; calendario?: string };
+};
 
-const SOURCE: Record<string, string> = { online: "Vitrine", whatsapp: "WhatsApp", manual: "Manual" };
 const STATUSES = ["pending", "confirmed", "completed", "cancelled"];
 const shortISO = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
 
@@ -33,12 +33,65 @@ export default async function AgendaPage({ searchParams }: Props) {
 
   const today = todayISO();
   const date = /^\d{4}-\d{2}-\d{2}$/.test(searchParams.data ?? "") ? searchParams.data! : today;
-  const view = searchParams.visao === "semana" ? "semana" : "dia";
+  const view = searchParams.visao === "semana" ? "semana" : searchParams.visao === "mes" ? "mes" : "dia";
   const prof = agendaProfessional(wholeTeam, searchParams.prof, professionalId);
+  const showCancelled = searchParams.cancelados === "1";
+
+  // ------------------------- VISÃO MÊS (md+) -------------------------
+  if (view === "mes") {
+    const month = monthOf(searchParams.data) ?? today.slice(0, 7);
+    const data = await loadAgenda(ctx, wholeTeam, {
+      ...monthRange(month),
+      status: "all",
+      prof,
+      hideCancelled: !showCancelled,
+    });
+    const activeCount = data.list.filter((b) => b.status !== "cancelled" && b.booking_date.startsWith(month)).length;
+
+    return (
+      <main className="mx-auto max-w-screen-2xl space-y-8 p-4 md:p-8">
+        <ViewPreference view={view} />
+        <header className="flex flex-col items-center gap-4 text-center">
+          <div>
+            <h1 className="text-3xl md:text-4xl">Agenda do mês</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {activeCount} {activeCount === 1 ? "atendimento" : "atendimentos"} em {monthTitle(month).replace(/ de \d+$/, "")}
+            </p>
+          </div>
+          <NewBookingDialog defaultDate={month === today.slice(0, 7) ? today : `${month}-01`} services={data.services} professionals={data.pros} fullAccess={plan.tier === "completo"} />
+        </header>
+
+        <AgendaToolbar
+          view="mes"
+          date={month}
+          today={today}
+          status="all"
+          professionalId={prof}
+          pendingMode={false}
+          professionals={data.pros}
+          showCancelled={showCancelled}
+        />
+
+        <MonthCalendar
+          month={month}
+          today={today}
+          bookings={data.list}
+          sessionLabel={data.sessionLabel}
+          blocks={data.blocks}
+          services={data.services}
+          professionals={data.pros}
+          selectedProfessional={prof === "all" ? null : prof}
+          fullAccess={plan.tier === "completo"}
+          businessName={business.name}
+          slug={business.slug}
+          reschedule={data.reschedule}
+        />
+      </main>
+    );
+  }
 
   // ------------------------- VISÃO SEMANA -------------------------
   if (view === "semana") {
-    const showCancelled = searchParams.cancelados === "1";
     const weekStart = mondayOf(date);
     const weekEnd = addDaysISO(weekStart, 6);
     const data = await loadAgenda(ctx, wholeTeam, {
@@ -101,14 +154,21 @@ export default async function AgendaPage({ searchParams }: Props) {
   const status = STATUSES.includes(searchParams.status ?? "") ? searchParams.status! : "all";
   // "Pendentes" sem data escolhida = todos os pedidos pendentes a partir de hoje
   const pendingMode = status === "pending" && !searchParams.data;
+  // celular: calendário do mês em janela tela cheia (?calendario=yyyy-mm)
+  const calMonth = monthOf(searchParams.calendario);
 
-  const { list, sessionLabel, services, pros, blocks, reschedule } = await loadAgenda(ctx, wholeTeam, {
-    from: pendingMode ? today : date,
-    to: date,
-    status,
-    prof,
-    pendingMode,
-  });
+  const [{ list, sessionLabel, services, pros, blocks, reschedule }, monthData] = await Promise.all([
+    loadAgenda(ctx, wholeTeam, {
+      from: pendingMode ? today : date,
+      to: date,
+      status,
+      prof,
+      pendingMode,
+    }),
+    calMonth
+      ? loadAgenda(ctx, wholeTeam, { ...monthRange(calMonth), status: "all", prof, hideCancelled: !showCancelled })
+      : Promise.resolve(null),
+  ]);
   const dayBlocks = pendingMode ? [] : blocks.filter((k) => blockAppliesOn(k, date));
 
   // agrupa por dia (só faz diferença no modo "pendentes")
@@ -122,6 +182,14 @@ export default async function AgendaPage({ searchParams }: Props) {
   const expected = list
     .filter((b) => b.status !== "cancelled" && !b.customer_package_id)
     .reduce((s, b) => s + Number(b.price), 0);
+
+  const calendarHref = (() => {
+    const p = new URLSearchParams();
+    if (searchParams.data) p.set("data", searchParams.data);
+    if (searchParams.prof) p.set("prof", searchParams.prof);
+    p.set("calendario", date.slice(0, 7));
+    return `/admin/agenda?${p.toString()}`;
+  })();
 
   // -------------------------------------------------------------------
   // PARTE 2 — Página
@@ -137,7 +205,16 @@ export default async function AgendaPage({ searchParams }: Props) {
               : `${activeCount} ${activeCount === 1 ? "atendimento" : "atendimentos"}, ${brl(expected)} previstos`}
           </p>
         </div>
-        <NewBookingDialog defaultDate={date} services={services} professionals={pros} fullAccess={plan.tier === "completo"} />
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          <NewBookingDialog defaultDate={date} services={services} professionals={pros} fullAccess={plan.tier === "completo"} />
+          <Link
+            href={calendarHref}
+            className="inline-flex h-11 items-center gap-2 rounded-md border bg-card px-4 text-sm font-semibold hover:bg-secondary md:hidden"
+            data-testid="btn-calendario"
+          >
+            <CalendarDays className="h-4 w-4 text-primary" /> Calendário
+          </Link>
+        </div>
       </header>
 
       <ViewPreference view={view} />
@@ -152,21 +229,7 @@ export default async function AgendaPage({ searchParams }: Props) {
         professionals={pros}
       />
 
-      {dayBlocks.length > 0 && (
-        <div className="space-y-1 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-900" data-testid="aviso-bloqueio">
-          {dayBlocks.map((k, i) => (
-            <p key={i} className="flex items-start gap-2">
-              <CalendarOff className="mt-0.5 h-4 w-4 shrink-0" />
-              <span>
-                <strong>{k.reason ?? "Bloqueio"}</strong>
-                {" para "}
-                {k.professional_id ? pros.find((p) => p.id === k.professional_id)?.name ?? "um profissional" : "toda a equipe"}
-                {k.time_start ? `, das ${k.time_start.slice(0, 5)} às ${k.time_end?.slice(0, 5)}` : ", o dia inteiro"}
-              </span>
-            </p>
-          ))}
-        </div>
-      )}
+      <BlockNotice blocks={dayBlocks} professionals={pros} />
 
       {list.length === 0 && (
         <div className="rounded-2xl border border-dashed bg-white p-10 text-center">
@@ -184,76 +247,39 @@ export default async function AgendaPage({ searchParams }: Props) {
           {pendingMode && <h2 className="font-sans text-sm font-semibold first-letter:uppercase">{longDate(day)}</h2>}
           <ul className="space-y-3">
             {items.map((b) => (
-              <li
+              <BookingCard
                 key={b.id}
-                className={cn(
-                  "rounded-2xl border bg-card p-4 md:p-5",
-                  b.status === "cancelled" && "opacity-60",
-                  b.status === "pending" && "border-amber-300"
-                )}
-                data-testid={`agenda-item-${b.id}`}
-              >
-                <div className="flex gap-4">
-                  <div className="w-16 shrink-0 border-r pr-4 text-center">
-                    <p className="text-lg font-semibold">{b.start_time.slice(0, 5)}</p>
-                    <p className="text-xs text-muted-foreground">até {b.end_time.slice(0, 5)}</p>
-                  </div>
-
-                  <div className="min-w-0 flex-1 space-y-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      {b.customer_id ? (
-                        <Link href={`/admin/clientes/${b.customer_id}`} className="font-semibold hover:underline" data-testid={`link-cliente-${b.id}`}>
-                          {b.customer_name}
-                        </Link>
-                      ) : (
-                        <p className="font-semibold">{b.customer_name}</p>
-                      )}
-                      <StatusBadge status={b.status} />
-                      <AutoConfirmBadge status={b.status} reason={b.auto_confirm_reason} testId={`selo-auto-confirmado-${b.id}`} />
-                      {b.series_id && (
-                        <span
-                          className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-primary"
-                          data-testid={`selo-recorrente-${b.id}`}
-                        >
-                          <Repeat className="h-3 w-3" /> Recorrente
-                        </span>
-                      )}
-                      <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                        <Globe className="h-3 w-3" /> {SOURCE[b.source] ?? b.source}
-                      </span>
-                    </div>
-                    <p className="text-sm">
-                      {b.service_name} com {b.professional_name}
-                      {b.customer_package_id ? (
-                        <span
-                          className="ml-2 inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-primary"
-                          data-testid={`selo-pacote-${b.id}`}
-                        >
-                          <Package className="h-3 w-3" /> {sessionLabel[b.id] ?? "Pacote"}
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground"> · {brl(b.price)}</span>
-                      )}
-                    </p>
-                    <p className="inline-flex items-center gap-1 text-sm text-muted-foreground">
-                      <Phone className="h-3.5 w-3.5" /> {maskPhone(b.customer_phone)}
-                    </p>
-                    {b.customer_notes && (
-                      <p className="flex items-start gap-1 rounded-lg bg-secondary px-2.5 py-1.5 text-sm">
-                        <StickyNote className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" /> {b.customer_notes}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="mt-4 border-t pt-3">
-                  <BookingActions booking={b} businessName={business.name} slug={business.slug} fullAccess={plan.tier === "completo"} reschedule={reschedule} />
-                </div>
-              </li>
+                booking={b}
+                sessionLabel={sessionLabel[b.id]}
+                businessName={business.name}
+                slug={business.slug}
+                fullAccess={plan.tier === "completo"}
+                reschedule={reschedule}
+              />
             ))}
           </ul>
         </section>
       ))}
+
+      {calMonth && monthData && (
+        <MobileCalendar
+          month={calMonth}
+          today={today}
+          currentDate={date}
+          bookings={monthData.list}
+          sessionLabel={monthData.sessionLabel}
+          blocks={monthData.blocks}
+          services={monthData.services}
+          professionals={monthData.pros}
+          selectedProfessional={prof === "all" ? null : prof}
+          professionalId={prof}
+          showCancelled={showCancelled}
+          fullAccess={plan.tier === "completo"}
+          businessName={business.name}
+          slug={business.slug}
+          reschedule={monthData.reschedule}
+        />
+      )}
     </main>
   );
 }

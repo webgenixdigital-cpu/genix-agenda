@@ -195,7 +195,7 @@ export function ProAccess({
 
   if (!canInvite) {
     return (
-      <Link href="/admin/assinatura" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+      <Link href="/admin/assinatura" className="inline-flex min-h-11 items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
         <Lock className="h-3.5 w-3.5" /> Acesso individual no plano Equipe
       </Link>
     );

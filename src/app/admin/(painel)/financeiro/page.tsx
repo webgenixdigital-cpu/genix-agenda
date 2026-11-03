@@ -96,22 +96,22 @@ export default async function FinanceiroPage({ searchParams }: Props) {
           <div className="mt-3">
             <FinanceTabs active="caixa" />
           </div>
-          <div className="mt-3 flex items-center justify-center gap-1">
-            <Button asChild variant="outline" size="icon" className="h-10 w-10">
+          <div className="mt-3 flex flex-wrap items-center justify-center gap-1">
+            <Button asChild variant="outline" size="icon" className="shrink-0">
               <Link href={`/admin/financeiro?mes=${prev}`} aria-label="Mês anterior" data-testid="btn-mes-anterior">
                 <ChevronLeft className="h-5 w-5" />
               </Link>
             </Button>
-            <p className="min-w-[150px] text-center font-semibold capitalize">
+            <p className="min-w-0 flex-1 text-center font-semibold capitalize sm:min-w-[150px] sm:flex-none">
               {format(monthDate, "MMMM 'de' yyyy", { locale: ptBR })}
             </p>
-            <Button asChild variant="outline" size="icon" className="h-10 w-10">
+            <Button asChild variant="outline" size="icon" className="shrink-0">
               <Link href={`/admin/financeiro?mes=${next}`} aria-label="Próximo mês" data-testid="btn-mes-seguinte">
                 <ChevronRight className="h-5 w-5" />
               </Link>
             </Button>
             {!isCurrent && (
-              <Button asChild variant="ghost" className="h-10">
+              <Button asChild variant="ghost" className="h-11 shrink-0 px-3">
                 <Link href="/admin/financeiro">Mês atual</Link>
               </Button>
             )}

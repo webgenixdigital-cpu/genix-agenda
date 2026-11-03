@@ -31,10 +31,10 @@ export function DemoBanner() {
           </span>
         </p>
         <div className="flex items-center gap-2">
-          <Button asChild size="sm" className="h-9" data-testid="btn-demo-criar-conta">
+          <Button asChild size="sm" className="tap-target h-9" data-testid="btn-demo-criar-conta">
             <a href={CRIAR_CONTA}>Criar minha conta grátis</a>
           </Button>
-          <a href={SAIR} className="inline-flex h-9 items-center px-2 text-stone-300 underline hover:text-white" data-testid="btn-demo-sair">
+          <a href={SAIR} className="tap-target inline-flex h-9 items-center px-2 text-stone-300 underline hover:text-white" data-testid="btn-demo-sair">
             Sair
           </a>
         </div>

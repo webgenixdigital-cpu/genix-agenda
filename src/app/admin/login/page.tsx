@@ -15,7 +15,7 @@ export default function LoginPage({ searchParams }: Props) {
     <div className="grid min-h-svh lg:grid-cols-2">
       {/* ---------- PAINEL INSTITUCIONAL ---------- */}
       <aside className="relative hidden flex-col justify-between bg-foreground p-12 text-background lg:flex">
-        <Link href="/" className="flex w-fit items-center" data-testid="link-home-aside">
+        <Link href="/" className="flex min-h-11 w-fit items-center" data-testid="link-home-aside">
           <BrandLogo tone="escuro" />
         </Link>
 

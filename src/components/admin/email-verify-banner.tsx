@@ -45,7 +45,7 @@ export function EmailVerifyBanner({ email }: { email: string }) {
       <p className="flex items-center gap-2">
         <MailWarning className="h-4 w-4 shrink-0" />
         {state === "sent" ? (
-          <span>Enviamos um link para <strong>{email}</strong>. Abra o e-mail e toque em “Confirmar e-mail”.</span>
+          <span>Enviamos um link para <strong className="break-all">{email}</strong>. Abra o e-mail e toque em “Confirmar e-mail”.</span>
         ) : (
           <span><strong>Confirme seu e-mail</strong> para não perder o acesso e conseguir recuperar a senha.</span>
         )}

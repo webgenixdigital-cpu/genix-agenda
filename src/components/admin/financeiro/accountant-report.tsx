@@ -213,7 +213,7 @@ function Block({ title, children }: { title: string; children: React.ReactNode }
 
 function Table({ children }: { children: React.ReactNode }) {
   return (
-    <div className="overflow-x-auto print:overflow-visible">
+    <div className="scroll-shadow-x print:overflow-visible print:bg-none">
       <table className="w-full min-w-[520px] border-collapse text-xs sm:text-sm print:min-w-0 print:text-[10px]">{children}</table>
     </div>
   );
@@ -221,9 +221,9 @@ function Table({ children }: { children: React.ReactNode }) {
 
 function Total({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-xl bg-secondary/60 p-3 print:bg-transparent print:p-0">
+    <div className="min-w-0 rounded-xl bg-secondary/60 p-3 print:bg-transparent print:p-0">
       <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="mt-1 text-lg font-semibold">{brl(value)}</dd>
+      <dd className="mt-1 break-words text-lg font-semibold">{brl(value)}</dd>
     </div>
   );
 }

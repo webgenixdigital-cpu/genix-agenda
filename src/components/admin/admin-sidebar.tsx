@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -187,6 +187,15 @@ function NavContent({
   );
 }
 
+// Entre md e lg (tablet) o menu fica sempre recolhido: aberto, ele ocuparia 256 px dos ~768 da tela.
+const WIDE_MEDIA = "(min-width: 1024px)";
+function subscribeWide(onChange: () => void) {
+  const mq = window.matchMedia(WIDE_MEDIA);
+  mq.addEventListener("change", onChange);
+  return () => mq.removeEventListener("change", onChange);
+}
+const isWide = () => window.matchMedia(WIDE_MEDIA).matches;
+
 export function AdminSidebar({
   initialCollapsed = false,
   belowDemoBanner = false,
@@ -194,6 +203,9 @@ export function AdminSidebar({
 }: Props & { initialCollapsed?: boolean; belowDemoBanner?: boolean }) {
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(initialCollapsed);
+  // no servidor vale a preferência salva; no tablet o cliente recolhe logo após hidratar
+  const wide = useSyncExternalStore(subscribeWide, isWide, () => true);
+  const railOnly = collapsed || !wide;
 
   function toggle() {
     const next = !collapsed;
@@ -210,12 +222,12 @@ export function AdminSidebar({
           "sticky z-30 hidden shrink-0 overflow-hidden border-r bg-white transition-[width] duration-200 ease-out md:block",
           // demo: começa abaixo da faixa fixa (md:h-14) para o topo do menu não ficar por baixo dela
           belowDemoBanner ? "top-14 h-[calc(100svh-3.5rem)]" : "top-0 h-svh",
-          collapsed ? "w-16" : "w-64"
+          collapsed ? "w-16" : "w-16 lg:w-64"
         )}
-        data-state={collapsed ? "collapsed" : "expanded"}
+        data-state={railOnly ? "collapsed" : "expanded"}
         data-testid="menu-lateral"
       >
-        <NavContent {...props} collapsed={collapsed} onToggle={toggle} />
+        <NavContent {...props} collapsed={railOnly} onToggle={wide ? toggle : undefined} />
       </aside>
 
       {/* Mobile: barra superior + menu deslizante */}
@@ -229,7 +241,7 @@ export function AdminSidebar({
         </Button>
       </header>
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent side="left" className="w-72 p-0">
+        <SheetContent side="left" className="w-72 max-w-[85vw] p-0">
           <SheetTitle className="sr-only">Menu do painel</SheetTitle>
           <NavContent {...props} onNavigate={() => setOpen(false)} />
         </SheetContent>

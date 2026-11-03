@@ -13,7 +13,7 @@ export function DeleteBlockButton({ id }: { id: string }) {
     <Button
       variant="ghost"
       size="icon"
-      className="h-10 w-10 shrink-0 text-muted-foreground hover:bg-red-50 hover:text-destructive"
+      className="h-11 w-11 shrink-0 text-muted-foreground hover:bg-red-50 hover:text-destructive"
       disabled={pending}
       aria-label="Remover bloqueio"
       data-testid={`btn-remover-bloqueio-${id}`}

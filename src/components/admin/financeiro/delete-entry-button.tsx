@@ -12,7 +12,7 @@ export function DeleteEntryButton({ id }: { id: string }) {
     <Button
       variant="ghost"
       size="icon"
-      className="h-9 w-9 shrink-0 text-muted-foreground hover:bg-red-50 hover:text-destructive"
+      className="h-11 w-11 shrink-0 text-muted-foreground hover:bg-red-50 hover:text-destructive"
       disabled={pending}
       aria-label="Excluir lançamento"
       data-testid={`btn-excluir-lancamento-${id}`}

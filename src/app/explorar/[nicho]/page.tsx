@@ -119,7 +119,7 @@ export default async function ExplorarNichoPage({ params, searchParams }: Props)
                       key={`${c.city}-${c.state}`}
                       href={`/explorar/${niche.id}?local=${encodeURIComponent(c.city)}#resultados`}
                       className={cn(
-                        "inline-flex h-9 items-center rounded-full border px-3 text-sm transition-colors",
+                        "tap-target inline-flex h-9 items-center rounded-full border px-3 text-sm transition-colors",
                         active ? "border-primary bg-primary text-primary-foreground" : "bg-white hover:border-primary/50"
                       )}
                     >

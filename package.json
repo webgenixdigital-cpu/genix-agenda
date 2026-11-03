@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:responsivo": "next build && playwright test -c playwright.responsivo.config.ts",
+    "test:responsivo:rapido": "playwright test -c playwright.responsivo.config.ts"
   },
   "dependencies": {
     "@radix-ui/react-avatar": "^1.2.7",
@@ -39,6 +41,7 @@
     "tailwindcss-animate": "^1.0.7"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",

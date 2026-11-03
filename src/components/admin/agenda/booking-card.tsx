@@ -36,7 +36,7 @@ export function BookingCard({
       data-testid={`agenda-item-${b.id}`}
     >
       <div className="flex gap-4">
-        <div className="w-16 shrink-0 border-r pr-4 text-center">
+        <div className="w-[4.5rem] shrink-0 border-r pr-3 text-center">
           <p className="text-lg font-semibold">{b.start_time.slice(0, 5)}</p>
           <p className="text-xs text-muted-foreground">até {b.end_time.slice(0, 5)}</p>
         </div>
@@ -44,7 +44,7 @@ export function BookingCard({
         <div className="min-w-0 flex-1 space-y-1">
           <div className="flex flex-wrap items-center gap-2">
             {b.customer_id ? (
-              <Link href={`/admin/clientes/${b.customer_id}`} className="font-semibold hover:underline" data-testid={`link-cliente-${b.id}`}>
+              <Link href={`/admin/clientes/${b.customer_id}`} className="tap-target font-semibold hover:underline" data-testid={`link-cliente-${b.id}`}>
                 {b.customer_name}
               </Link>
             ) : (

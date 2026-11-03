@@ -64,7 +64,7 @@ export function ResetForm() {
           <button
             type="button"
             onClick={() => setShow(!show)}
-            className="absolute right-1 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-md text-muted-foreground hover:text-foreground"
+            className="absolute right-0 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-md text-muted-foreground hover:text-foreground"
             aria-label={show ? "Esconder senha" : "Mostrar senha"}
           >
             {show ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}

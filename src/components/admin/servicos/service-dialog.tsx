@@ -172,7 +172,7 @@ export function ServiceDialog({
                   key={d}
                   type="button"
                   variant={ret === String(d) ? "default" : "outline"}
-                  className="h-11 px-3"
+                  className="h-11 min-w-11 px-3"
                   onClick={() => setRet(ret === String(d) ? "" : String(d))}
                   data-testid={`btn-servico-retorno-${d}`}
                 >

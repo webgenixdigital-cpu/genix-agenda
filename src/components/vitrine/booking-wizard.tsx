@@ -213,7 +213,7 @@ export function BookingWizard({ slug, businessName, whatsapp, services, professi
   // -------------------------------------------------------------------
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="max-h-[92svh] w-[calc(100%-1.5rem)] max-w-xl overflow-y-auto rounded-2xl p-6 md:p-8">
+      <DialogContent className="max-h-[92svh] w-[calc(100%-1rem)] max-w-xl overflow-y-auto rounded-2xl p-4 sm:p-6 md:p-8">
         {done ? (
           /* ---------- SUCESSO ---------- */
           <div className="text-center" data-testid="booking-success">
@@ -257,7 +257,7 @@ export function BookingWizard({ slug, businessName, whatsapp, services, professi
                 {step > 0 && (
                   <button
                     onClick={() => setStep(step - 1)}
-                    className="-ml-2 grid h-10 w-10 place-items-center rounded-full hover:bg-secondary"
+                    className="-ml-2 grid h-11 w-11 place-items-center rounded-full hover:bg-secondary"
                     aria-label="Voltar"
                     data-testid="btn-voltar-etapa"
                   >

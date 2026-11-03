@@ -94,6 +94,11 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
 - Operações sensíveis via funções `security definer`: `get_available_slots`, `create_public_booking`,
   `complete_booking` (status + caixa), `create_business_for_user`, `submit_review`, `public_plan_info`.
 - Trava de conflito de horário: constraint `no_overlap` em `bookings`. Caixa: 1 lançamento por atendimento.
+- **Serviços do agendamento (31):** `booking_items` (item `position 0` = serviço original, nunca sai). Em `bookings`,
+  `service_name`/`price`/`duration_min`/`end_time` são o **total** (“Corte + Barba”, soma − desconto), mantidos só por
+  `recalc_booking`; editar só por `booking_add_item`, `booking_remove_item`, `booking_set_discount` (gatilho
+  `guard_booking_totals` barra update direto; as funções ligam `genix.booking_edit`). Caixa = cobrado
+  (`price` − itens `paid_by_package`). Limite de desconto do profissional: `businesses.staff_discount_max_pct`.
 - Clientes (`customers`) identificados por WhatsApp normalizado; trigger liga cada agendamento ao cliente.
   `booking_events` registra o histórico automaticamente (criado, confirmado, remarcado...).
 - Webhook Asaas: `/api/asaas/webhook`, valida header `asaas-access-token`, idempotente (`asaas_webhook_events`).

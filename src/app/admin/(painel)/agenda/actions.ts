@@ -287,7 +287,7 @@ const RESCHEDULE_ERRORS: Record<string, string> = {
   PASSADO: "Escolha uma data e horário a partir de agora.",
   FECHADO: "O espaço não abre nesse dia.",
   FORA_EXPEDIENTE: "Esse horário fica fora do expediente.",
-  PROFISSIONAL_INDISPONIVEL: "Esse profissional não está disponível para este serviço.",
+  PROFISSIONAL_INDISPONIVEL: "Esse profissional não está disponível ou não faz todos os serviços deste agendamento.",
   BLOQUEIO: "Esse horário está bloqueado na agenda desse profissional.",
   OCUPADO: "Esse horário acabou de ser ocupado. Escolha outro.",
   PACOTE_VENCIDO: "Esse pacote vence antes da nova data.",
@@ -387,4 +387,138 @@ export async function searchCustomers(q: string): Promise<CustomerHit[]> {
   for (const v of visits ?? []) if (v.customer_id && !last.has(v.customer_id)) last.set(v.customer_id, v.booking_date);
 
   return list.map((c) => ({ id: c.id, name: c.name, phone: c.phone, lastVisit: last.get(c.id) ?? null }));
+}
+
+// ---------------------------------------------------------------------
+// PARTE 8 — Editar: serviços adicionais e desconto (31_editar_agendamento.sql)
+// ---------------------------------------------------------------------
+export type EditItem = {
+  id: string;
+  service_id: string | null;
+  name: string;
+  price: number;
+  duration: number;
+  position: number;
+  extends_time: boolean;
+  paid_by_package: boolean;
+};
+export type EditService = { id: string; name: string; price: number; duration: number };
+export type DiscountKind = "valor" | "percentual";
+export type BookingEditInfo = {
+  status: string;
+  start_time: string;
+  end_time: string;
+  price: number;
+  discount_kind: DiscountKind | null;
+  discount_input: number | null;
+  discount_amount: number;
+  discount_reason: string | null;
+  /** null = sem limite (matriz e recepção); número = % máximo do profissional */
+  discount_limit: number | null;
+  items: EditItem[];
+  services: EditService[];
+};
+
+/** Conflitos ao aumentar o tempo: a tela oferece "Adicionar sem aumentar o tempo" */
+export type EditConflict = "BLOQUEIO" | "OCUPADO" | "MEIA_NOITE";
+
+const EDIT_ERRORS: Record<string, string> = {
+  DESCONTO_ACIMA_LIMITE: "Esse desconto passa do limite que o espaço liberou para você.",
+  BLOQUEIO: "Com esse serviço, o atendimento entra num horário bloqueado.",
+  OCUPADO: "Com esse serviço, o atendimento bate no próximo horário da agenda.",
+  MEIA_NOITE: "Com esse serviço, o atendimento passaria da meia-noite.",
+  SERVICO_INVALIDO: "Escolha um serviço ativo.",
+  PROFISSIONAL_NAO_FAZ: "Esse profissional não faz esse serviço.",
+  LIMITE_ITENS: "O agendamento já tem o máximo de 10 serviços.",
+  ITEM_ORIGINAL: "O serviço original não pode ser removido.",
+  ITEM_INVALIDO: "Esse serviço já não está no agendamento.",
+  DESCONTO_INVALIDO: "Informe um desconto válido (em % no máximo 100).",
+  SEM_VALOR: "Não há valor a descontar neste agendamento.",
+  STATUS_INVALIDO: "Só dá para editar agendamentos pendentes ou confirmados.",
+  SEM_PERMISSAO: "Você não pode editar este agendamento.",
+  NAO_ENCONTRADO: "Agendamento não encontrado.",
+};
+const editErrorKey = (message?: string) => Object.keys(EDIT_ERRORS).find((k) => message?.includes(k));
+function editError(message?: string) {
+  const key = editErrorKey(message);
+  if (key === "DESCONTO_ACIMA_LIMITE") {
+    const lim = /DESCONTO_ACIMA_LIMITE:([\d.]+)/.exec(message ?? "")?.[1];
+    const pct = lim ? Number(lim).toLocaleString("pt-BR", { maximumFractionDigits: 2 }) : null;
+    return pct === "0" || !pct
+      ? "Você não pode dar desconto. Peça para a matriz ou a recepção."
+      : `Seu limite de desconto é de ${pct}%. Peça para a matriz ou a recepção se precisar de mais.`;
+  }
+  return (key && EDIT_ERRORS[key]) || "Não foi possível salvar a alteração.";
+}
+
+function refreshEdit() {
+  refresh();
+  revalidatePath("/admin/clientes", "layout");
+  revalidatePath("/admin/lembretes");
+}
+
+export async function getBookingEditInfo(id: string): Promise<{ ok: true; info: BookingEditInfo } | { ok: false; error: string }> {
+  await getAdminContext();
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("booking_edit_info", { p_booking: id });
+  if (error || !data) return { ok: false, error: editError(error?.message) };
+  const r = data as BookingEditInfo;
+  return {
+    ok: true,
+    info: {
+      ...r,
+      price: Number(r.price),
+      discount_input: r.discount_input === null ? null : Number(r.discount_input),
+      discount_amount: Number(r.discount_amount),
+      discount_limit: r.discount_limit === null ? null : Number(r.discount_limit),
+      items: r.items.map((i) => ({ ...i, price: Number(i.price) })),
+      services: r.services.map((s) => ({ ...s, price: Number(s.price) })),
+    },
+  };
+}
+
+export async function addBookingItem(
+  id: string,
+  serviceId: string,
+  extend: boolean
+): Promise<{ ok: true } | { ok: false; error: string; conflict?: EditConflict }> {
+  await getEditorContext();
+  const supabase = createClient();
+  const { error } = await supabase.rpc("booking_add_item", { p_booking: id, p_service: serviceId, p_extend: extend });
+  if (error) {
+    const key = editErrorKey(error.message);
+    const conflict = extend && (key === "BLOQUEIO" || key === "OCUPADO" || key === "MEIA_NOITE") ? key : undefined;
+    return { ok: false, error: editError(error.message), conflict };
+  }
+  refreshEdit();
+  return { ok: true };
+}
+
+export async function removeBookingItem(id: string, itemId: string): Promise<Result> {
+  await getEditorContext();
+  const supabase = createClient();
+  const { error } = await supabase.rpc("booking_remove_item", { p_booking: id, p_item: itemId });
+  if (error) return { ok: false, error: editError(error.message) };
+  refreshEdit();
+  return { ok: true };
+}
+
+export async function setBookingDiscount(
+  id: string,
+  kind: DiscountKind | null,
+  value: number | null,
+  reason?: string
+): Promise<Result> {
+  await getEditorContext();
+  if (kind && (!Number.isFinite(value) || (value ?? 0) <= 0)) return { ok: false, error: "Informe o valor do desconto." };
+  const supabase = createClient();
+  const { error } = await supabase.rpc("booking_set_discount", {
+    p_booking: id,
+    p_kind: kind,
+    p_value: kind ? value : null,
+    p_reason: kind ? reason?.trim().slice(0, 120) || null : null,
+  });
+  if (error) return { ok: false, error: editError(error.message) };
+  refreshEdit();
+  return { ok: true };
 }

@@ -1,5 +1,5 @@
 // Mensagens prontas de WhatsApp do estabelecimento para o cliente
-import { longDate } from "./format";
+import { brl, longDate } from "./format";
 import type { BookingStatus } from "./types";
 
 type B = {
@@ -9,7 +9,15 @@ type B = {
   booking_date: string;
   start_time: string;
   status: BookingStatus;
+  /** total final e quantidade de serviços: com mais de 1, a mensagem mostra o total */
+  price?: number;
+  items_count?: number;
 };
+
+/** Linha do total, só quando o agendamento tem mais de um serviço */
+function totalLine(itemsCount?: number, total?: number) {
+  return (itemsCount ?? 1) > 1 && total !== undefined ? `• Total: ${brl(Number(total))}\n` : "";
+}
 
 /** reviewUrl: link de avaliação, usado na mensagem de atendimento concluído */
 export function customerMessage(b: B, businessName: string, reviewUrl?: string) {
@@ -21,8 +29,9 @@ export function customerMessage(b: B, businessName: string, reviewUrl?: string) 
     case "confirmed":
       return (
         `Olá, ${first}! Seu horário está confirmado ✅\n\n` +
-        `• ${b.service_name}\n• Com ${b.professional_name}\n• ${when}\n\n` +
-        `Se precisar remarcar, é só responder esta mensagem.\n${businessName}`
+        `• ${b.service_name}\n• Com ${b.professional_name}\n• ${when}\n` +
+        totalLine(b.items_count, b.price) +
+        `\nSe precisar remarcar, é só responder esta mensagem.\n${businessName}`
       );
     case "completed":
       return (
@@ -58,25 +67,37 @@ export function reminderMessage(
   date: string,
   time: string,
   business: string,
-  isToday: boolean
+  isToday: boolean,
+  /** agendamento com mais de um serviço: mostra o total */
+  total?: { itemsCount: number; price: number }
 ) {
   const first = name.split(" ")[0];
   return (
     `Olá, ${first}! Passando para lembrar do seu horário ${isToday ? "hoje" : "amanhã"} ⏰\n\n` +
-    `• ${service}\n• Com ${pro}\n• ${longDate(date)}, às ${time.slice(0, 5)}\n\n` +
-    `Pode confirmar sua presença respondendo esta mensagem? Se precisar remarcar, é só avisar.\n${business}`
+    `• ${service}\n• Com ${pro}\n• ${longDate(date)}, às ${time.slice(0, 5)}\n` +
+    totalLine(total?.itemsCount, total?.price) +
+    `\nPode confirmar sua presença respondendo esta mensagem? Se precisar remarcar, é só avisar.\n${business}`
   );
 }
 
 /** Aviso de remarcação com a nova data, hora e profissional */
 export function rescheduleMessage(
-  b: { customer_name: string; service_name: string; professional_name: string; booking_date: string; start_time: string },
+  b: {
+    customer_name: string;
+    service_name: string;
+    professional_name: string;
+    booking_date: string;
+    start_time: string;
+    price?: number;
+    items_count?: number;
+  },
   businessName: string
 ) {
   const first = b.customer_name.split(" ")[0];
   return (
     `Olá, ${first}! Seu horário foi remarcado ✅\n\n` +
-    `• ${b.service_name}\n• Com ${b.professional_name}\n• ${longDate(b.booking_date)}, às ${b.start_time.slice(0, 5)}\n\n` +
-    `Se esse horário não for bom, é só responder esta mensagem.\n${businessName}`
+    `• ${b.service_name}\n• Com ${b.professional_name}\n• ${longDate(b.booking_date)}, às ${b.start_time.slice(0, 5)}\n` +
+    totalLine(b.items_count, b.price) +
+    `\nSe esse horário não for bom, é só responder esta mensagem.\n${businessName}`
   );
 }

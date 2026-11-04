@@ -1,7 +1,7 @@
 // Textos do lembrete automático (usado no servidor e no navegador)
 import { longDate } from "@/lib/format";
 
-/** Variáveis aceitas nos textos A e B */
+/** Variáveis aceitas nos textos A, B e C */
 export const TEMPLATE_VARS = [
   { key: "primeiro_nome", label: "primeiro nome" },
   { key: "servico", label: "serviço" },
@@ -23,7 +23,14 @@ export const DEFAULT_TEMPLATE_B =
   "Seu horário de {servico} com {profissional} está marcado para {data}, às {hora}.\n\n" +
   "Responda esta mensagem para confirmar. Se surgir algum imprevisto, é só avisar que a gente remarca.\n{espaco}";
 
-export const DEFAULT_TEMPLATES = [DEFAULT_TEMPLATE_A, DEFAULT_TEMPLATE_B] as const;
+// Igual ao default de whatsapp_settings.template_c (migration 34): mudar nos dois lugares.
+export const DEFAULT_TEMPLATE_C =
+  "{primeiro_nome}, seu horário está chegando ✨\n\n" +
+  "• {data}, às {hora}\n• {servico} com {profissional}\n\n" +
+  "Estamos te esperando! Se precisar remarcar ou surgir algum imprevisto, é só responder esta mensagem.\n{espaco}";
+
+/** Textos padrão na ordem do rodízio (variant 0, 1, 2) */
+export const DEFAULT_TEMPLATES = [DEFAULT_TEMPLATE_A, DEFAULT_TEMPLATE_B, DEFAULT_TEMPLATE_C] as const;
 
 export type TemplateData = {
   customerName: string;

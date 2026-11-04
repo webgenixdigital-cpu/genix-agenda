@@ -1,7 +1,20 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { AlertTriangle, CheckCircle2, Loader2, Lock, LogOut, QrCode, RefreshCw, RotateCcw, WifiOff } from "lucide-react";
+import {
+  Check,
+  CheckCircle2,
+  ChevronDown,
+  Info,
+  Loader2,
+  Lock,
+  LogOut,
+  QrCode,
+  RefreshCw,
+  RotateCcw,
+  ShieldCheck,
+  WifiOff,
+} from "lucide-react";
 import { toast } from "sonner";
 import {
   disconnectWhatsapp,
@@ -34,10 +47,26 @@ export type WhatsappPanelStatus = {
   risk_accepted_at: string | null;
   template_a: string | null;
   template_b: string | null;
+  /** migration 34; antes dela vem undefined (o editor usa o padrão) */
+  template_c?: string | null;
 };
 
-const RISK_TEXT =
-  "Integração não oficial do WhatsApp: existe risco de bloqueio do número pelo WhatsApp. Recomendamos usar um número dedicado ao atendimento.";
+/** Pontos do aviso de risco (recolhido no fim da seção e no aceite ao ligar) */
+function RiskPoints({ className }: { className?: string }) {
+  return (
+    <ul className={cn("list-disc space-y-1 pl-4", className)}>
+      <li>Esta é uma integração não oficial do WhatsApp.</li>
+      <li>Use um número dedicado ao atendimento, não o seu número pessoal.</li>
+      <li>O WhatsApp pode bloquear o número conectado, temporária ou definitivamente.</li>
+    </ul>
+  );
+}
+
+const SAFE_SENDING = [
+  { title: "Limite por hora", text: "no máximo 6 mensagens por hora, com 10 minutos entre uma e outra." },
+  { title: "3 versões de mensagem", text: "os lembretes alternam entre 3 textos diferentes." },
+  { title: "Horário comercial", text: "só entre 8h e 20h e apenas para agendamentos confirmados." },
+] as const;
 
 const QR_REFRESH_MS = 30_000; // troca o QR
 const STATE_POLL_MS = 5_000; // confere se já conectou
@@ -64,6 +93,7 @@ export function WhatsappForm({
   const [checkedAt, setCheckedAt] = useState(initial.status_checked_at);
   const [auto, setAuto] = useState(initial.auto_enabled);
   const [riskOpen, setRiskOpen] = useState(false);
+  const [riskAcceptedAt, setRiskAcceptedAt] = useState(initial.risk_accepted_at);
   const [accepted, setAccepted] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [pending, start] = useTransition();
@@ -109,17 +139,23 @@ export function WhatsappForm({
   }
 
   function toggle(next: boolean) {
-    if (next) {
+    // primeira vez: o aviso abre junto com o aceite (obrigatório também no banco)
+    if (next && !riskAcceptedAt) {
       setAccepted(false);
       setRiskOpen(true);
       return;
     }
     start(async () => {
-      const r = await setWhatsappAuto(false, false);
+      const r = await setWhatsappAuto(next, false);
       if (!r) return;
       if (r.ok) {
-        setAuto(false);
-        toast.success("Lembretes automáticos desligados");
+        setAuto(next);
+        toast.success(next ? "Lembretes automáticos ativados" : "Lembretes automáticos desligados");
+      } else if (next && r.error.includes("aviso de risco")) {
+        // o banco não encontrou o aceite: pede de novo
+        setRiskAcceptedAt(null);
+        setAccepted(false);
+        setRiskOpen(true);
       } else toast.error(r.error);
     });
   }
@@ -130,6 +166,7 @@ export function WhatsappForm({
       if (!r) return;
       if (r.ok) {
         setAuto(true);
+        setRiskAcceptedAt(new Date().toISOString());
         setRiskOpen(false);
         toast.success("Lembretes automáticos ativados");
       } else toast.error(r.error);
@@ -138,21 +175,6 @@ export function WhatsappForm({
 
   return (
     <div className="space-y-5">
-      {/* Aviso de risco (sempre visível) */}
-      <div className="flex gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950" data-testid="whatsapp-aviso-risco">
-        <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
-        <div className="space-y-1">
-          <p className="font-semibold">Antes de conectar, leia com atenção</p>
-          <ul className="list-disc space-y-0.5 pl-4">
-            <li>Esta é uma integração <strong>não oficial</strong> do WhatsApp.</li>
-            <li>
-              Use um <strong>número dedicado</strong> ao atendimento, não o seu número pessoal.
-            </li>
-            <li>O WhatsApp pode <strong>bloquear o número</strong> conectado, temporária ou definitivamente.</li>
-          </ul>
-        </div>
-      </div>
-
       {/* Conexão */}
       <div
         className={cn(
@@ -214,8 +236,7 @@ export function WhatsappForm({
         <span>
           <span className="block font-semibold">Enviar lembretes automaticamente</span>
           <span className="text-sm text-muted-foreground">
-            Só para agendamentos confirmados, entre 08:00 e 20:00, a partir da véspera, com no máximo 6 mensagens por hora e
-            10 minutos entre uma e outra. O que não sair continua na fila.
+            Lembretes a partir da véspera, em ritmo seguro. O que não sair continua na fila.
           </span>
         </span>
         <Switch
@@ -226,15 +247,60 @@ export function WhatsappForm({
         />
       </label>
 
-      <TemplatesEditor initial={[initial.template_a, initial.template_b]} businessName={businessName} />
+      <TemplatesEditor
+        initial={[initial.template_a, initial.template_b, initial.template_c ?? null]}
+        businessName={businessName}
+      />
+
+      {/* Informativo: como o envio protege o número */}
+      <div className="flex gap-3 rounded-xl border border-green-200 bg-green-50/60 p-4 text-sm" data-testid="whatsapp-envio-inteligente">
+        <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-green-700" />
+        <div className="min-w-0 space-y-2">
+          <p className="font-semibold text-green-900">Envio inteligente, pensado para proteger o seu número</p>
+          <p className="text-muted-foreground">
+            O WhatsApp identifica e bloqueia robôs que disparam muitas mensagens ao mesmo tempo. Por isso, o Genix Agenda
+            envia como uma pessoa enviaria:
+          </p>
+          <ul className="space-y-1.5">
+            {SAFE_SENDING.map((s) => (
+              <li key={s.title} className="flex gap-2">
+                <Check className="mt-0.5 h-4 w-4 shrink-0 text-green-700" />
+                <span className="min-w-0">
+                  <strong className="font-semibold">{s.title}:</strong> {s.text}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      {/* Aviso de risco, recolhido (o aceite aparece ao ligar pela primeira vez) */}
+      <details className="group rounded-xl border bg-white text-sm text-muted-foreground" data-testid="whatsapp-aviso-risco">
+        <summary
+          className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 px-4 py-2 [&::-webkit-details-marker]:hidden"
+          data-testid="btn-whatsapp-sobre-integracao"
+        >
+          Sobre a integração com o WhatsApp
+          <ChevronDown className="h-4 w-4 shrink-0 transition-transform group-open:rotate-180" />
+        </summary>
+        <div className="px-4 pb-4 text-xs leading-relaxed">
+          <RiskPoints />
+          {riskAcceptedAt && <p className="mt-2">Aviso aceito em {when(riskAcceptedAt)}.</p>}
+        </div>
+      </details>
 
       <Dialog open={riskOpen} onOpenChange={setRiskOpen}>
         <DialogContent className="max-h-[92svh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-amber-600" /> Antes de ativar
+              <Info className="h-5 w-5 text-muted-foreground" /> Antes de ativar
             </DialogTitle>
-            <DialogDescription>{RISK_TEXT}</DialogDescription>
+            <DialogDescription asChild>
+              <div className="text-sm text-muted-foreground">
+                <p className="mb-2">Sobre a integração com o WhatsApp:</p>
+                <RiskPoints />
+              </div>
+            </DialogDescription>
           </DialogHeader>
           <label className="flex min-h-11 cursor-pointer items-start gap-3 rounded-xl border p-4 text-sm">
             <input
@@ -402,12 +468,14 @@ function QrConnect({ onConnected }: { onConnected: (phone: string | null) => voi
 }
 
 // ---------------------------------------------------------------------
-// Textos A/B (alternam a cada envio)
+// Textos A, B e C (alternam a cada envio: A → B → C → A)
 // ---------------------------------------------------------------------
+const LETTERS = ["a", "b", "c"] as const;
+
 function TemplatesEditor({ initial, businessName }: { initial: (string | null)[]; businessName: string }) {
-  const [texts, setTexts] = useState<string[]>([initial[0] ?? DEFAULT_TEMPLATES[0], initial[1] ?? DEFAULT_TEMPLATES[1]]);
+  const [texts, setTexts] = useState<string[]>(() => DEFAULT_TEMPLATES.map((d, i) => initial[i] || d));
   const [pending, start] = useTransition();
-  const refs = [useRef<HTMLTextAreaElement>(null), useRef<HTMLTextAreaElement>(null)];
+  const refs = [useRef<HTMLTextAreaElement>(null), useRef<HTMLTextAreaElement>(null), useRef<HTMLTextAreaElement>(null)];
 
   const sample = {
     customerName: "Ana Souza",
@@ -437,8 +505,8 @@ function TemplatesEditor({ initial, businessName }: { initial: (string | null)[]
   function save() {
     start(async () => {
       // texto igual ao padrão é gravado vazio (acompanha melhorias futuras do padrão)
-      const [a, b] = texts.map((t, i) => (t.trim() === DEFAULT_TEMPLATES[i].trim() ? "" : t));
-      const r = await saveWhatsappTemplates(a, b);
+      const [a, b, c] = texts.map((t, i) => (t.trim() === DEFAULT_TEMPLATES[i].trim() ? "" : t));
+      const r = await saveWhatsappTemplates(a, b, c);
       if (!r) return;
       if (r.ok) toast.success("Textos salvos");
       else toast.error(r.error);
@@ -449,11 +517,11 @@ function TemplatesEditor({ initial, businessName }: { initial: (string | null)[]
     <div className="space-y-5">
       <div>
         <p className="font-semibold">Textos do lembrete</p>
-        <p className="text-sm text-muted-foreground">Os dois textos se alternam para a mensagem não ser sempre igual.</p>
+        <p className="text-sm text-muted-foreground">Os três textos se alternam para a mensagem não ser sempre igual.</p>
       </div>
 
       {texts.map((t, i) => {
-        const letter = i === 0 ? "a" : "b";
+        const letter = LETTERS[i];
         return (
           <div key={letter} className="space-y-2">
             <div className="flex items-center justify-between gap-2">

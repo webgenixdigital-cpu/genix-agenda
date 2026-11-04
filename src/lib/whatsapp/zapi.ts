@@ -2,6 +2,7 @@
 // Docs: https://developer.z-api.io — cada instância tem id + token, e a conta
 // da Genix tem um Client-Token (cabeçalho de segurança).
 import type { QrResult, SendResult, StatusResult, WhatsAppProvider } from "./provider";
+import { toWhatsappNumber } from "./phone";
 
 const BASE = "https://api.z-api.io/instances";
 const TIMEOUT_MS = 10_000;
@@ -45,8 +46,8 @@ const looksDisconnected = (t: string) => /not connected|disconnect|desconect|qr 
 export function createZapiProvider(c: Creds): WhatsAppProvider {
   return {
     async sendText(phone, text): Promise<SendResult> {
-      // telefone do banco: só dígitos, sem o 55
-      const r = await call(c, "send-text", { method: "POST", body: { phone: `55${phone}`, message: text } });
+      // telefone do banco (normalize_phone) + 55
+      const r = await call(c, "send-text", { method: "POST", body: { phone: toWhatsappNumber(phone), message: text } });
 
       if (r.kind === "timeout") return { ok: false, reason: "TIMEOUT", transient: true, disconnected: false };
       if (r.kind === "network") return { ok: false, reason: "REDE", transient: true, disconnected: false };

@@ -6,6 +6,7 @@ import { LinkForm } from "@/components/admin/configuracoes/link-form";
 import { HoursForm } from "@/components/admin/configuracoes/hours-form";
 import { WhatsappForm, type WhatsappPanelStatus } from "@/components/admin/configuracoes/whatsapp-form";
 import { getPlanContext } from "@/lib/plan";
+import { defaultProviderName } from "@/lib/whatsapp/provider";
 import { loadFiscal } from "@/lib/faturamento-data";
 import { FiscalForm } from "@/components/admin/configuracoes/fiscal-form";
 import { ConfirmModeForm } from "@/components/admin/configuracoes/confirm-mode-form";
@@ -15,6 +16,8 @@ import { getOnboarding } from "@/lib/onboarding";
 import { ReviewOnboardingLink } from "@/components/admin/configuracoes/review-onboarding-link";
 
 export const dynamic = "force-dynamic";
+// criar a instância da Evolution espera o primeiro QR (~5 s + rede)
+export const maxDuration = 30;
 
 type FullBusiness = {
   id: string;
@@ -54,6 +57,12 @@ export default async function ConfiguracoesPage() {
   // "Rever configuração inicial" só quando o cartão do Início teria algo a mostrar
   const onboarding = role === "viewer" || !plan.internal ? await getOnboarding(business as never, plan) : null;
   const canReviewOnboarding = !!onboarding && onboarding.doneCount < onboarding.total;
+
+  const waPanel = (wa as WhatsappPanelStatus | null) ?? null;
+  // instância da Evolution, ou conexão nova com WHATSAPP_PROVIDER=evolution (Z-API já cadastrada continua Z-API)
+  const waEvolution =
+    waPanel?.provider === "evolution" ||
+    (defaultProviderName() === "evolution" && !(waPanel?.provider === "zapi" && waPanel.has_instance));
 
   return (
     <main className="mx-auto max-w-3xl space-y-10 p-4 md:p-8">
@@ -106,14 +115,20 @@ export default async function ConfiguracoesPage() {
         <DiscountForm initial={Number(b.staff_discount_max_pct ?? 0)} readOnly={role !== "owner"} />
       </Section>
 
-      {/* WhatsApp automático (beta): só aparece para espaço liberado pela Genix, num plano pago */}
-      {plan.tier === "completo" && (wa as WhatsappPanelStatus | null)?.genix_enabled && (
+      {/* WhatsApp automático (beta), num plano pago. Evolution: o dono conecta pelo QR antes
+          da liberação da Genix (sem ela nada é enviado). Z-API: só depois da liberação. */}
+      {plan.tier === "completo" && waPanel && (waEvolution || waPanel.genix_enabled) && (
         <Section
           id="whatsapp"
           title="WhatsApp automático (beta)"
           description="Lembrete de véspera enviado sozinho do WhatsApp do seu espaço."
         >
-          <WhatsappForm initial={wa as WhatsappPanelStatus} businessName={b.name} canEdit={role === "owner"} />
+          <WhatsappForm
+            initial={waPanel}
+            selfConnect={waEvolution}
+            businessName={b.name}
+            canEdit={role === "owner"}
+          />
         </Section>
       )}
 

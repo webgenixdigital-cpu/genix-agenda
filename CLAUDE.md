@@ -58,6 +58,8 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
 | `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | navegador | Cloudflare Turnstile (site key pública); local usa as chaves de teste da Cloudflare |
 | `TURNSTILE_SECRET_KEY` | **só servidor** | valida o token na server action da vitrine; local usa a secret de teste da Cloudflare |
 | `CRON_SECRET` | **só servidor** | protege `/api/whatsapp/tick`; o mesmo valor fica no Vault do Supabase (`supabase/manual/whatsapp-cron.sql`) |
+| `WHATSAPP_PROVIDER` | só servidor | `evolution` ou `zapi` (padrão `zapi`): provider das conexões **novas**; cada linha de `whatsapp_instances` guarda o seu |
+| `EVOLUTION_API_URL` / `EVOLUTION_API_KEY` | **só servidor** | Evolution API v2 self-hosted (`https://wa.genixagenda.com.br`); a chave global só cria/apaga instâncias, o resto usa o token da instância (coluna `token`, sem grant para `authenticated`) |
 | `WHATSAPP_SEND_ENABLED` | só servidor | `1` liga os envios automáticos; sem ela nada sai (local fica desligado: o banco é o mesmo da produção) |
 | `PLANS_PREVIEW` | só servidor, **só local** | `1` no `.env.local` + `npm run dev`: tabela de preços, Assinatura e actions tratam os planos novos (`gratis`, `profissional_*`, `equipe_*`) como ativos mesmo com `active = false`, para testar no sandbox do Asaas antes da 28b. Nunca liga com `NODE_ENV=production` (`next build`/`start`, Vercel); **não cadastrar na Vercel**. Lógica em `lib/plans-server.ts` |
 
@@ -99,9 +101,11 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
 - **Demo pública** (`/demo`) entra no Lumina como `viewer`; ao salvar, o servidor redireciona com `?demo=bloqueado`.
 - **Buscadores (Google, 30):** `sitemap.ts` lista estáticas, nichos ativos (`/para`, `/explorar`) e vitrines publicadas que não são demo nem `businesses.search_hidden`; `robots.ts` bloqueia painel, `/genix`, `/api`, `/auth`, `/demo`, cadastro/senha e `/v/*/avaliar`. `search_hidden` só a Genix muda (`/genix?aba=buscadores`; gatilho no banco); contas novas nascem visíveis. Vitrine oculta/demo e o painel têm `noindex`.
 - **Avaliações** próprias pós-atendimento (link único por atendimento concluído), não Google.
-- **WhatsApp:** links `wa.me` (fila de um toque) + **lembrete automático beta via Z-API** (Completo, liberado pela Genix
+- **WhatsApp:** links `wa.me` (fila de um toque) + **lembrete automático beta** (planos pagos, liberado pela Genix
   por espaço em `/genix?aba=whatsapp`; credenciais só no servidor; camada `lib/whatsapp/provider.ts`; relógio pg_cron →
-  `/api/whatsapp/tick`). API oficial com cota mensal — etapa futura, como outra implementação do provider.
+  `/api/whatsapp/tick`). Provider padrão **Evolution API** (33): o dono conecta pelo QR em Configurações (instância
+  `genix_<12 hex do uuid>`), mas sem a liberação nada sai; Z-API segue como alternativa. Ritmo por número (6/h, 10 min),
+  08:00–20:00 no `businesses.timezone`, só `confirmed`; envio "desconectado" desfaz a reserva (fica na fila). API oficial com cota mensal — etapa futura, como outra implementação do provider.
 - Recebimento de **sinal via Pix** do cliente final: decisão adiada (avaliar subcontas Asaas).
 
 ## 5. Segurança e banco

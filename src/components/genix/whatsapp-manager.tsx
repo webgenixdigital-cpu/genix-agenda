@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { reasonLabel } from "@/lib/whatsapp/templates";
+import { maskPhone } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 /** Linha de genix_whatsapp_overview() — sem credenciais */
@@ -26,6 +27,9 @@ export type WhatsappOverview = {
   sent_7d: number;
   failed_7d: number;
   last_reason: string | null;
+  provider: "zapi" | "evolution" | null;
+  instance_name: string | null;
+  phone_number: string | null;
 };
 
 const STATUS: Record<WhatsappOverview["status"], { label: string; cls: string }> = {
@@ -37,15 +41,24 @@ const STATUS: Record<WhatsappOverview["status"], { label: string; cls: string }>
 const when = (ts: string) =>
   new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).format(new Date(ts));
 
-export function WhatsappManager({ rows }: { rows: WhatsappOverview[] }) {
+export function WhatsappManager({
+  rows,
+  defaultProvider,
+}: {
+  rows: WhatsappOverview[];
+  /** WHATSAPP_PROVIDER: provider das conexões novas */
+  defaultProvider: "zapi" | "evolution";
+}) {
   const [q, setQ] = useState("");
   const list = rows.filter((r) => `${r.name} ${r.slug}`.toLowerCase().includes(q.trim().toLowerCase()));
 
   return (
     <div className="space-y-4">
       <p className="max-w-2xl text-sm text-muted-foreground">
-        Integração não oficial (Z-API, beta). A Genix contrata 1 instância por espaço; as credenciais ficam só no servidor e
-        não aparecem de volta nesta tela. Campo vazio mantém o valor já cadastrado.
+        Integração não oficial (beta). Conexões novas usam{" "}
+        <strong>{defaultProvider === "evolution" ? "a Evolution API" : "a Z-API"}</strong>. Na Evolution, o próprio espaço
+        conecta o número pelo QR Code em Configurações e aqui a Genix só libera o envio. Na Z-API, a Genix cadastra as
+        credenciais (ficam só no servidor; campo vazio mantém o valor já cadastrado).
       </p>
       <Input
         className="h-11 max-w-sm"
@@ -56,14 +69,16 @@ export function WhatsappManager({ rows }: { rows: WhatsappOverview[] }) {
       />
       <ul className="space-y-3">
         {list.map((r) => (
-          <InstanceCard key={r.business_id} row={r} />
+          <InstanceCard key={r.business_id} row={r} defaultProvider={defaultProvider} />
         ))}
       </ul>
     </div>
   );
 }
 
-function InstanceCard({ row }: { row: WhatsappOverview }) {
+function InstanceCard({ row, defaultProvider }: { row: WhatsappOverview; defaultProvider: "zapi" | "evolution" }) {
+  // mesma regra do servidor: Evolution, ou ainda sem Z-API cadastrada com a env em evolution
+  const evolution = row.provider === "evolution" || (defaultProvider === "evolution" && !row.has_credentials);
   const [pending, start] = useTransition();
   const [enabled, setEnabled] = useState(row.genix_enabled);
   const [instanceId, setInstanceId] = useState("");
@@ -108,6 +123,19 @@ function InstanceCard({ row }: { row: WhatsappOverview }) {
         </span>
       </div>
 
+      {evolution ? (
+        <p className="mt-4 break-words text-sm text-muted-foreground" data-testid={`whatsapp-evolution-${row.slug}`}>
+          Evolution ·{" "}
+          {row.instance_name ? (
+            <>
+              instância <code className="text-foreground">{row.instance_name}</code>
+              {row.phone_number ? ` · número ${maskPhone(row.phone_number)}` : " · número ainda não conectado"}
+            </>
+          ) : (
+            "o espaço ainda não conectou o número"
+          )}
+        </p>
+      ) : (
       <div className="mt-4 grid gap-3 md:grid-cols-3">
         <div className="space-y-1.5">
           <Label htmlFor={`wa-inst-${id}`}>Instance id</Label>
@@ -148,6 +176,7 @@ function InstanceCard({ row }: { row: WhatsappOverview }) {
           />
         </div>
       </div>
+      )}
 
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <label className="flex min-h-11 cursor-pointer items-center gap-3">

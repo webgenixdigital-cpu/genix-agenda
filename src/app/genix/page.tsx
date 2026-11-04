@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { NicheManager, type AdminNiche } from "@/components/genix/niche-manager";
 import { ProfileFieldsManager, type AdminField } from "@/components/genix/profile-fields-manager";
 import { WhatsappManager, type WhatsappOverview } from "@/components/genix/whatsapp-manager";
+import { defaultProviderName } from "@/lib/whatsapp/provider";
 import { RevenueLimitsManager } from "@/components/genix/revenue-limits-manager";
 import { loadLimits } from "@/lib/faturamento-data";
 import { todayISO } from "@/lib/dates";
@@ -140,6 +141,7 @@ export default async function GenixAdminPage({ searchParams }: Props) {
           <RevenueLimitsManager limits={limits} today={todayISO()} />
         ) : aba === "whatsapp" ? (
           <WhatsappManager
+            defaultProvider={defaultProviderName()}
             rows={((whatsapp ?? []) as WhatsappOverview[]).map((r) => ({
               ...r,
               sent_7d: Number(r.sent_7d),

@@ -3,7 +3,7 @@
 // Regras de janela, ritmo, fila e reconferência ficam no banco
 // (next_auto_reminder / claim_auto_reminder / finish_auto_reminder).
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getProvider, type InstanceRow } from "./provider";
+import { getProvider, INSTANCE_COLUMNS, type InstanceRow } from "./provider";
 import { DEFAULT_TEMPLATES, renderTemplate } from "./templates";
 
 const STATUS_TTL_MS = 30 * 60_000; // status() só se a última conferência tem > 30 min (ou há lembrete pronto)
@@ -55,13 +55,14 @@ export async function runWhatsappTick(opts: { startNewBefore: number; sendBefore
   async function processOne(c: Candidate) {
     const { data: inst } = await db
       .from("whatsapp_instances")
-      .select("provider, instance_id, token, client_token")
+      .select(INSTANCE_COLUMNS)
       .eq("business_id", c.business_id)
       .maybeSingle();
     const provider = inst ? getProvider(inst as InstanceRow) : null;
     if (!provider) return;
 
-    // 1) conexão da instância
+    // 1) conexão da instância: estado diferente de conectado ("open" na Evolution)
+    //    marca "desconectado" e pula o espaço; os agendamentos continuam na fila
     const st = await provider.status();
     summary.checked++;
     if (!st.ok) return; // não deu para conferir: não envia neste tick
@@ -102,7 +103,8 @@ export async function runWhatsappTick(opts: { startNewBefore: number; sendBefore
     if (res.ok) summary.sent++;
     else {
       summary.failed++;
-      // desconectou: pausa o espaço até reconectar
+      // desconectou: o banco desfaz a reserva (agendamento continua na fila) e o
+      // espaço fica pausado até reconectar; nada de nova tentativa neste tick
       if (res.disconnected) {
         await db
           .from("whatsapp_instances")

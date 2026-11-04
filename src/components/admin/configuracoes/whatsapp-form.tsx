@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { AlertTriangle, CheckCircle2, Loader2, QrCode, RefreshCw, RotateCcw, WifiOff } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Loader2, Lock, LogOut, QrCode, RefreshCw, RotateCcw, WifiOff } from "lucide-react";
 import { toast } from "sonner";
 import {
+  disconnectWhatsapp,
   getWhatsappQr,
   refreshWhatsappStatus,
   saveWhatsappTemplates,
@@ -16,10 +17,17 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { DEFAULT_TEMPLATES, TEMPLATE_VARS, renderTemplate } from "@/lib/whatsapp/templates";
 import { addDaysISO, todayISO } from "@/lib/dates";
+import { maskPhone } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export type WhatsappPanelStatus = {
+  /** liberado pela Genix E com instância pronta */
   genix_enabled: boolean;
+  /** só a liberação da Genix */
+  released?: boolean;
+  provider?: "zapi" | "evolution" | null;
+  has_instance?: boolean;
+  phone_number?: string | null;
   status: "unknown" | "connected" | "disconnected";
   status_checked_at: string | null;
   auto_enabled: boolean;
@@ -31,8 +39,9 @@ export type WhatsappPanelStatus = {
 const RISK_TEXT =
   "Integração não oficial do WhatsApp: existe risco de bloqueio do número pelo WhatsApp. Recomendamos usar um número dedicado ao atendimento.";
 
-const QR_REFRESH_MS = 20_000;
-const QR_MAX_TRIES = 15; // ~5 min com o QR aberto
+const QR_REFRESH_MS = 30_000; // troca o QR
+const STATE_POLL_MS = 5_000; // confere se já conectou
+const QR_EXPIRE_MS = 3 * 60_000; // depois disso, pede um QR novo
 
 const when = (ts: string) =>
   new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).format(new Date(ts));
@@ -41,25 +50,37 @@ export function WhatsappForm({
   initial,
   businessName,
   canEdit,
+  selfConnect,
 }: {
   initial: WhatsappPanelStatus;
   businessName: string;
   /** só a matriz; a demonstração vê a tela sem os botões de conexão */
   canEdit: boolean;
+  /** Evolution: o próprio espaço conecta (antes da liberação). Z-API: só com a liberação. */
+  selfConnect: boolean;
 }) {
   const [connected, setConnected] = useState(initial.status === "connected");
+  const [phone, setPhone] = useState(initial.phone_number ?? null);
   const [checkedAt, setCheckedAt] = useState(initial.status_checked_at);
   const [auto, setAuto] = useState(initial.auto_enabled);
   const [riskOpen, setRiskOpen] = useState(false);
   const [accepted, setAccepted] = useState(false);
+  const [logoutOpen, setLogoutOpen] = useState(false);
   const [pending, start] = useTransition();
+  const released = initial.released ?? initial.genix_enabled;
 
-  if (!initial.genix_enabled) {
+  if (!selfConnect && !initial.genix_enabled) {
     return (
       <p className="rounded-xl border border-dashed bg-white p-4 text-sm text-muted-foreground" data-testid="whatsapp-nao-liberado">
         O envio automático está em fase beta e é liberado pela equipe Genix. Fale com a gente para ativar no seu espaço.
       </p>
     );
+  }
+
+  function markConnected(p: string | null) {
+    setConnected(true);
+    setPhone(p);
+    setCheckedAt(new Date().toISOString());
   }
 
   function refresh() {
@@ -68,8 +89,22 @@ export function WhatsappForm({
       if (!r) return; // demonstração: o servidor redirecionou
       if (!r.ok) return void toast.error(r.error);
       setConnected(r.connected);
+      setPhone(r.phone);
       setCheckedAt(new Date().toISOString());
       toast.success(r.connected ? "WhatsApp conectado" : "WhatsApp desconectado");
+    });
+  }
+
+  function disconnect() {
+    start(async () => {
+      const r = await disconnectWhatsapp();
+      if (!r) return;
+      if (!r.ok) return void toast.error(r.error);
+      setConnected(false);
+      setPhone(null);
+      setCheckedAt(new Date().toISOString());
+      setLogoutOpen(false);
+      toast.success("WhatsApp desconectado");
     });
   }
 
@@ -103,54 +138,92 @@ export function WhatsappForm({
 
   return (
     <div className="space-y-5">
+      {/* Aviso de risco (sempre visível) */}
+      <div className="flex gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950" data-testid="whatsapp-aviso-risco">
+        <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
+        <div className="space-y-1">
+          <p className="font-semibold">Antes de conectar, leia com atenção</p>
+          <ul className="list-disc space-y-0.5 pl-4">
+            <li>Esta é uma integração <strong>não oficial</strong> do WhatsApp.</li>
+            <li>
+              Use um <strong>número dedicado</strong> ao atendimento, não o seu número pessoal.
+            </li>
+            <li>O WhatsApp pode <strong>bloquear o número</strong> conectado, temporária ou definitivamente.</li>
+          </ul>
+        </div>
+      </div>
+
       {/* Conexão */}
       <div
         className={cn(
           "flex flex-col gap-3 rounded-xl border p-4 sm:flex-row sm:items-center",
-          connected ? "border-green-200 bg-green-50" : "border-amber-300 bg-amber-50"
+          connected ? "border-green-200 bg-green-50" : "border-red-200 bg-red-50"
         )}
         data-testid="whatsapp-status"
       >
         {connected ? (
           <CheckCircle2 className="h-6 w-6 shrink-0 text-green-700" />
         ) : (
-          <WifiOff className="h-6 w-6 shrink-0 text-amber-700" />
+          <WifiOff className="h-6 w-6 shrink-0 text-red-700" />
         )}
         <div className="min-w-0 flex-1">
-          <p className="font-semibold">{connected ? "WhatsApp conectado" : "WhatsApp desconectado"}</p>
+          <p className="font-semibold" data-testid="whatsapp-status-texto">
+            {connected ? "WhatsApp conectado" : "WhatsApp desconectado"}
+            {connected && phone && <span className="font-normal"> · {maskPhone(phone)}</span>}
+          </p>
           <p className="text-sm text-muted-foreground">
             {connected
               ? "Os lembretes automáticos saem deste número."
-              : "Conecte o número pelo QR Code. Enquanto estiver desconectado, nada é enviado."}
+              : "Conecte o número pelo QR Code. Enquanto estiver desconectado, nada é enviado e os lembretes ficam na fila."}
             {checkedAt && ` Conferido em ${when(checkedAt)}.`}
           </p>
         </div>
         {canEdit && (
-          <Button variant="outline" className="h-11 bg-white" disabled={pending} onClick={refresh} data-testid="btn-whatsapp-status">
-            <RefreshCw className="mr-1.5 h-4 w-4" /> Atualizar status
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" className="h-11 bg-white" disabled={pending} onClick={refresh} data-testid="btn-whatsapp-status">
+              <RefreshCw className="mr-1.5 h-4 w-4" /> Atualizar status
+            </Button>
+            {connected && selfConnect && (
+              <Button
+                variant="outline"
+                className="h-11 bg-white text-red-700 hover:text-red-800"
+                disabled={pending}
+                onClick={() => setLogoutOpen(true)}
+                data-testid="btn-whatsapp-desconectar"
+              >
+                <LogOut className="mr-1.5 h-4 w-4" /> Desconectar
+              </Button>
+            )}
+          </div>
         )}
       </div>
 
-      {canEdit && !connected && (
-        <QrConnect
-          onConnected={() => {
-            setConnected(true);
-            setCheckedAt(new Date().toISOString());
-          }}
-        />
+      {canEdit && !connected && <QrConnect onConnected={markConnected} />}
+
+      {/* Liberação da Genix */}
+      {!released && (
+        <p className="flex gap-2 rounded-xl border border-dashed bg-white p-4 text-sm text-muted-foreground" data-testid="whatsapp-aguardando-liberacao">
+          <Lock className="mt-0.5 h-4 w-4 shrink-0" />
+          O envio automático está em fase beta e precisa ser liberado pela equipe Genix. Você já pode conectar o número; sem a
+          liberação, nenhuma mensagem é enviada.
+        </p>
       )}
 
       {/* Liga/desliga */}
-      <label className="flex cursor-pointer items-center justify-between gap-4 rounded-xl border p-4">
+      <label className={cn("flex items-center justify-between gap-4 rounded-xl border p-4", released ? "cursor-pointer" : "opacity-60")}>
         <span>
           <span className="block font-semibold">Enviar lembretes automaticamente</span>
           <span className="text-sm text-muted-foreground">
-            Só para agendamentos confirmados, a partir das 08:00 da véspera, no máximo 6 por hora. O que não for enviado
-            continua na fila de Lembretes.
+            Só para agendamentos confirmados, entre 08:00 e 20:00, a partir da véspera, com no máximo 6 mensagens por hora e
+            10 minutos entre uma e outra. O que não sair continua na fila.
           </span>
         </span>
-        <Switch checked={auto} onCheckedChange={toggle} disabled={pending} data-testid="switch-whatsapp-automatico" />
+        <Switch
+          checked={auto}
+          onCheckedChange={toggle}
+          disabled={pending || !canEdit || (!released && !auto)}
+          data-testid="switch-whatsapp-automatico"
+        />
       </label>
 
       <TemplatesEditor initial={[initial.template_a, initial.template_b]} businessName={businessName} />
@@ -183,68 +256,137 @@ export function WhatsappForm({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={logoutOpen} onOpenChange={setLogoutOpen}>
+        <DialogContent className="max-h-[92svh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Desconectar o WhatsApp?</DialogTitle>
+            <DialogDescription>
+              Os lembretes automáticos param até você conectar de novo pelo QR Code. Nada é apagado: os agendamentos continuam
+              na fila.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" className="h-11" onClick={() => setLogoutOpen(false)} data-testid="btn-whatsapp-desconectar-cancelar">
+              Cancelar
+            </Button>
+            <Button variant="destructive" className="h-11" disabled={pending} onClick={disconnect} data-testid="btn-whatsapp-desconectar-confirmar">
+              {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Desconectar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
 // ---------------------------------------------------------------------
-// QR Code: renova a cada 20 s enquanto aberto, para ao conectar
+// QR Code: cria a instância (se preciso) e mostra o QR; confere a conexão a
+// cada 5 s, troca o QR a cada 30 s e expira em 3 min (pede um novo).
 // ---------------------------------------------------------------------
-function QrConnect({ onConnected }: { onConnected: () => void }) {
+function QrConnect({ onConnected }: { onConnected: (phone: string | null) => void }) {
   const [open, setOpen] = useState(false);
+  const [expired, setExpired] = useState(false);
+  /** cada "Gerar novo QR" começa uma rodada nova */
+  const [round, setRound] = useState(0);
   const [image, setImage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const tries = useRef(0);
   const onConnectedRef = useRef(onConnected);
   onConnectedRef.current = onConnected;
 
   useEffect(() => {
     if (!open) return;
     let alive = true;
-    let timer: ReturnType<typeof setTimeout>;
+    let qrTimer: ReturnType<typeof setTimeout> | undefined;
+    let pollTimer: ReturnType<typeof setTimeout> | undefined;
+    const startedAt = Date.now();
 
-    async function load() {
-      tries.current++;
+    function done(phone: string | null) {
+      alive = false;
+      clearTimeout(qrTimer);
+      clearTimeout(pollTimer);
+      setOpen(false);
+      toast.success("WhatsApp conectado");
+      onConnectedRef.current(phone);
+    }
+
+    function expire() {
+      alive = false;
+      clearTimeout(qrTimer);
+      clearTimeout(pollTimer);
+      setImage(null);
+      setExpired(true);
+    }
+
+    async function loadQr() {
+      if (!alive) return;
+      if (Date.now() - startedAt > QR_EXPIRE_MS) return expire();
       const r = await getWhatsappQr();
       if (!alive || !r) return;
       if (!r.ok) {
         setError(r.error);
-      } else if ("connected" in r) {
-        setOpen(false);
-        toast.success("WhatsApp conectado");
-        onConnectedRef.current();
+        qrTimer = setTimeout(loadQr, QR_REFRESH_MS);
         return;
-      } else {
-        setError(null);
-        setImage(r.image);
       }
-      if (tries.current < QR_MAX_TRIES) timer = setTimeout(load, QR_REFRESH_MS);
-      else setOpen(false);
+      if ("connected" in r) return done(r.phone);
+      if ("waiting" in r) {
+        qrTimer = setTimeout(loadQr, 3_000); // QR ainda sendo gerado
+        return;
+      }
+      setError(null);
+      setImage(r.image);
+      qrTimer = setTimeout(loadQr, QR_REFRESH_MS);
     }
 
-    tries.current = 0;
-    load();
+    async function poll() {
+      if (!alive) return;
+      if (Date.now() - startedAt > QR_EXPIRE_MS) return expire();
+      const r = await refreshWhatsappStatus();
+      if (!alive || !r) return;
+      if (r.ok && r.connected) return done(r.phone);
+      pollTimer = setTimeout(poll, STATE_POLL_MS);
+    }
+
+    setExpired(false);
+    setError(null);
+    setImage(null);
+    loadQr();
+    pollTimer = setTimeout(poll, STATE_POLL_MS);
     return () => {
       alive = false;
-      clearTimeout(timer);
+      clearTimeout(qrTimer);
+      clearTimeout(pollTimer);
     };
-  }, [open]);
+  }, [open, round]);
 
   if (!open) {
     return (
       <Button className="h-11" onClick={() => setOpen(true)} data-testid="btn-whatsapp-qr">
-        <QrCode className="mr-1.5 h-4 w-4" /> Conectar pelo QR Code
+        <QrCode className="mr-1.5 h-4 w-4" /> Conectar WhatsApp
       </Button>
     );
   }
 
   return (
     <div className="flex flex-col items-center gap-3 rounded-xl border bg-white p-5 text-center" data-testid="whatsapp-qr">
-      {image ? (
-        // eslint-disable-next-line @next/next/no-img-element -- data URL vinda da Z-API
-        <img src={image} alt="QR Code para conectar o WhatsApp" className="h-60 w-60" />
+      {expired ? (
+        <div className="grid h-60 w-60 max-w-full place-items-center rounded-xl border border-dashed p-4" data-testid="whatsapp-qr-expirado">
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">O QR Code expirou.</p>
+            <Button
+              className="h-11"
+              onClick={() => setRound((n) => n + 1)}
+              data-testid="btn-whatsapp-qr-novo"
+            >
+              <RefreshCw className="mr-1.5 h-4 w-4" /> Gerar novo QR
+            </Button>
+          </div>
+        </div>
+      ) : image ? (
+        // eslint-disable-next-line @next/next/no-img-element -- data URL vinda do serviço de WhatsApp
+        <img src={image} alt="QR Code para conectar o WhatsApp" className="h-60 w-60 max-w-full" />
       ) : (
-        <div className="grid h-60 w-60 place-items-center">
+        <div className="grid h-60 w-60 max-w-full place-items-center">
           {error ? <p className="text-sm text-red-700">{error}</p> : <Loader2 className="h-8 w-8 animate-spin text-primary" />}
         </div>
       )}

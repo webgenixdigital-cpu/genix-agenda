@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getProvider, type InstanceRow } from "@/lib/whatsapp/provider";
+import { defaultProviderName, getProvider, INSTANCE_COLUMNS, type InstanceRow } from "@/lib/whatsapp/provider";
 
 type Result = { ok: true } | { ok: false; error: string };
 
@@ -43,9 +43,21 @@ export async function saveWhatsappInstance(input: {
   const db = createAdminClient();
   const { data: current } = await db
     .from("whatsapp_instances")
-    .select("instance_id, token, client_token")
+    .select("provider, instance_id, token, client_token")
     .eq("business_id", input.businessId)
     .maybeSingle();
+
+  // Evolution: a instância é criada pelo próprio espaço (QR Code); aqui só liberamos o envio
+  const zapiReady = !!current?.instance_id && !!current?.token && !!current?.client_token;
+  const typedCreds = Object.values(fields).some(Boolean);
+  if (current?.provider === "evolution" || (!zapiReady && !typedCreds && defaultProviderName() === "evolution")) {
+    const { error } = current
+      ? await db.from("whatsapp_instances").update({ genix_enabled: input.enabled }).eq("business_id", input.businessId)
+      : await db.from("whatsapp_instances").insert({ business_id: input.businessId, provider: "evolution", genix_enabled: input.enabled });
+    if (error) return { ok: false, error: "Não foi possível salvar a liberação." };
+    revalidatePath("/genix");
+    return { ok: true };
+  }
 
   const row: Record<string, string | boolean | null> = {
     business_id: input.businessId,
@@ -83,14 +95,14 @@ export async function testWhatsappInstance(businessId: string): Promise<{ ok: tr
   const db = createAdminClient();
   const { data: inst } = await db
     .from("whatsapp_instances")
-    .select("provider, instance_id, token, client_token")
+    .select(INSTANCE_COLUMNS)
     .eq("business_id", businessId)
     .maybeSingle();
   const provider = inst ? getProvider(inst as InstanceRow) : null;
-  if (!provider) return { ok: false, error: "Instância sem credenciais completas." };
+  if (!provider) return { ok: false, error: "Instância ainda não conectada pelo espaço ou sem credenciais completas." };
 
   const st = await provider.status();
-  if (!st.ok) return { ok: false, error: "A Z-API não respondeu. Confira as credenciais e tente de novo." };
+  if (!st.ok) return { ok: false, error: "O serviço de WhatsApp não respondeu. Tente de novo em instantes." };
 
   await db
     .from("whatsapp_instances")

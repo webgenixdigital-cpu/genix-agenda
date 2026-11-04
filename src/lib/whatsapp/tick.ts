@@ -13,7 +13,7 @@ type Candidate = { business_id: string; status: string; status_checked_at: strin
 
 type Claim = {
   send_id: string;
-  variant: 0 | 1;
+  variant: 0 | 1 | 2;
   template: string | null;
   phone: string;
   customer_name: string;
@@ -81,7 +81,7 @@ export async function runWhatsappTick(opts: { startNewBefore: number; sendBefore
     if (claimError || !claimed) return;
     const cl = claimed as Claim;
 
-    const text = renderTemplate(cl.template || DEFAULT_TEMPLATES[cl.variant], {
+    const text = renderTemplate(cl.template || DEFAULT_TEMPLATES[cl.variant] || DEFAULT_TEMPLATES[0], {
       customerName: cl.customer_name,
       serviceName: cl.service_name,
       professionalName: cl.professional_name,

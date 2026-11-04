@@ -223,12 +223,14 @@ export async function setWhatsappAuto(enabled: boolean, acceptRisk: boolean): Pr
   return { ok: true };
 }
 
-export async function saveWhatsappTemplates(a: string, b: string): Promise<Result> {
+export async function saveWhatsappTemplates(a: string, b: string, c: string): Promise<Result> {
   const { business } = await ownerContext();
-  if (a.length > 1000 || b.length > 1000) return { ok: false, error: "Cada texto pode ter no máximo 1000 caracteres." };
+  const texts = [a, b, c];
+  if (texts.some((t) => typeof t !== "string")) return { ok: false, error: "Textos inválidos." };
+  if (texts.some((t) => t.length > 1000)) return { ok: false, error: "Cada texto pode ter no máximo 1000 caracteres." };
 
   const supabase = createClient();
-  const { error } = await supabase.rpc("save_whatsapp_templates", { p_business: business.id, p_a: a, p_b: b });
+  const { error } = await supabase.rpc("save_whatsapp_templates", { p_business: business.id, p_a: a, p_b: b, p_c: c });
   if (error) return { ok: false, error: "Não foi possível salvar os textos." };
   refresh();
   return { ok: true };

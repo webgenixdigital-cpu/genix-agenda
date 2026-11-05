@@ -8,6 +8,7 @@
 --
 -- O Supabase chama https://genixagenda.com.br/api/whatsapp/tick a cada
 -- 5 minutos (sem www: redirecionamento perde o cabeçalho).
+-- A partir da 35, o job roda a cada minuto: whatsapp-cron-1min.sql.
 -- =====================================================================
 
 -- PARTE 1 — Extensões (Database → Extensions também funciona)

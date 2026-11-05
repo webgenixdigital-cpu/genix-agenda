@@ -1,4 +1,4 @@
-// Relógio dos lembretes automáticos (chamado a cada 5 min pela rota
+// Relógio dos lembretes automáticos (chamado a cada minuto pela rota
 // /api/whatsapp/tick). Só no servidor: usa o client de serviço.
 // Regras de janela, ritmo, fila e reconferência ficam no banco
 // (next_auto_reminder / claim_auto_reminder / finish_auto_reminder).

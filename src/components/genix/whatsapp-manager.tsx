@@ -30,6 +30,8 @@ export type WhatsappOverview = {
   provider: "zapi" | "evolution" | null;
   instance_name: string | null;
   phone_number: string | null;
+  /** próximo envio liberado (sorteado 7–13 min após o último resultado); null = livre */
+  next_send_at?: string | null;
 };
 
 const STATUS: Record<WhatsappOverview["status"], { label: string; cls: string }> = {
@@ -40,6 +42,8 @@ const STATUS: Record<WhatsappOverview["status"], { label: string; cls: string }>
 
 const when = (ts: string) =>
   new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).format(new Date(ts));
+const hour = (ts: string) =>
+  new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" }).format(new Date(ts));
 
 export function WhatsappManager({
   rows,
@@ -85,6 +89,10 @@ function InstanceCard({ row, defaultProvider }: { row: WhatsappOverview; default
   const [token, setToken] = useState("");
   const [clientToken, setClientToken] = useState("");
   const st = STATUS[row.status] ?? STATUS.unknown;
+  // horário vem do servidor; comparado com o relógio de quem abriu a página
+  const [nextSend] = useState(() =>
+    row.next_send_at && new Date(row.next_send_at).getTime() > Date.now() ? row.next_send_at : null
+  );
 
   function save() {
     start(async () => {
@@ -204,6 +212,11 @@ function InstanceCard({ row, defaultProvider }: { row: WhatsappOverview; default
           Últimos 7 dias: {row.sent_7d} {row.sent_7d === 1 ? "enviado" : "enviados"}, {row.failed_7d}{" "}
           {row.failed_7d === 1 ? "falha" : "falhas"}
           {row.last_reason && ` · última falha: ${reasonLabel(row.last_reason)}`}
+        </p>
+      )}
+      {nextSend && (
+        <p className="mt-1 text-xs text-muted-foreground" data-testid={`whatsapp-proximo-envio-${row.slug}`}>
+          Próximo envio após {hour(nextSend)}
         </p>
       )}
     </li>

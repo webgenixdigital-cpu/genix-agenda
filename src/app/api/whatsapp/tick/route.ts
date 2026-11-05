@@ -1,5 +1,6 @@
 // Relógio dos lembretes automáticos no WhatsApp.
-// Chamado a cada 5 min pelo pg_cron do Supabase (supabase/manual/whatsapp-cron.sql)
+// Chamado a cada minuto pelo pg_cron do Supabase (supabase/manual/whatsapp-cron.sql
+// e whatsapp-cron-1min.sql); o intervalo sorteado entre envios fica no banco (35).
 // com o cabeçalho Authorization: Bearer <CRON_SECRET>.
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";

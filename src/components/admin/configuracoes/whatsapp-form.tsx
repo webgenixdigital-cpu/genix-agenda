@@ -63,7 +63,7 @@ function RiskPoints({ className }: { className?: string }) {
 }
 
 const SAFE_SENDING = [
-  { title: "Limite por hora", text: "no máximo 6 mensagens por hora, com 10 minutos entre uma e outra." },
+  { title: "Limite por hora", text: "no máximo 6 mensagens por hora, com 7 a 13 minutos entre uma e outra (o intervalo varia)." },
   { title: "3 versões de mensagem", text: "os lembretes alternam entre 3 textos diferentes." },
   { title: "Horário comercial", text: "só entre 8h e 20h e apenas para agendamentos confirmados." },
 ] as const;

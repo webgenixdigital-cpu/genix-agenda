@@ -104,7 +104,8 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
 - **WhatsApp:** links `wa.me` (fila de um toque) + **lembrete automático beta** (planos pagos, liberado pela Genix
   por espaço em `/genix?aba=whatsapp`; credenciais só no servidor; camada `lib/whatsapp/provider.ts`; relógio pg_cron →
   `/api/whatsapp/tick`). Provider padrão **Evolution API** (33): o dono conecta pelo QR em Configurações (instância
-  `genix_<12 hex do uuid>`), mas sem a liberação nada sai; Z-API segue como alternativa. Ritmo por número (6/h, 10 min),
+  `genix_<12 hex do uuid>`), mas sem a liberação nada sai; Z-API segue como alternativa. Ritmo por número (6/h; intervalo sorteado 7–13 min + 0–59 s em
+  `whatsapp_instances.next_send_at`, 35, com piso de 7 min; relógio a cada minuto),
   08:00–20:00 no `businesses.timezone`, só `confirmed`; 3 textos em rodízio A → B → C (34: `template_c`,
   `next_variant` 0–2; aceite do risco só no primeiro “ligar”); envio "desconectado" desfaz a reserva (fica na fila). API oficial com cota mensal — etapa futura, como outra implementação do provider.
 - Recebimento de **sinal via Pix** do cliente final: decisão adiada (avaliar subcontas Asaas).

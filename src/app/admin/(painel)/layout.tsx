@@ -23,52 +23,60 @@ export const metadata: Metadata = { robots: { index: false, follow: false } };
 
 export default async function PainelLayout({ children }: { children: React.ReactNode }) {
   const ctx = await getAdminContext();
-  const plan = await getPlanContext(ctx.business.id);
   const isDemo = ctx.role === "viewer";
   const isOwner = ctx.role === "owner";
   const isTeam = ctx.role === "staff" || ctx.role === "reception";
   // menu recolhido no computador (cookie por navegador): já renderiza no estado certo, sem flash
   const sidebarCollapsed = cookies().get(SIDEBAR_COOKIE)?.value === "collapsed";
 
-  // faixa do plano (matriz): limite do Grátis e oferta do fim do teste pelo tamanho da equipe
+  // Plano e avisos da matriz numa rodada só: os avisos saem junto com o plano e só são
+  // usados depois, conforme as mesmas condições de antes (o resultado que não vale é descartado)
+  const bid = ctx.business.id;
+  const [plan, freeInfo, waStatus, overdue] = await Promise.all([
+    getPlanContext(bid),
+    // faixa do plano (matriz): limite do Grátis e oferta do fim do teste pelo tamanho da equipe
+    isOwner
+      ? Promise.all([
+          getFreeDailyLimit(),
+          createClient()
+            .from("professionals")
+            .select("id", { count: "exact", head: true })
+            .eq("business_id", bid)
+            .eq("active", true),
+        ])
+      : null,
+    // WhatsApp automático ligado mas desconectado: aviso só para a matriz
+    isOwner ? createClient().rpc("whatsapp_panel_status", { p_business: bid }) : null,
+    // Avulsa de profissional extra vencida (29): aviso só para a matriz, com o link de pagamento
+    isOwner
+      ? createClient()
+          .from("subscription_billing_changes")
+          .select("invoice_url")
+          .eq("business_id", bid)
+          .eq("kind", "avulsa")
+          .in("payment_status", ["PENDING", "OVERDUE"])
+          .lt("payment_due_date", todayISO())
+          .order("payment_due_date")
+          .limit(1)
+          .maybeSingle()
+      : null,
+  ]);
+
   let freeLimit = 10;
   let activePros = 1;
-  if (isOwner && !plan.internal && plan.status !== "active") {
-    const [limit, { count }] = await Promise.all([
-      getFreeDailyLimit(),
-      createClient()
-        .from("professionals")
-        .select("id", { count: "exact", head: true })
-        .eq("business_id", ctx.business.id)
-        .eq("active", true),
-    ]);
-    freeLimit = limit;
-    activePros = count ?? 1;
+  if (isOwner && !plan.internal && plan.status !== "active" && freeInfo) {
+    freeLimit = freeInfo[0];
+    activePros = freeInfo[1].count ?? 1;
   }
 
-  // WhatsApp automático ligado mas desconectado: aviso só para a matriz
   let waDisconnected = false;
-  if (isOwner && plan.tier === "completo") {
-    const { data: wa } = await createClient().rpc("whatsapp_panel_status", { p_business: ctx.business.id });
-    const w = wa as { genix_enabled: boolean; auto_enabled: boolean; status: string } | null;
+  if (isOwner && plan.tier === "completo" && waStatus) {
+    const w = waStatus.data as { genix_enabled: boolean; auto_enabled: boolean; status: string } | null;
     waDisconnected = !!w?.genix_enabled && w.auto_enabled && w.status === "disconnected";
   }
 
-  // Avulsa de profissional extra vencida (29): aviso só para a matriz, com o link de pagamento
-  let overdueExtra: { invoice_url: string | null } | null = null;
-  if (isOwner && !plan.internal) {
-    const { data } = await createClient()
-      .from("subscription_billing_changes")
-      .select("invoice_url")
-      .eq("business_id", ctx.business.id)
-      .eq("kind", "avulsa")
-      .in("payment_status", ["PENDING", "OVERDUE"])
-      .lt("payment_due_date", todayISO())
-      .order("payment_due_date")
-      .limit(1)
-      .maybeSingle();
-    overdueExtra = data;
-  }
+  const overdueExtra: { invoice_url: string | null } | null =
+    isOwner && !plan.internal && overdue ? overdue.data : null;
 
   // Sem o plano Equipe (Grátis ou Profissional) só a matriz usa o painel: os acessos da
   // equipe ficam pausados (nunca apagados) e voltam quando o espaço assina o Equipe

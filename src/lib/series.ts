@@ -17,4 +17,8 @@ export const SKIP_REASON: Record<string, string> = {
   PACOTE_VENCIDO: "pacote vencido",
   PACOTE_INVALIDO: "pacote inválido",
   RECUSADO: "recusado pelo sistema",
+  // 39_pacote_datas_fixas
+  SEM_SALDO: "sem saldo nos serviços da regra",
+  OCUPADO_NA_VENDA: "bate com outra data deste pacote",
+  MEIA_NOITE: "passa da meia-noite",
 };

@@ -6,30 +6,15 @@
 -- manicure (item 0) e pedicure (adicional do Editar) do mesmo pacote.
 -- Pacotes de 1 serviço continuam iguais (viram pacote com 1 item).
 --
+-- ORDEM: supabase/manual/37a_backup.sql → ESTE ARQUIVO →
+--        supabase/manual/37b_conferencia.sql (uma consulta por vez).
 -- Rode inteira de uma vez, ANTES do merge (só acrescenta; o código atual
--- continua funcionando com ela). Reversão comentada no final.
+-- continua funcionando com ela). Tudo dentro de begin/commit: se qualquer
+-- comando falhar, nada fica aplicado. Reversão comentada no final.
 -- Datas fixas (venda com série) ficam para o PR B (migration 38).
 -- =====================================================================
 
-
--- =====================================================================
--- PARTE 0 — BACKUP (rode junto, no topo). Tabelas fora da API:
--- RLS ligada sem policy e sem grant para anon/authenticated.
--- Depois de conferir (PARTE 16), podem ser apagadas:
---   drop table backup_37_package_templates, backup_37_customer_packages,
---              backup_37_bookings, backup_37_booking_items;
--- =====================================================================
-create table if not exists backup_37_package_templates as select * from package_templates;
-create table if not exists backup_37_customer_packages as select * from customer_packages;
-create table if not exists backup_37_bookings          as select * from bookings;
-create table if not exists backup_37_booking_items     as select * from booking_items;
-
-alter table backup_37_package_templates enable row level security;
-alter table backup_37_customer_packages enable row level security;
-alter table backup_37_bookings          enable row level security;
-alter table backup_37_booking_items     enable row level security;
-revoke all on backup_37_package_templates, backup_37_customer_packages,
-              backup_37_bookings, backup_37_booking_items from anon, authenticated;
+begin;
 
 
 -- =====================================================================
@@ -1096,42 +1081,7 @@ revoke all on function guard_package_template_item()       from public, anon, au
 revoke all on function sync_package_template_items()       from public, anon, authenticated;
 revoke all on function validate_booking_item_package()     from public, anon, authenticated;
 
-
--- =====================================================================
--- PARTE 16 — Conferência (rode logo depois)
--- 1) Backfill: todo modelo e todo pacote com item; toda sessão ligada.
---    As três colunas devem dar 0.
--- 2) Saldo: o cálculo antigo (bookings.customer_package_id, nos backups)
---    tem que bater com a view nova. Deve voltar 0 linhas.
--- =====================================================================
-select
-  (select count(*) from package_templates t
-    where not exists (select 1 from package_template_items i where i.template_id = t.id)) as modelos_sem_item,
-  (select count(*) from customer_packages cp
-    where not exists (select 1 from customer_package_items i where i.customer_package_id = cp.id)) as pacotes_sem_item,
-  (select count(*) from bookings b
-     join booking_items i on i.booking_id = b.id and i.position = 0
-    where b.customer_package_id is not null and i.customer_package_item_id is null) as sessoes_sem_vinculo;
-
-with antigo as (
-  select cp.id, cp.sessions_total,
-         (select count(*) from backup_37_bookings b
-           where b.customer_package_id = cp.id
-             and b.status in ('pending', 'confirmed', 'completed'))::int as used
-    from backup_37_customer_packages cp
-),
-novo as (
-  select cp.id,
-         (select count(*) from booking_items i
-            join customer_package_items x on x.id = i.customer_package_item_id
-            join bookings b on b.id = i.booking_id
-           where x.customer_package_id = cp.id
-             and b.status in ('pending', 'confirmed', 'completed'))::int as used
-    from customer_packages cp
-)
-select a.id, a.sessions_total, a.used as usado_antes, n.used as usado_agora
-  from antigo a join novo n on n.id = a.id
- where a.used is distinct from n.used;
+commit;
 
 
 -- =====================================================================

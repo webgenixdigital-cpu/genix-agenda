@@ -168,7 +168,7 @@ export const LANDING_PLANS = {
     name: "Profissional",
     text: "Tudo liberado para quem atende sozinho.",
     yearlyEquivalent: (perMonth: string) => `equivale a ${perMonth}/mês`,
-    items: ["WhatsApp automático", "Retornos, pacotes e combos", "Financeiro e faturamento", "Agendamentos online ilimitados"],
+    items: ["WhatsApp automático (ativação assistida)", "Retornos, pacotes e combos", "Financeiro e faturamento", "Agendamentos online ilimitados"],
     cta: "Testar 15 dias grátis",
   },
   team: {
@@ -186,7 +186,7 @@ export const LANDING_FAQ = {
   title: "Perguntas frequentes",
   items: [
     { q: "Meu cliente precisa baixar algum aplicativo?", a: "Não. Ele agenda pelo seu link, direto no navegador do celular." },
-    { q: "Os lembretes saem do meu WhatsApp?", a: "Sim. Você conecta seu número por QR Code, e o envio segue um ritmo seguro, com textos variados." },
+    { q: "Os lembretes saem do meu WhatsApp?", a: "Sim. Você conecta seu número por QR Code, e o envio segue um ritmo seguro, com textos variados. A ativação é feita junto com a nossa equipe, para garantir um envio seguro." },
     { q: "É difícil configurar?", a: "Você cadastra serviços e horários em poucos minutos, e a configuração inicial guia cada passo." },
     { q: "Posso cancelar quando quiser?", a: "Sim, sem multa. E o plano Grátis continua disponível." },
   ],

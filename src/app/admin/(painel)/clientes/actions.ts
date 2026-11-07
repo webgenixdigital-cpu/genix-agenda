@@ -175,6 +175,14 @@ const PACKAGE_ERRORS: Record<string, string> = {
   PLANO_GRATIS: "Pacotes são um recurso dos planos Profissional e Equipe.",
   FORMA_INVALIDA: "Escolha a forma de pagamento.",
   NAO_ENCONTRADO: "Pacote não encontrado.",
+  // 39_pacote_datas_fixas
+  REGRAS_INVALIDAS: "Monte de 1 a 10 regras de datas.",
+  FREQUENCIA_INVALIDA: "Escolha a frequência de cada regra.",
+  QUANTIDADE_INVALIDA: "Cada regra vai de 1 a 52 visitas, e o total não passa das sessões do pacote.",
+  DADOS_INVALIDOS: "Confira profissional, 1ª data e horário de cada regra.",
+  SERVICOS_INVALIDOS: "Escolha ao menos um serviço do pacote em cada regra.",
+  PROFISSIONAL_INDISPONIVEL: "Um profissional escolhido não está ativo.",
+  PROFISSIONAL_NAO_FAZ: "Um profissional escolhido não faz todos os serviços da regra.",
 };
 const packageError = (message: string, fallback: string) =>
   PACKAGE_ERRORS[Object.keys(PACKAGE_ERRORS).find((k) => message.includes(k)) ?? ""] ?? fallback;
@@ -192,6 +200,90 @@ export async function sellPackage(
   revalidatePath(`/admin/clientes/${customerId}`);
   revalidatePath("/admin/financeiro");
   return { ok: true };
+}
+
+// ---- Venda com datas fixas (39_pacote_datas_fixas) ----
+export type PackageRule = {
+  professional_id: string;
+  service_ids: string[];
+  start_date: string; // AAAA-MM-DD
+  time: string;       // HH:MM
+  frequency: "weekly" | "biweekly" | "monthly";
+  count: number;
+};
+
+export type PlannedDate = {
+  rule: number;
+  seq: number;
+  date: string;
+  time: string;
+  services: string | null;
+  service_ids: string[];
+  issue: string | null;
+};
+
+type PreviewRow = {
+  rule_idx: number;
+  seq: number;
+  occurs_on: string;
+  start_time: string;
+  service_ids: string[] | null;
+  service_names: string | null;
+  issue: string | null;
+  package_expires: string | null;
+};
+
+export async function previewPackageSale(
+  customerId: string,
+  templateId: string,
+  rules: PackageRule[]
+): Promise<{ ok: true; dates: PlannedDate[]; expires: string | null } | { ok: false; error: string }> {
+  await getEditorContext();
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("preview_package_sale", {
+    p_customer: customerId,
+    p_template: templateId,
+    p_rules: rules,
+  });
+  if (error) return { ok: false, error: packageError(error.message, "Não foi possível montar as datas.") };
+  const rows = (data ?? []) as PreviewRow[];
+  return {
+    ok: true,
+    expires: rows[0]?.package_expires ?? null,
+    dates: rows.map((r) => ({
+      rule: r.rule_idx,
+      seq: r.seq,
+      date: r.occurs_on,
+      time: r.start_time.slice(0, 5),
+      services: r.service_names,
+      service_ids: r.service_ids ?? [],
+      issue: r.issue,
+    })),
+  };
+}
+
+export async function sellPackageFixed(
+  customerId: string,
+  templateId: string,
+  method: "pix" | "dinheiro" | "credito" | "debito" | null,
+  rules: PackageRule[]
+): Promise<{ ok: true; created: number; skipped: number } | { ok: false; error: string }> {
+  await getEditorContext();
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("sell_package_fixed", {
+    p_customer: customerId,
+    p_template: templateId,
+    p_method: method,
+    p_rules: rules,
+  });
+  if (error) return { ok: false, error: packageError(error.message, "Não foi possível vender o pacote.") };
+  const r = (data ?? {}) as { created?: number; skipped?: number };
+
+  revalidatePath(`/admin/clientes/${customerId}`);
+  revalidatePath("/admin/financeiro");
+  revalidatePath("/admin/agenda");
+  revalidatePath("/admin");
+  return { ok: true, created: Number(r.created ?? 0), skipped: Number(r.skipped ?? 0) };
 }
 
 /** cancelFuture: cancela junto os agendamentos futuros do pacote (37_plano_fechado). */

@@ -84,8 +84,9 @@ export default async function AssinaturaPage() {
   const activePros = q.equipe_mensal?.professionals ?? 1;
   const recommended = recommendedKind(activePros);
 
-  const hasPending = !!sub?.asaas_subscription_id && plan.status !== "active" && plan.status !== "past_due";
-  const isActive = plan.status === "active" || plan.status === "past_due";
+  // cortesia (migration 38): sem cobrança, então nada de assinar, trocar ou pagar
+  const hasPending = !plan.grant && !!sub?.asaas_subscription_id && plan.status !== "active" && plan.status !== "past_due";
+  const isActive = !plan.grant && (plan.status === "active" || plan.status === "past_due");
   const isCanceledWithAccess = plan.status === "canceled" && plan.tier === "completo";
 
   const trialEnd = plan.trialEndsAt && plan.trialDaysLeft !== null ? br(plan.trialEndsAt) : null;
@@ -102,7 +103,12 @@ export default async function AssinaturaPage() {
   let statusText = "Todos os recursos do seu plano liberados.";
   let StatusIcon = Check;
 
-  if (plan.internal) {
+  if (plan.grant) {
+    statusTitle = `Cortesia do plano ${PLAN_NAMES[plan.grant.kind]}`;
+    statusText = plan.grant.expiresAt
+      ? `Acesso liberado pela Genix, sem cobrança, até ${br(plan.grant.expiresAt)}.`
+      : "Acesso vitalício liberado pela Genix, sem cobrança.";
+  } else if (plan.internal) {
     statusTitle = "Conta interna";
     statusText = "Esta conta não tem cobrança.";
   } else if (isActive) {

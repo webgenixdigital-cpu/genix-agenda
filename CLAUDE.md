@@ -116,6 +116,9 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
 - Funções de apoio: `member_role_of`, `my_professional_id`, `sees_whole_agenda`, `can_manage_booking`,
   `is_business_owner`, `access_tier` (`completo`|`gratis`), `plan_kind` (`gratis`|`profissional`|`equipe`),
   `plan_max_professionals`, `free_daily_limit`, `can_use_full_features`, `is_platform_admin`.
+- **Cortesia (38):** `plan_grants` (1 linha por espaço, `kind` `profissional`|`equipe`, `expires_at` null = vitalícia;
+  sem política de escrita, só SQL Editor/service role). `active_plan_grant(bid)` vem antes de tudo em `access_tier`
+  e `plan_kind`: teste vencido, webhook e cron não rebaixam. No código, `getPlanContext().grant` (conta sem cobrança).
 - Operações sensíveis via funções `security definer`: `get_available_slots`, `create_public_booking`,
   `complete_booking` (status + caixa), `create_business_for_user`, `submit_review`, `public_plan_info`.
 - Trava de conflito de horário: constraint `no_overlap` em `bookings`. Caixa: 1 lançamento por atendimento.

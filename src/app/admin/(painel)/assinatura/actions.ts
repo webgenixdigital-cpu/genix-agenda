@@ -8,6 +8,7 @@ import { asaas, AsaasError, type AsaasBillingType, type AsaasCustomer, type Asaa
 import { isValidCpfCnpj, onlyDigits } from "@/lib/cpf-cnpj";
 import { cycleOfPlanId, isPaidPlanId, kindOfPlanId, type PaidPlanId } from "@/lib/plan-ids";
 import { availablePaidPlans } from "@/lib/plans-server";
+import { getPlanContext } from "@/lib/plan";
 
 type Result = { ok: true; invoiceUrl?: string; message?: string } | { ok: false; error: string };
 type Quote = { total: number; extra_professionals: number; professionals: number };
@@ -18,6 +19,7 @@ const ONLY_OWNER = "Somente o dono do espaço pode alterar a assinatura.";
 const PRO_ONE = "O plano Profissional é para 1 profissional ativo. Desative os outros na Equipe ou escolha o plano Equipe.";
 const MIN_CHARGE = 5; // menor cobrança avulsa aceita pelo Asaas (R$)
 const UNAVAILABLE = "Este plano ainda não está disponível. Tente de novo em instantes.";
+const GRANTED = "Este espaço tem cortesia da Genix: não há assinatura para contratar ou trocar.";
 
 const todayISO = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
 const kindLabel = (id: string) => (kindOfPlanId(id) === "profissional" ? "Profissional" : "Equipe");
@@ -52,6 +54,7 @@ export async function startSubscription(input: {
 }): Promise<Result> {
   const ctx = await getEditorContext();
   if (ctx.role !== "owner") return { ok: false, error: ONLY_OWNER };
+  if ((await getPlanContext(ctx.business.id)).grant) return { ok: false, error: GRANTED };
 
   if (!isPaidPlanId(input.planId)) return { ok: false, error: "Escolha o plano." };
   // só planos ativos no banco (ou todos, no modo de prévia local)
@@ -198,6 +201,7 @@ export async function cancelSubscription(): Promise<Result> {
 export async function changePlan(target: PaidPlanId): Promise<Result> {
   const ctx = await getEditorContext();
   if (ctx.role !== "owner") return { ok: false, error: ONLY_OWNER };
+  if ((await getPlanContext(ctx.business.id)).grant) return { ok: false, error: GRANTED };
   if (!isPaidPlanId(target)) return { ok: false, error: "Plano inválido." };
   if (!(await availablePaidPlans()).has(target)) return { ok: false, error: UNAVAILABLE };
 

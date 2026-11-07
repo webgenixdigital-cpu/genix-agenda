@@ -16,8 +16,10 @@ export type PlanContext = {
   currentPeriodEnd: string | null;
   /** dias restantes do teste (só enquanto o teste está valendo) */
   trialDaysLeft: number | null;
-  /** conta interna sem assinatura (seed / demonstração) */
+  /** conta sem cobrança: sem assinatura (seed / demonstração) ou com cortesia */
   internal: boolean;
+  /** cortesia concedida pela Genix (plan_grants, migration 38); expiresAt null = vitalícia */
+  grant: { kind: Exclude<PlanKind, "gratis">; expiresAt: string | null } | null;
 };
 
 export const PLAN_NAMES: Record<PlanKind, string> = {
@@ -32,7 +34,7 @@ export const hasTeamFeatures = (plan: Pick<PlanContext, "kind">) => plan.kind ==
 export const getPlanContext = cache(async (businessId: string): Promise<PlanContext> => {
   const supabase = createClient();
 
-  const [{ data: tier }, { data: kind, error: kindError }, { data: sub }] = await Promise.all([
+  const [{ data: tier }, { data: kind, error: kindError }, { data: sub }, { data: g }] = await Promise.all([
     supabase.rpc("access_tier", { bid: businessId }),
     supabase.rpc("plan_kind", { bid: businessId }),
     supabase
@@ -40,7 +42,15 @@ export const getPlanContext = cache(async (businessId: string): Promise<PlanCont
       .select("status, plan_id, trial_ends_at, current_period_end")
       .eq("business_id", businessId)
       .maybeSingle(),
+    // sem a tabela (migration 38 ainda não aplicada) vem erro → sem cortesia
+    supabase.from("plan_grants").select("kind, expires_at").eq("business_id", businessId).maybeSingle(),
   ]);
+
+  const grantActive = !!g && (g.kind === "profissional" || g.kind === "equipe") &&
+    (!g.expires_at || new Date(g.expires_at).getTime() > Date.now());
+  const grant: PlanContext["grant"] = grantActive
+    ? { kind: g.kind as Exclude<PlanKind, "gratis">, expiresAt: g.expires_at ?? null }
+    : null;
 
   let trialDaysLeft: number | null = null;
   if (sub?.status === "trialing" && sub.trial_ends_at) {
@@ -62,7 +72,8 @@ export const getPlanContext = cache(async (businessId: string): Promise<PlanCont
     trialEndsAt: sub?.trial_ends_at ?? null,
     currentPeriodEnd: sub?.current_period_end ?? null,
     trialDaysLeft,
-    internal: !sub,
+    internal: !sub || !!grant,
+    grant,
   };
 });
 

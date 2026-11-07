@@ -37,6 +37,12 @@ const browserClient = () => import("@/lib/supabase/client").then((m) => m.create
 
 const ACCEPT = "image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif";
 
+/** Recusa do Storage por permissão (RLS / 401 / 403), e não falha de rede */
+function isPermissionError(error: { message?: string; statusCode?: string | number }) {
+  const status = String(error.statusCode ?? "");
+  return status === "401" || status === "403" || /row-level security|unauthorized|access ?denied/i.test(error.message ?? "");
+}
+
 /** Apaga do Storage arquivos enviados agora e não usados (ex.: troca antes de salvar) */
 export async function removeUploaded(paths: string[]) {
   if (paths.length) await (await browserClient()).storage.from(IMAGE_BUCKET).remove(paths);
@@ -91,8 +97,13 @@ export function PhotoUpload({
         .from(IMAGE_BUCKET)
         .upload(path, r.blob, { contentType: r.type, cacheControl: "31536000", upsert: false });
       if (error) {
+        console.error("[foto] upload", error);
         await removeUploaded(paths);
-        toast.error("Não foi possível enviar a foto. Confira a conexão e tente de novo.");
+        toast.error(
+          isPermissionError(error)
+            ? "Não foi possível salvar a foto. Tente de novo ou fale com o suporte."
+            : "Não foi possível enviar a foto. Confira a conexão e tente de novo."
+        );
         return;
       }
       paths.push(path);

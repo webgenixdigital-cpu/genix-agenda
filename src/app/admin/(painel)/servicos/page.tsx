@@ -21,7 +21,7 @@ export default async function ServicosPage() {
       .order("sort_order"),
     supabase
       .from("package_templates")
-      .select("id, service_id, name, sessions, price, validity_days, active")
+      .select("id, name, price, validity_days, active, package_template_items(service_id, sessions, position)")
       .eq("business_id", business.id)
       .order("active", { ascending: false })
       .order("sort_order"),
@@ -59,7 +59,13 @@ export default async function ServicosPage() {
 
       {plan.tier === "completo" ? (
         <PackageTemplates
-          templates={(templates ?? []).map((t) => ({ ...t, price: Number(t.price) }))}
+          templates={(templates ?? []).map(({ package_template_items: items, ...t }) => ({
+            ...t,
+            price: Number(t.price),
+            items: [...(items ?? [])]
+              .sort((a, b) => a.position - b.position)
+              .map((i) => ({ service_id: i.service_id as string, sessions: i.sessions })),
+          }))}
           services={services.filter((s) => s.active).map((s) => ({ id: s.id, name: s.name, price: s.price }))}
         />
       ) : (

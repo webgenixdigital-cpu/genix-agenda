@@ -372,7 +372,7 @@ test("preparar · login da demo e dados", async ({ browser }) => {
 /* ---------- rotas públicas (sem login) ---------- */
 
 const PUBLIC_ROUTES: [string, string][] = [
-  ["/", "/"],
+  ["/ (landing)", "/"], // nome filtrável: RESPONSIVO_ROTAS=landing
   ["/espacos", "/espacos"],
   ["/para/[nicho]", "/para/salao"],
   ["/explorar/[nicho]", "/explorar/salao"],

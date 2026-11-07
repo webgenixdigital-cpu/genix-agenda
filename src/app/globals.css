@@ -113,6 +113,89 @@
   }
 }
 
+/* ---------------------------------------------------------------------
+   Landing page ("/"): animações do protótipo v5 (componentes em src/components/landing)
+   --------------------------------------------------------------------- */
+@layer components {
+  /* entra de baixo para cima (itens do celular, cards flutuantes); atraso por style={{ animationDelay }} */
+  .lp-rise {
+    opacity: 0;
+    transform: translateY(10px);
+    animation: lp-in 0.5s forwards;
+  }
+  .lp-float {
+    opacity: 0;
+    transform: translateY(10px);
+    animation: lp-in 0.6s forwards, lp-bob 5s ease-in-out infinite;
+  }
+  /* status do último horário: "Pendente" some e "Confirmado" aparece depois da resposta "1" */
+  .lp-status-old {
+    animation: lp-out 0.2s 4.2s forwards;
+  }
+  .lp-status-new {
+    opacity: 0;
+    animation: lp-in 0.2s 4.2s forwards;
+  }
+  .lp-marquee {
+    animation: lp-marquee 30s linear infinite;
+  }
+  /* revelar ao rolar: só esconde depois que o JS liga o observador (sem JS, tudo aparece) */
+  .lp-reveal-on .lp-reveal {
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 0.7s ease, transform 0.7s ease;
+  }
+  .lp-reveal-on .lp-reveal.is-visible {
+    opacity: 1;
+    transform: none;
+  }
+  /* palavra-chave das perguntas grifada em dourado */
+  .lp-mark {
+    background: linear-gradient(transparent 62%, rgb(242 192 120 / 0.55) 62%);
+    color: inherit;
+    padding: 0 0.08em;
+  }
+}
+
+@keyframes lp-in {
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes lp-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes lp-bob {
+  50% {
+    transform: translateY(-6px);
+  }
+}
+@keyframes lp-marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-rise,
+  .lp-float,
+  .lp-status-new,
+  .lp-marquee,
+  .lp-reveal-on .lp-reveal {
+    animation: none !important;
+    transition: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .lp-status-old {
+    animation: none !important;
+    opacity: 0 !important;
+  }
+}
+
 @layer utilities {
   .text-balance {
     text-wrap: balance;

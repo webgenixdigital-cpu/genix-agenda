@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Info, Loader2 } from "lucide-react";
@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { maskPhone } from "@/lib/format";
 import { SEGMENTS } from "@/lib/segments";
+import { SIGNUP_PREFILL_KEY } from "@/content/landing";
 
 // ---------------------------------------------------------------------
 // PARTE 1 — Utilitários
@@ -64,6 +65,23 @@ export function SignupForm({
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<React.ReactNode>(null);
+
+  // E-mail ou WhatsApp digitado no hero da "/" (sessionStorage, nunca na URL): preenche o campo certo uma vez
+  useEffect(() => {
+    let v: string | null = null;
+    try {
+      v = sessionStorage.getItem(SIGNUP_PREFILL_KEY);
+      sessionStorage.removeItem(SIGNUP_PREFILL_KEY);
+    } catch {
+      return;
+    }
+    if (!v) return;
+    if (v.includes("@")) {
+      if (mode === "full") setEmail(v.trim().toLowerCase());
+    } else if (v.replace(/\D/g, "").length >= 10) {
+      setWhatsapp(maskPhone(v.replace(/\D/g, "").replace(/^55(?=\d{10,11}$)/, "")));
+    }
+  }, [mode]);
 
   const slug = toSlug(businessName);
   const phoneDigits = whatsapp.replace(/\D/g, "");

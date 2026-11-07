@@ -166,7 +166,8 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
 ## 8. Mapa rápido
 
 ```
-src/app/                     páginas públicas: / (página do profissional, com busca e nichos em destaque),
+src/app/                     páginas públicas: / (landing SPIN do produto: copy em src/content/landing.ts,
+                             componentes em src/components/landing; protótipo em docs/landing),
                              /espacos (diretório para clientes: ?q, ?nicho, ?seg), /explorar/[nicho], /para/[nicho],
                              /v/[slug], /v/[slug]/avaliar/[id], /cadastro, /esqueci-senha, /redefinir-senha, /termos,
                              /privacidade · sitemap.ts e robots.ts (buscadores) · /profissional → 301 para "/" (redirects no next.config.mjs)

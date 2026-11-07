@@ -84,7 +84,7 @@ export default async function ClientePage({ params }: Props) {
 
   const { data: bookings } = await supabase
     .from("bookings")
-    .select("id, booking_date, start_time, service_name, professional_name, price, status, customer_package_id, auto_confirm_reason, booking_items(price, paid_by_package)")
+    .select("id, booking_date, start_time, service_name, professional_name, price, status, customer_package_id, auto_confirm_reason, booking_items(price, paid_by_package, customer_package_item_id)")
     .eq("customer_id", c.id)
     .order("booking_date", { ascending: false })
     .order("start_time", { ascending: false })
@@ -123,46 +123,97 @@ export default async function ClientePage({ params }: Props) {
   const { data: waStatus } =
     role === "owner" ? await supabase.rpc("whatsapp_panel_status", { p_business: business.id }) : { data: null };
   const waEnabled = !!(waStatus as { genix_enabled?: boolean } | null)?.genix_enabled;
-  const [{ data: pkgs }, { data: templates }, plan] = await Promise.all([
+  const [{ data: pkgs }, { data: pkgItems }, { data: templates }, plan] = await Promise.all([
     supabase
       .from("customer_package_balance")
       .select("id, name, service_name, sessions_total, used, remaining, price, sold_at, expires_at, effective_status")
       .eq("customer_id", c.id)
       .order("sold_at", { ascending: false }),
+    // 37_plano_fechado: saldo por serviço do pacote
+    supabase
+      .from("customer_package_item_balance")
+      .select("id, customer_package_id, service_name, sessions_total, used, remaining, value_total, position")
+      .eq("customer_id", c.id)
+      .order("position"),
     canSell
       ? supabase
           .from("package_templates")
-          .select("id, name, sessions, price, validity_days")
+          .select("id, name, sessions, price, validity_days, package_template_items(sessions, position, services(name))")
           .eq("business_id", business.id)
           .eq("active", true)
           .order("sort_order")
       : Promise.resolve({ data: [] }),
     getPlanContext(business.id),
   ]);
+
+  type PkgItem = {
+    id: string;
+    customer_package_id: string;
+    service_name: string;
+    sessions_total: number;
+    used: number;
+    remaining: number;
+    value_total: number;
+    position: number;
+  };
+  type Booking = (typeof list)[number];
+  type BookingItem = { price: number; paid_by_package: boolean; customer_package_item_id: string | null };
+  const items = ((pkgItems ?? []) as PkgItem[]).map((i) => ({ ...i, value_total: Number(i.value_total) }));
+  const itemById = new Map(items.map((i) => [i.id, i]));
+  const bookingItems = (b: Booking) => (b.booking_items ?? []) as BookingItem[];
+  // serviços de pacote usados na visita (item 0 e adicionais do Editar)
+  const linked = (b: Booking) =>
+    bookingItems(b).flatMap((i) => (i.customer_package_item_id ? [itemById.get(i.customer_package_item_id)].filter((x) => !!x) : [])) as PkgItem[];
+
+  // agora em São Paulo, "yyyy-mm-dd hh:mm" (para contar as sessões futuras)
+  const nowSP = new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit",
+  }).format(new Date());
+  const isFuture = (b: Booking) => `${b.booking_date} ${b.start_time.slice(0, 5)}` > nowSP;
+
   const packages: CustomerPackage[] = (pkgs ?? []).map((p) => ({
     ...p,
     price: Number(p.price),
+    items: items
+      .filter((i) => i.customer_package_id === p.id)
+      .map(({ id, service_name, sessions_total, used, remaining }) => ({ id, service_name, sessions_total, used, remaining })),
     sessions: list
-      .filter((b) => b.customer_package_id === p.id)
-      .sort((a, b) => (a.booking_date + a.start_time).localeCompare(b.booking_date + b.start_time)),
+      .filter((b) => linked(b).some((i) => i.customer_package_id === p.id))
+      .sort((a, b) => (a.booking_date + a.start_time).localeCompare(b.booking_date + b.start_time))
+      .map((b) => ({
+        id: b.id,
+        booking_date: b.booking_date,
+        start_time: b.start_time,
+        professional_name: b.professional_name,
+        status: b.status,
+        services: linked(b).filter((i) => i.customer_package_id === p.id).map((i) => i.service_name),
+      })),
+    // cancelar junto: as mesmas que cancel_customer_package cancela (serviço principal do pacote)
+    future_count: list.filter(
+      (b) => b.customer_package_id === p.id && (b.status === "pending" || b.status === "confirmed") && isFuture(b)
+    ).length,
   })) as CustomerPackage[];
   const pkgById = new Map(packages.map((p) => [p.id, p]));
 
   // valor cobrado no atendimento: total final menos o que o pacote já pagou
-  const charged = (b: (typeof list)[number]) => {
-    const items = (b.booking_items ?? []) as { price: number; paid_by_package: boolean }[];
-    const byPackage = items.length
-      ? items.filter((i) => i.paid_by_package).reduce((s, i) => s + Number(i.price), 0)
+  const charged = (b: Booking) => {
+    const its = bookingItems(b);
+    const byPackage = its.length
+      ? its.filter((i) => i.paid_by_package).reduce((s, i) => s + Number(i.price), 0)
       : b.customer_package_id ? Number(b.price) : 0;
     return Math.max(Number(b.price) - byPackage, 0);
   };
 
-  // total gasto: sessão de pacote conta pelo valor proporcional + adicionais (igual a customer_summary)
+  // total gasto: cada serviço do pacote conta pelo valor de 1 sessão + o cobrado (igual a customer_summary)
   const done = list.filter((b) => b.status === "completed");
-  const total = done.reduce((s, b) => {
-    const p = b.customer_package_id ? pkgById.get(b.customer_package_id) : undefined;
-    return s + (p ? p.price / p.sessions_total + charged(b) : Number(b.price));
-  }, 0);
+  const total = done.reduce(
+    (s, b) => s + linked(b).reduce((u, i) => u + i.value_total / i.sessions_total, 0) + charged(b),
+    0
+  );
+  // nome do(s) pacote(s) usados na visita, para o histórico
+  const packageNames = (b: Booking) =>
+    Array.from(new Set(linked(b).map((i) => pkgById.get(i.customer_package_id)?.name).filter(Boolean))).join(", ");
   const wa = whatsappLink(c.phone, `Olá, ${c.name.split(" ")[0]}! Aqui é do ${business.name}.`);
 
   // -------------------------------------------------------------------
@@ -233,7 +284,15 @@ export default async function ClientePage({ params }: Props) {
         <PackagesCard
           customerId={c.id}
           packages={packages}
-          templates={(templates ?? []).map((t) => ({ ...t, price: Number(t.price) }))}
+          templates={(templates ?? []).map(({ package_template_items: its, ...t }) => ({
+            ...t,
+            price: Number(t.price),
+            // "4× Manicure + 2× Pedicure"
+            contents: [...((its ?? []) as unknown as { sessions: number; position: number; services: { name: string } | null }[])]
+              .sort((a, b) => a.position - b.position)
+              .map((i) => `${i.sessions}× ${i.services?.name ?? "serviço"}`)
+              .join(" + "),
+          }))}
           canSell={canSell}
           locked={plan.tier !== "completo"}
         />
@@ -270,8 +329,8 @@ export default async function ClientePage({ params }: Props) {
                     <p className="font-semibold">{b.service_name}</p>
                     <p className="text-sm text-muted-foreground">
                       {br(b.booking_date)} às {b.start_time.slice(0, 5)} · {b.professional_name} ·{" "}
-                      {b.customer_package_id ? `pacote ${pkgById.get(b.customer_package_id)?.name ?? ""}`.trim() : brl(b.price)}
-                      {b.customer_package_id && charged(b) > 0 && ` + ${brl(charged(b))}`}
+                      {linked(b).length > 0 ? `pacote ${packageNames(b)}`.trim() : brl(b.price)}
+                      {linked(b).length > 0 && charged(b) > 0 && ` + ${brl(charged(b))}`}
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">

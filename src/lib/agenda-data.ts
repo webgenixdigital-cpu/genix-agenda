@@ -83,15 +83,15 @@ export async function loadAgenda(ctx: AdminContext, wholeTeam: boolean, o: Optio
 
   const list = (bookings ?? []) as AgendaItem[];
 
-  // sessões de pacote: "Pacote 3/10"
+  // sessões de pacote: "Pacote 3/10"; pacote de vários serviços: "Manicure 2/4 · Pedicure 1/2" (37_plano_fechado)
   const packageIds = list.filter((b) => b.customer_package_id).map((b) => b.id);
   const { data: pkgInfo } = packageIds.length
     ? await supabase.rpc("booking_package_info", { p_business: business.id, p_bookings: packageIds })
     : { data: [] };
   const sessionLabel: Record<string, string> = Object.fromEntries(
-    ((pkgInfo ?? []) as { booking_id: string; session_no: number; sessions_total: number }[]).map((i) => [
+    ((pkgInfo ?? []) as { booking_id: string; session_no: number; sessions_total: number; label?: string | null }[]).map((i) => [
       i.booking_id,
-      `Pacote ${i.session_no}/${i.sessions_total}`,
+      i.label || `Pacote ${i.session_no}/${i.sessions_total}`,
     ])
   );
 

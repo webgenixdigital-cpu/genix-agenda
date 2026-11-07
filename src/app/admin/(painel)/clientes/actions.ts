@@ -194,12 +194,24 @@ export async function sellPackage(
   return { ok: true };
 }
 
-export async function cancelPackage(customerId: string, packageId: string): Promise<Result> {
+/** cancelFuture: cancela junto os agendamentos futuros do pacote (37_plano_fechado). */
+export async function cancelPackage(
+  customerId: string,
+  packageId: string,
+  cancelFuture: boolean
+): Promise<{ ok: true; cancelled: number } | { ok: false; error: string }> {
   await getEditorContext();
   const supabase = createClient();
-  const { error } = await supabase.rpc("cancel_customer_package", { p_package: packageId });
+  const { data, error } = await supabase.rpc("cancel_customer_package", {
+    p_package: packageId,
+    p_cancel_future: cancelFuture,
+  });
   if (error) return { ok: false, error: packageError(error.message, "Não foi possível cancelar o pacote.") };
 
   revalidatePath(`/admin/clientes/${customerId}`);
-  return { ok: true };
+  if (Number(data ?? 0) > 0) {
+    revalidatePath("/admin/agenda");
+    revalidatePath("/admin");
+  }
+  return { ok: true, cancelled: Number(data ?? 0) };
 }

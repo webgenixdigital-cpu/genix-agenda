@@ -131,6 +131,8 @@ export function EditBookingDialog({
   const [pending, start] = useTransition();
   const [serviceId, setServiceId] = useState("");
   const [extend, setExtend] = useState(true);
+  // 37_plano_fechado: adicional pago por um serviço do pacote da cliente
+  const [usePackage, setUsePackage] = useState(false);
   const [conflict, setConflict] = useState<{ kind: EditConflict; message: string } | null>(null);
   const [kind, setKind] = useState<DiscountKind>("valor");
   const [value, setValue] = useState("");
@@ -141,6 +143,7 @@ export function EditBookingDialog({
     if (!open) return;
     setServiceId("");
     setExtend(true);
+    setUsePackage(false);
     setConflict(null);
   }, [open]);
   useEffect(() => {
@@ -155,19 +158,27 @@ export function EditBookingDialog({
   const limit = info?.discount_limit ?? null; // null = sem limite
   const canDiscount = limit === null || limit > 0;
   const selected = info?.services.find((s) => s.id === serviceId);
+  // o primeiro pacote (mais antigo) com saldo desse serviço
+  const packageOption = info?.package_options?.find((o) => o.service_id === serviceId) ?? null;
+  const packageItemId = usePackage && packageOption ? packageOption.id : null;
 
   function add(withTime: boolean) {
     if (!serviceId) return;
     start(async () => {
-      const r = await addBookingItem(bookingId, serviceId, withTime);
+      const r = await addBookingItem(bookingId, serviceId, withTime, packageItemId);
       if (!r) return; // demonstração: o servidor redirecionou
       if (!r.ok) {
         if (r.conflict) setConflict({ kind: r.conflict, message: r.error });
         else toast.error(r.error);
         return;
       }
-      toast.success(withTime ? "Serviço adicionado" : "Serviço adicionado sem aumentar o tempo");
+      toast.success(
+        packageItemId
+          ? "Serviço adicionado pelo pacote"
+          : withTime ? "Serviço adicionado" : "Serviço adicionado sem aumentar o tempo"
+      );
       setServiceId("");
+      setUsePackage(false);
       setConflict(null);
       await reload();
     });
@@ -267,6 +278,7 @@ export function EditBookingDialog({
                   value={serviceId}
                   onValueChange={(v) => {
                     setServiceId(v);
+                    setUsePackage(false);
                     setConflict(null);
                   }}
                 >
@@ -285,6 +297,24 @@ export function EditBookingDialog({
                     ))}
                   </SelectContent>
                 </Select>
+                {packageOption && (
+                  <label
+                    className="flex min-h-[44px] cursor-pointer items-center gap-3 rounded-lg border border-primary/30 bg-white px-3 text-sm"
+                    data-testid="opcao-pacote-adicional"
+                  >
+                    <input
+                      type="checkbox"
+                      className="h-5 w-5 shrink-0 accent-primary"
+                      checked={usePackage}
+                      onChange={(e) => setUsePackage(e.target.checked)}
+                      data-testid="check-usar-pacote-adicional"
+                    />
+                    <span>
+                      Usar pacote {packageOption.package_name}{" "}
+                      <span className="text-muted-foreground">(restam {packageOption.remaining})</span>
+                    </span>
+                  </label>
+                )}
                 <label className="flex min-h-[44px] cursor-pointer items-center justify-between gap-3 text-sm">
                   <span>
                     Aumentar o tempo do atendimento

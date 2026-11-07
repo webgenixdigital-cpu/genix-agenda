@@ -171,14 +171,23 @@ export async function findCustomerPackages(phone: string, serviceId: string): Pr
     .from("customers").select("id").eq("business_id", business.id).eq("phone", digits).maybeSingle();
   if (!customer) return [];
 
+  // 37_plano_fechado: saldo do serviço dentro do pacote (pacote de vários serviços também vale)
   const { data } = await supabase
-    .from("customer_package_balance")
-    .select("id, name, remaining, sessions_total, expires_at")
+    .from("customer_package_item_balance")
+    .select("customer_package_id, package_name, remaining, sessions_total, expires_at")
     .eq("customer_id", customer.id)
     .eq("service_id", serviceId)
-    .eq("effective_status", "active")
+    .eq("package_status", "active")
+    .gt("remaining", 0)
     .order("sold_at");
-  return (data ?? []) as PackageOption[];
+  return ((data ?? []) as { customer_package_id: string; package_name: string; remaining: number; sessions_total: number; expires_at: string | null }[])
+    .map((r) => ({
+      id: r.customer_package_id,
+      name: r.package_name,
+      remaining: r.remaining,
+      sessions_total: r.sessions_total,
+      expires_at: r.expires_at,
+    }));
 }
 
 // ---------------------------------------------------------------------
@@ -408,7 +417,11 @@ export type EditItem = {
   /** 32_combos: itens do mesmo combo têm o mesmo grupo (removidos juntos) */
   combo_group: string | null;
   combo_name: string | null;
+  /** 37_plano_fechado: serviço do pacote que pagou este item */
+  package_item_id?: string | null;
 };
+/** Serviço de um pacote da cliente que pode pagar um adicional (saldo e validade na data) */
+export type EditPackageOption = { id: string; service_id: string; package_name: string; remaining: number };
 export type EditService = {
   id: string;
   name: string;
@@ -432,6 +445,7 @@ export type BookingEditInfo = {
   discount_limit: number | null;
   items: EditItem[];
   services: EditService[];
+  package_options?: EditPackageOption[];
 };
 
 /** Conflitos ao aumentar o tempo: a tela oferece "Adicionar sem aumentar o tempo" */
@@ -452,6 +466,9 @@ const EDIT_ERRORS: Record<string, string> = {
   DESCONTO_INVALIDO: "Informe um desconto válido (em % no máximo 100).",
   SEM_VALOR: "Não há valor a descontar neste agendamento.",
   STATUS_INVALIDO: "Só dá para editar agendamentos pendentes ou confirmados.",
+  PACOTE_SEM_SALDO: "Esse pacote não tem mais sessões desse serviço.",
+  PACOTE_VENCIDO: "Esse pacote vence antes da data deste agendamento.",
+  PACOTE_INVALIDO: "Esse pacote não pode pagar este serviço (cancelado, de outra cliente ou sem esse serviço).",
   SEM_PERMISSAO: "Você não pode editar este agendamento.",
   NAO_ENCONTRADO: "Agendamento não encontrado.",
 };
@@ -489,6 +506,7 @@ export async function getBookingEditInfo(id: string): Promise<{ ok: true; info: 
       discount_amount: Number(r.discount_amount),
       discount_limit: r.discount_limit === null ? null : Number(r.discount_limit),
       items: r.items.map((i) => ({ ...i, price: Number(i.price) })),
+      package_options: (r.package_options ?? []).map((o) => ({ ...o, remaining: Number(o.remaining) })),
       services: r.services.map((s) => ({
         ...s,
         price: Number(s.price),
@@ -501,11 +519,18 @@ export async function getBookingEditInfo(id: string): Promise<{ ok: true; info: 
 export async function addBookingItem(
   id: string,
   serviceId: string,
-  extend: boolean
+  extend: boolean,
+  /** serviço do pacote da cliente que paga o adicional (null = cobra) */
+  packageItemId: string | null = null
 ): Promise<{ ok: true } | { ok: false; error: string; conflict?: EditConflict }> {
   await getEditorContext();
   const supabase = createClient();
-  const { error } = await supabase.rpc("booking_add_item", { p_booking: id, p_service: serviceId, p_extend: extend });
+  const { error } = await supabase.rpc("booking_add_item", {
+    p_booking: id,
+    p_service: serviceId,
+    p_extend: extend,
+    p_package_item: packageItemId,
+  });
   if (error) {
     const key = editErrorKey(error.message);
     const conflict = extend && (key === "BLOQUEIO" || key === "OCUPADO" || key === "MEIA_NOITE") ? key : undefined;

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getEditorContext } from "@/lib/admin";
+import { todayISO } from "@/lib/dates";
 import { getPlanContext } from "@/lib/plan";
 import { loadSaleOptions, type SaleProfessional, type SaleTemplate } from "@/lib/package-sale";
 
@@ -13,18 +14,33 @@ const digits = (v: string) => {
   return /^55\d{10,11}$/.test(d) ? d.slice(2) : d;
 };
 
-function validate(input: { name: string; phone: string; email: string; notes: string }) {
+type CustomerInput = { name: string; phone: string; email: string; notes: string; birthDate: string };
+
+/** "AAAA-MM-DD" que existe no calendário (recusa 2026-02-30, por exemplo) */
+function isRealDate(iso: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return false;
+  const d = new Date(`${iso}T12:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === iso;
+}
+
+function validate(input: CustomerInput) {
   if (input.name.trim().length < 2) return "Informe o nome do cliente.";
   if (!/^\d{10,11}$/.test(digits(input.phone))) return "Informe o WhatsApp com DDD.";
   if (input.email.trim() && !/^\S+@\S+\.\S+$/.test(input.email.trim())) return "E-mail inválido.";
   if (input.notes.length > 1000) return "Observações: no máximo 1000 caracteres.";
+  const birth = input.birthDate.trim();
+  if (birth) {
+    if (!isRealDate(birth)) return "Data de nascimento inválida.";
+    if (birth < "1900-01-01") return "Data de nascimento: use uma data a partir de 1900.";
+    if (birth > todayISO()) return "A data de nascimento não pode ser no futuro.";
+  }
   return null;
 }
 
 // ---------------------------------------------------------------------
 // PARTE 1 — Cadastrar (matriz e recepção)
 // ---------------------------------------------------------------------
-export async function createCustomer(input: { name: string; phone: string; email: string; notes: string }): Promise<Result> {
+export async function createCustomer(input: CustomerInput): Promise<Result> {
   const { business, role } = await getEditorContext();
   if (role !== "owner" && role !== "reception") return { ok: false, error: "Sem permissão para cadastrar clientes." };
   const err = validate(input);
@@ -39,6 +55,7 @@ export async function createCustomer(input: { name: string; phone: string; email
       phone: digits(input.phone),
       email: input.email.trim() || null,
       notes: input.notes.trim() || null,
+      birth_date: input.birthDate.trim() || null,
     })
     .select("id")
     .single();
@@ -55,7 +72,7 @@ export async function createCustomer(input: { name: string; phone: string; email
 // ---------------------------------------------------------------------
 export async function updateCustomer(
   id: string,
-  input: { name: string; phone: string; email: string; notes: string }
+  input: CustomerInput
 ): Promise<Result> {
   const { business } = await getEditorContext();
   const err = validate(input);
@@ -69,6 +86,7 @@ export async function updateCustomer(
       phone: digits(input.phone),
       email: input.email.trim() || null,
       notes: input.notes.trim() || null,
+      birth_date: input.birthDate.trim() || null,
     })
     .eq("id", id)
     .eq("business_id", business.id)

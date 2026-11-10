@@ -1,5 +1,6 @@
 // Mensagens prontas de WhatsApp do estabelecimento para o cliente
 import { brl, longDate } from "./format";
+import { renderTemplate } from "./whatsapp/templates";
 import type { BookingStatus } from "./types";
 
 type B = {
@@ -78,6 +79,43 @@ export function reminderMessage(
     totalLine(total?.itemsCount, total?.price) +
     `\nPode confirmar sua presença respondendo esta mensagem? Se precisar remarcar, é só avisar.\n${business}`
   );
+}
+
+// ---------------------------------------------------------------------
+// Fila manual com texto do espaço (41_nascimento_texto_lembrete)
+// Os padrões repetem o reminderMessage acima com variáveis. Sem texto salvo,
+// a fila continua usando reminderMessage (que põe a linha "Total" sozinha
+// quando o agendamento tem mais de um serviço).
+// ---------------------------------------------------------------------
+const manualDefault = (when: "amanhã" | "hoje") =>
+  `Olá, {primeiro_nome}! Passando para lembrar do seu horário ${when} ⏰\n\n` +
+  "• {servico}\n• Com {profissional}\n• {data}, às {hora}\n\n" +
+  "Pode confirmar sua presença respondendo esta mensagem? Se precisar remarcar, é só avisar.\n{espaco}";
+
+export const DEFAULT_MANUAL_TOMORROW = manualDefault("amanhã");
+export const DEFAULT_MANUAL_TODAY = manualDefault("hoje");
+
+/** Mensagem do botão da fila: texto salvo (com variáveis) ou o padrão de sempre */
+export function manualReminderText(
+  saved: string | null | undefined,
+  isToday: boolean,
+  d: { name: string; service: string; pro: string; date: string; time: string; business: string; itemsCount: number; price: number | null }
+) {
+  if (!saved?.trim()) {
+    return reminderMessage(d.name, d.service, d.pro, d.date, d.time, d.business, isToday, {
+      itemsCount: d.itemsCount,
+      price: Number(d.price ?? 0),
+    });
+  }
+  return renderTemplate(saved, {
+    customerName: d.name,
+    serviceName: d.service,
+    professionalName: d.pro,
+    date: d.date,
+    time: d.time,
+    businessName: d.business,
+    total: d.price ?? null,
+  });
 }
 
 /** Aviso de remarcação com a nova data, hora e profissional */

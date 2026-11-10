@@ -11,7 +11,6 @@ import {
   LogOut,
   QrCode,
   RefreshCw,
-  RotateCcw,
   ShieldCheck,
   WifiOff,
 } from "lucide-react";
@@ -25,10 +24,9 @@ import {
 } from "@/app/admin/(painel)/configuracoes/whatsapp-actions";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
-import { DEFAULT_TEMPLATES, TEMPLATE_VARS, renderTemplate } from "@/lib/whatsapp/templates";
+import { TemplateTextField } from "@/components/admin/template-text-field";
+import { DEFAULT_TEMPLATES, TEMPLATE_VARS } from "@/lib/whatsapp/templates";
 import { addDaysISO, todayISO } from "@/lib/dates";
 import { maskPhone } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -475,7 +473,6 @@ const LETTERS = ["a", "b", "c"] as const;
 function TemplatesEditor({ initial, businessName }: { initial: (string | null)[]; businessName: string }) {
   const [texts, setTexts] = useState<string[]>(() => DEFAULT_TEMPLATES.map((d, i) => initial[i] || d));
   const [pending, start] = useTransition();
-  const refs = [useRef<HTMLTextAreaElement>(null), useRef<HTMLTextAreaElement>(null), useRef<HTMLTextAreaElement>(null)];
 
   const sample = {
     customerName: "Ana Souza",
@@ -488,18 +485,6 @@ function TemplatesEditor({ initial, businessName }: { initial: (string | null)[]
 
   function set(i: number, v: string) {
     setTexts((t) => t.map((x, j) => (j === i ? v : x)));
-  }
-
-  function insertVar(i: number, key: string) {
-    const el = refs[i].current;
-    const token = `{${key}}`;
-    const t = texts[i];
-    const pos = el ? el.selectionStart : t.length;
-    set(i, t.slice(0, pos) + token + t.slice(el ? el.selectionEnd : t.length));
-    requestAnimationFrame(() => {
-      el?.focus();
-      el?.setSelectionRange(pos + token.length, pos + token.length);
-    });
   }
 
   function save() {
@@ -523,47 +508,21 @@ function TemplatesEditor({ initial, businessName }: { initial: (string | null)[]
       {texts.map((t, i) => {
         const letter = LETTERS[i];
         return (
-          <div key={letter} className="space-y-2">
-            <div className="flex items-center justify-between gap-2">
-              <Label htmlFor={`wa-texto-${letter}`}>Texto {letter.toUpperCase()}</Label>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-10 text-muted-foreground"
-                onClick={() => set(i, DEFAULT_TEMPLATES[i])}
-                data-testid={`btn-whatsapp-texto-padrao-${letter}`}
-              >
-                <RotateCcw className="mr-1.5 h-4 w-4" /> Restaurar padrão
-              </Button>
-            </div>
-            <Textarea
-              id={`wa-texto-${letter}`}
-              ref={refs[i]}
-              rows={7}
-              maxLength={1000}
-              value={t}
-              onChange={(e) => set(i, e.target.value)}
-              data-testid={`textarea-whatsapp-texto-${letter}`}
-            />
-            <div className="flex flex-wrap gap-2">
-              {TEMPLATE_VARS.map((v) => (
-                <button
-                  key={v.key}
-                  type="button"
-                  className="min-h-11 rounded-full border bg-white px-3 text-xs font-medium hover:bg-secondary"
-                  onClick={() => insertVar(i, v.key)}
-                  data-testid={`btn-whatsapp-var-${letter}-${v.key.replace(/_/g, "-")}`}
-                >
-                  {`{${v.key}}`} <span className="text-muted-foreground">· {v.label}</span>
-                </button>
-              ))}
-            </div>
-            <div className="rounded-xl bg-[#E7F7E1] p-3 text-sm">
-              <p className="mb-1 text-xs font-semibold text-muted-foreground">Prévia</p>
-              <p className="whitespace-pre-line">{renderTemplate(t, sample)}</p>
-            </div>
-          </div>
+          <TemplateTextField
+            key={letter}
+            id={`wa-texto-${letter}`}
+            label={`Texto ${letter.toUpperCase()}`}
+            value={t}
+            onChange={(v) => set(i, v)}
+            defaultText={DEFAULT_TEMPLATES[i]}
+            vars={TEMPLATE_VARS}
+            sample={sample}
+            testIds={{
+              restore: `btn-whatsapp-texto-padrao-${letter}`,
+              textarea: `textarea-whatsapp-texto-${letter}`,
+              varButton: (key) => `btn-whatsapp-var-${letter}-${key}`,
+            }}
+          />
         );
       })}
 

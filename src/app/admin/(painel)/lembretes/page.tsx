@@ -6,7 +6,8 @@ import { getPlanContext } from "@/lib/plan";
 import { LockedFeature } from "@/components/admin/locked-feature";
 import { todayISO } from "@/lib/dates";
 import { longDate, maskPhone, whatsappLink } from "@/lib/format";
-import { reminderMessage } from "@/lib/messages";
+import { manualReminderText } from "@/lib/messages";
+import { ReminderTextDialog } from "@/components/admin/lembretes/reminder-text-dialog";
 import { reasonLabel } from "@/lib/whatsapp/templates";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { SendReminderButton, UndoReminderButton } from "@/components/admin/lembretes/reminder-actions";
@@ -33,7 +34,7 @@ const hhmm = (ts: string) =>
   new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" }).format(new Date(ts));
 
 export default async function LembretesPage({ searchParams }: Props) {
-  const { business } = await getAdminContext();
+  const { business, role } = await getAdminContext();
   const plan = await getPlanContext(business.id);
 
 
@@ -58,7 +59,7 @@ export default async function LembretesPage({ searchParams }: Props) {
   const sent = list.filter((b) => b.reminder_sent_at);
 
   // envios automáticos: última tentativa da data/hora atual de cada agendamento
-  const [{ data: sends }, { data: waSettings }] = await Promise.all([
+  const [{ data: sends }, { data: waSettings }, { data: manualTexts }] = await Promise.all([
     list.length
       ? supabase
           .from("whatsapp_reminder_sends")
@@ -67,7 +68,11 @@ export default async function LembretesPage({ searchParams }: Props) {
           .order("attempt")
       : Promise.resolve({ data: [] }),
     supabase.from("whatsapp_settings").select("auto_enabled").eq("business_id", business.id).maybeSingle(),
+    // textos da fila manual (41); sem linha ou com erro = texto padrão
+    supabase.from("manual_reminder_texts").select("text_tomorrow, text_today").eq("business_id", business.id).maybeSingle(),
   ]);
+  const savedText = isToday ? manualTexts?.text_today : manualTexts?.text_tomorrow;
+  const canEditText = role === "owner" || role === "reception";
   const lastSend = new Map<string, AutoSend>();
   for (const s of (sends ?? []) as AutoSend[]) {
     const b = list.find((x) => x.id === s.booking_id);
@@ -116,9 +121,18 @@ export default async function LembretesPage({ searchParams }: Props) {
       ) : (
       <>
 
-      <p className="text-sm font-semibold first-letter:uppercase">
-        {longDate(date)} · {queue.length} na fila, {sent.length} {sent.length === 1 ? "lembrado" : "lembrados"}
-      </p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm font-semibold first-letter:uppercase">
+          {longDate(date)} · {queue.length} na fila, {sent.length} {sent.length === 1 ? "lembrado" : "lembrados"}
+        </p>
+        {canEditText && (
+          <ReminderTextDialog
+            businessName={business.name}
+            tomorrow={manualTexts?.text_tomorrow ?? null}
+            today={manualTexts?.text_today ?? null}
+          />
+        )}
+      </div>
 
       {/* Fila */}
       {queue.length === 0 ? (
@@ -133,9 +147,15 @@ export default async function LembretesPage({ searchParams }: Props) {
           {queue.map((b) => {
             const href = whatsappLink(
               b.customer_phone,
-              reminderMessage(b.customer_name, b.service_name, b.professional_name, date, b.start_time, business.name, isToday, {
+              manualReminderText(savedText, isToday, {
+                name: b.customer_name,
+                service: b.service_name,
+                pro: b.professional_name,
+                date,
+                time: b.start_time,
+                business: business.name,
                 itemsCount: b.items_count,
-                price: Number(b.price),
+                price: b.price === null ? null : Number(b.price),
               })
             );
             return (

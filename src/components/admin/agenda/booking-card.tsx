@@ -34,6 +34,7 @@ export function BookingCard({
         b.status === "pending" && "border-amber-300"
       )}
       data-testid={`agenda-item-${b.id}`}
+      data-agenda-card
     >
       <div className="flex gap-4">
         <div className="w-[4.5rem] shrink-0 border-r pr-3 text-center">

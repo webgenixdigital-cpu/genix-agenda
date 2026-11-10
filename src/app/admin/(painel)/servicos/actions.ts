@@ -145,3 +145,73 @@ export async function saveCombo(input: ComboInput): Promise<Result> {
   refresh(business.slug);
   return { ok: true };
 }
+
+// ---------------------------------------------------------------------
+// Duração nova → agendamentos futuros (40_duracao_servico_futuros.sql)
+// ---------------------------------------------------------------------
+export type DurationImpact = {
+  booking_id: string;
+  booking_date: string;
+  start_time: string;
+  old_end: string;
+  new_end: string | null;
+  old_duration: number;
+  new_duration: number;
+  customer_name: string;
+  professional_name: string;
+  /** null = ok | "proximo" = passa do início do próximo horário | "meia_noite" */
+  conflict: "proximo" | "meia_noite" | null;
+  next_start: string | null;
+  next_customer: string | null;
+};
+
+const DURATION_ERRORS: Record<string, string> = {
+  SEM_PERMISSAO: "Só a matriz e a recepção podem atualizar os agendamentos.",
+  DURACAO_INVALIDA: "Duração inválida.",
+  NAO_ENCONTRADO: "Serviço não encontrado.",
+};
+const durationError = (message?: string) =>
+  DURATION_ERRORS[Object.keys(DURATION_ERRORS).find((k) => message?.includes(k)) ?? ""];
+
+/** Agendamentos futuros com esse serviço e o término que ficariam com a duração nova (só leitura) */
+export async function previewDurationChange(
+  serviceId: string,
+  durationMin: number
+): Promise<{ ok: true; items: DurationImpact[] } | { ok: false; error: string }> {
+  await getEditorContext();
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("preview_service_duration_change", {
+    p_service: serviceId,
+    p_duration: durationMin,
+  });
+  if (error) return { ok: false, error: durationError(error.message) ?? "Não foi possível ver os agendamentos futuros." };
+  return { ok: true, items: (data ?? []) as DurationImpact[] };
+}
+
+/** Por que o banco deixou um agendamento como estava */
+export type DurationSkipReason = "CONFLITO" | "MEIA_NOITE" | "NAO_ENCONTRADO" | "ERRO";
+export type DurationSkip = { id: string; reason: DurationSkipReason };
+
+/** Aplica a duração nova nos agendamentos escolhidos (o banco confere de novo e pula conflitos) */
+export async function applyDurationChange(
+  serviceId: string,
+  durationMin: number,
+  bookingIds: string[]
+): Promise<{ ok: true; updated: number; skipped: DurationSkip[] } | { ok: false; error: string }> {
+  await getEditorContext();
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("apply_service_duration_change", {
+    p_service: serviceId,
+    p_duration: durationMin,
+    p_booking_ids: bookingIds,
+  });
+  if (error) return { ok: false, error: durationError(error.message) ?? "Não foi possível atualizar os agendamentos." };
+  const r = data as { updated: number; skipped: { id: string; reason: DurationSkipReason; detail?: string }[] | null };
+  const skipped = (r.skipped ?? []).map(({ id, reason, detail }) => {
+    if (reason === "ERRO") console.error("apply_service_duration_change", id, detail); // detalhe técnico só no log
+    return { id, reason };
+  });
+  revalidatePath("/admin/agenda");
+  revalidatePath("/admin");
+  return { ok: true, updated: r.updated, skipped };
+}

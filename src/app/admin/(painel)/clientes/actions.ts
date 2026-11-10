@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getEditorContext } from "@/lib/admin";
+import { getPlanContext } from "@/lib/plan";
+import { loadSaleOptions, type SaleProfessional, type SaleTemplate } from "@/lib/package-sale";
 
 type Result = { ok: true; id?: string } | { ok: false; error: string };
 
@@ -306,4 +308,44 @@ export async function cancelPackage(
     revalidatePath("/admin");
   }
   return { ok: true, cancelled: Number(data ?? 0) };
+}
+
+// ---------------------------------------------------------------------
+// Vender pacote a partir do agendamento manual da Agenda
+// Acha o cliente pelo WhatsApp (ou cadastra com o nome digitado) e
+// devolve o que o diálogo de venda precisa. Matriz e recepção, plano pago.
+// ---------------------------------------------------------------------
+export async function startPackageSale(input: {
+  name: string;
+  phone: string;
+}): Promise<
+  | { ok: true; customerId: string; templates: SaleTemplate[]; professionals: SaleProfessional[] }
+  | { ok: false; error: string }
+> {
+  const { business, role } = await getEditorContext();
+  if (role !== "owner" && role !== "reception") return { ok: false, error: "Só a matriz e a recepção vendem pacotes." };
+  const plan = await getPlanContext(business.id);
+  if (plan.tier !== "completo") return { ok: false, error: "Pacotes são um recurso dos planos Profissional e Equipe." };
+
+  const phone = digits(input.phone);
+  if (!/^\d{10,11}$/.test(phone)) return { ok: false, error: "Informe o WhatsApp do cliente com DDD." };
+  const name = input.name.trim();
+
+  const supabase = createClient();
+  const { data: found } = await supabase
+    .from("customers").select("id").eq("business_id", business.id).eq("phone", phone).maybeSingle();
+
+  let customerId = found?.id as string | undefined;
+  if (!customerId) {
+    if (name.length < 2) return { ok: false, error: "Informe o nome do cliente." };
+    const { data, error } = await supabase
+      .from("customers").insert({ business_id: business.id, name, phone }).select("id").single();
+    if (error || !data) return { ok: false, error: "Não foi possível cadastrar o cliente." };
+    customerId = data.id as string;
+    revalidatePath("/admin/clientes");
+  }
+
+  const sale = await loadSaleOptions(supabase, business.id);
+  if (sale.templates.length === 0) return { ok: false, error: "Nenhum modelo de pacote ativo. Crie um em Serviços → Pacotes." };
+  return { ok: true, customerId, ...sale };
 }

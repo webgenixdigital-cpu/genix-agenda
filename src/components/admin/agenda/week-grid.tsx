@@ -99,7 +99,11 @@ export function WeekGrid(props: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
 
-  const [selected, setSelected] = useState<AgendaItem | null>(null);
+  // guarda só o id: o diálogo acompanha a lista nova (cancelado some, remarcado atualiza)
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const selected = selectedId ? bookings.find((b) => b.id === selectedId) ?? null : null;
+  // cancelados na hora (antes da resposta do servidor)
+  const [hiddenIds, setHiddenIds] = useState<string[]>([]);
   const [newSlot, setNewSlot] = useState<{ date: string; time: string; professionalId: string | null } | null>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
   // remarcação em andamento: mostra o bloco no destino até o servidor responder
@@ -249,7 +253,10 @@ export function WeekGrid(props: Props) {
   }
 
   // limpa o estado otimista quando os dados novos chegam
-  useEffect(() => setMoving(null), [bookings]);
+  useEffect(() => {
+    setMoving(null);
+    setHiddenIds([]);
+  }, [bookings]);
 
   // ------------------------------ render ------------------------------
   const defaultPro = selectedProfessional ?? (professionals.length === 1 ? professionals[0].id : null);
@@ -312,7 +319,7 @@ export function WeekGrid(props: Props) {
 
             {/* dias */}
             {layout.days.map((d) => {
-              const placed = placeOverlaps(d.items.filter((b) => b.id !== moving?.id));
+              const placed = placeOverlaps(d.items.filter((b) => b.id !== moving?.id && !hiddenIds.includes(b.id)));
               const ghostMoving = moving && moving.date === d.date ? bookings.find((b) => b.id === moving.id) : null;
               const ghostDrag =
                 drag?.moved && drag.target?.date === d.date ? bookings.find((b) => b.id === drag.id) : null;
@@ -400,7 +407,7 @@ export function WeekGrid(props: Props) {
                           justDragged.current = false;
                           return;
                         }
-                        setSelected(p.b);
+                        setSelectedId(p.b.id);
                       }}
                     />
                   ))}
@@ -425,7 +432,7 @@ export function WeekGrid(props: Props) {
       )}
 
       {/* ações do agendamento (as mesmas da visão Dia) */}
-      <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
+      <Dialog open={!!selected} onOpenChange={(o) => !o && setSelectedId(null)}>
         <DialogContent className="max-h-[92svh] w-[calc(100%-1.5rem)] max-w-lg overflow-y-auto rounded-2xl">
           {selected && (
             <>
@@ -459,6 +466,11 @@ export function WeekGrid(props: Props) {
                   slug={props.slug}
                   fullAccess={props.fullAccess}
                   reschedule={props.reschedule}
+                  onCancelling={(hidden) => {
+                    const id = selected.id;
+                    setHiddenIds((ids) => (hidden ? [...ids, id] : ids.filter((x) => x !== id)));
+                    if (hidden) setSelectedId(null);
+                  }}
                 />
               </div>
             </>
@@ -472,6 +484,7 @@ export function WeekGrid(props: Props) {
         services={props.services}
         professionals={professionals}
         fullAccess={props.fullAccess}
+        canSellPackages={props.reschedule?.canChooseProfessional}
         open={!!newSlot}
         onOpenChange={(o) => !o && setNewSlot(null)}
         initial={newSlot ?? undefined}

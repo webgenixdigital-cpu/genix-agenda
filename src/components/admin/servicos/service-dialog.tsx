@@ -3,7 +3,8 @@
 import { useState, useTransition } from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { saveService } from "@/app/admin/(painel)/servicos/actions";
+import { previewDurationChange, saveService } from "@/app/admin/(painel)/servicos/actions";
+import { DurationUpdateDialog, type DurationChange } from "@/components/admin/servicos/duration-update-dialog";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -54,6 +55,7 @@ export function ServiceDialog({
   const [ret, setRet] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loadedId, setLoadedId] = useState<string | null | undefined>(undefined);
+  const [durationChange, setDurationChange] = useState<DurationChange | null>(null);
 
   // preenche o formulário ao abrir
   if (open && loadedId !== (service?.id ?? null)) {
@@ -83,14 +85,26 @@ export function ServiceDialog({
         return_after_days: ret ? Number(ret) : null,
       });
       if (!r) return; // demonstração: o servidor redirecionou
-      if (r.ok) {
-        toast.success(service ? "Serviço atualizado" : "Serviço criado");
-        onOpenChange(false);
-      } else setError(r.error);
+      if (!r.ok) return setError(r.error);
+      toast.success(service ? "Serviço atualizado" : "Serviço criado");
+      onOpenChange(false);
+
+      // duração mudou: pergunta se atualiza os agendamentos futuros com esse serviço
+      const to = Number(dur);
+      if (service && to !== service.duration_min) {
+        const p = await previewDurationChange(service.id, to);
+        if (!p) return;
+        if (!p.ok) return void toast.error(p.error);
+        if (p.items.length > 0) {
+          setDurationChange({ serviceId: service.id, serviceName: name.trim(), from: service.duration_min, to, items: p.items });
+        }
+      }
     });
   }
 
   return (
+    <>
+    <DurationUpdateDialog change={durationChange} onClose={() => setDurationChange(null)} />
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[92svh] w-[calc(100%-1.5rem)] max-w-lg overflow-y-auto rounded-2xl">
         <DialogHeader>
@@ -198,5 +212,6 @@ export function ServiceDialog({
         </form>
       </DialogContent>
     </Dialog>
+    </>
   );
 }

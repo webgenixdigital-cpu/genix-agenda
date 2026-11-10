@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { CalendarClock, Check, CheckCheck, Loader2, MessageCircle, Pencil, Plus, Repeat, Star, X } from "lucide-react";
 import { toast } from "sonner";
 import { cancelSeriesFuture, completeBooking, updateBookingStatus } from "@/app/admin/(painel)/agenda/actions";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { brl, whatsappLink } from "@/lib/format";
 import { customerMessage } from "@/lib/messages";
 import { RescheduleDialog, type ProOption } from "@/components/admin/agenda/reschedule-dialog";
@@ -58,6 +60,7 @@ export function BookingActions({
   slug,
   fullAccess = true,
   reschedule,
+  onCancelling,
 }: {
   booking: AgendaBooking;
   businessName: string;
@@ -65,8 +68,20 @@ export function BookingActions({
   /** plano pago (Profissional ou Equipe): pergunta a forma de pagamento e lança no caixa */
   fullAccess?: boolean;
   reschedule?: RescheduleProps;
+  /** cancelamento confirmado (true) ou desfeito por erro (false): quem lista esconde na hora */
+  onCancelling?: (hidden: boolean) => void;
 }) {
+  const router = useRouter();
   const [pending, start] = useTransition();
+  // confirmação própria: o window.confirm() falha em navegadores embutidos no celular
+  const [cancelAsk, setCancelAsk] = useState<null | "one" | "series">(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  // some da tela assim que confirma (sem esperar o servidor); volta se der erro.
+  // O cartão da lista (BookingCard, renderizado no servidor) é achado pelo data-agenda-card.
+  function hideNow(hidden: boolean) {
+    rootRef.current?.closest("[data-agenda-card]")?.classList.toggle("hidden", hidden);
+    onCancelling?.(hidden);
+  }
   const [completeOpen, setCompleteOpen] = useState(false);
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -93,7 +108,7 @@ export function BookingActions({
   }
 
   return (
-    <div className="flex flex-wrap gap-2">
+    <div ref={rootRef} className="flex flex-wrap gap-2">
       {b.status === "pending" && (
         <Button
           size="sm"
@@ -163,12 +178,7 @@ export function BookingActions({
           variant="ghost"
           className="h-10 text-destructive hover:bg-red-50 hover:text-destructive"
           disabled={pending}
-          onClick={() => {
-            const note = b.customer_package_id ? "\n\nA sessão volta para o saldo do pacote." : "";
-            if (confirm(`Cancelar o horário de ${b.customer_name}?${note}`)) {
-              run(() => updateBookingStatus(b.id, "cancelled"), "Agendamento cancelado");
-            }
-          }}
+          onClick={() => setCancelAsk("one")}
           data-testid={`btn-cancelar-${b.id}`}
         >
           <X className="mr-1.5 h-4 w-4" /> Cancelar
@@ -181,25 +191,64 @@ export function BookingActions({
           variant="ghost"
           className="h-10 text-muted-foreground hover:bg-red-50 hover:text-destructive"
           disabled={pending}
-          onClick={() => {
-            const note = b.customer_package_id ? "\n\nAs sessões voltam para o saldo do pacote." : "";
-            if (!confirm(`Cancelar este e os próximos horários desta série de ${b.customer_name}?\nOs que já passaram não mudam.${note}`)) return;
-            start(async () => {
-              const r = await cancelSeriesFuture(b.series_id!);
-              if (!r) return; // demonstração: o servidor redirecionou
-              if (!r.ok) return void toast.error(r.error);
-              toast.success(
-                r.cancelled === 0
-                  ? "Nenhum horário futuro desta série para cancelar"
-                  : `${r.cancelled} ${r.cancelled === 1 ? "horário cancelado" : "horários cancelados"}`
-              );
-            });
-          }}
+          onClick={() => setCancelAsk("series")}
           data-testid={`btn-cancelar-serie-${b.id}`}
         >
           <Repeat className="mr-1.5 h-4 w-4" /> Cancelar as próximas desta série
         </Button>
       )}
+
+      <ConfirmDialog
+        open={cancelAsk !== null}
+        onOpenChange={(o) => !o && setCancelAsk(null)}
+        title={cancelAsk === "series" ? "Cancelar as próximas?" : "Cancelar o horário?"}
+        description={
+          <>
+            <p>
+              {cancelAsk === "series"
+                ? `Este e os próximos horários desta série de ${b.customer_name} serão cancelados. Os que já passaram não mudam.`
+                : `O horário de ${b.customer_name} sai da agenda e continua no histórico do cliente.`}
+            </p>
+            {b.customer_package_id && (
+              <p>{cancelAsk === "series" ? "As sessões voltam para o saldo do pacote." : "A sessão volta para o saldo do pacote."}</p>
+            )}
+          </>
+        }
+        confirmLabel={cancelAsk === "series" ? "Cancelar as próximas" : "Cancelar horário"}
+        destructive
+        pending={pending}
+        testId={`cancelar-${b.id}`}
+        onConfirm={() => {
+          const which = cancelAsk;
+          setCancelAsk(null);
+          hideNow(true);
+          start(async () => {
+            if (which === "series") {
+              const r = await cancelSeriesFuture(b.series_id!);
+              if (!r) return; // demonstração: o servidor redirecionou
+              if (!r.ok) {
+                hideNow(false);
+                return void toast.error(r.error);
+              }
+              toast.success(
+                r.cancelled === 0
+                  ? "Nenhum horário futuro desta série para cancelar"
+                  : `${r.cancelled} ${r.cancelled === 1 ? "horário cancelado" : "horários cancelados"}`
+              );
+            } else {
+              const r = await updateBookingStatus(b.id, "cancelled");
+              if (!r) return; // demonstração: o servidor redirecionou
+              if (!r.ok) {
+                hideNow(false);
+                return void toast.error(r.error);
+              }
+              toast.success("Agendamento cancelado");
+            }
+            // a action já revalida a Agenda; o refresh garante a lista nova no calendário aberto
+            router.refresh();
+          });
+        }}
+      />
 
       {reschedule && (
         <RescheduleDialog

@@ -14,6 +14,7 @@ import { AutoReminderToggle } from "@/components/admin/clientes/auto-reminder-to
 import { EditBookingButton } from "@/components/admin/agenda/edit-booking-dialog";
 import { Button } from "@/components/ui/button";
 import { getPlanContext } from "@/lib/plan";
+import { loadSaleOptions } from "@/lib/package-sale";
 import type { BookingStatus } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -123,7 +124,7 @@ export default async function ClientePage({ params }: Props) {
   const { data: waStatus } =
     role === "owner" ? await supabase.rpc("whatsapp_panel_status", { p_business: business.id }) : { data: null };
   const waEnabled = !!(waStatus as { genix_enabled?: boolean } | null)?.genix_enabled;
-  const [{ data: pkgs }, { data: pkgItems }, { data: templates }, plan, { data: pkgModes }, { data: pros }] = await Promise.all([
+  const [{ data: pkgs }, { data: pkgItems }, sale, plan, { data: pkgModes }] = await Promise.all([
     supabase
       .from("customer_package_balance")
       .select("id, name, service_name, sessions_total, used, remaining, price, sold_at, expires_at, effective_status")
@@ -135,26 +136,11 @@ export default async function ClientePage({ params }: Props) {
       .select("id, customer_package_id, service_name, sessions_total, used, remaining, value_total, position")
       .eq("customer_id", c.id)
       .order("position"),
-    canSell
-      ? supabase
-          .from("package_templates")
-          .select("id, name, sessions, price, validity_days, package_template_items(service_id, sessions, position, services(name))")
-          .eq("business_id", business.id)
-          .eq("active", true)
-          .order("sort_order")
-      : Promise.resolve({ data: [] }),
+    // modelos à venda e profissionais (regras de datas fixas)
+    canSell ? loadSaleOptions(supabase, business.id) : Promise.resolve({ templates: [], professionals: [] }),
     getPlanContext(business.id),
     // 39_pacote_datas_fixas: modo de agendamento de cada pacote
     supabase.from("customer_packages").select("id, schedule_mode").eq("customer_id", c.id),
-    // profissionais ativos (regras de datas fixas na venda)
-    canSell
-      ? supabase
-          .from("professionals")
-          .select("id, name, professional_services(service_id)")
-          .eq("business_id", business.id)
-          .eq("active", true)
-          .order("sort_order")
-      : Promise.resolve({ data: [] }),
   ]);
   const modeById = new Map(((pkgModes ?? []) as { id: string; schedule_mode: string }[]).map((m) => [m.id, m.schedule_mode]));
 
@@ -297,24 +283,9 @@ export default async function ClientePage({ params }: Props) {
         <PackagesCard
           customerId={c.id}
           packages={packages}
-          templates={(templates ?? []).map(({ package_template_items: its, ...t }) => ({
-            ...t,
-            price: Number(t.price),
-            services: [...((its ?? []) as unknown as { service_id: string; sessions: number; position: number; services: { name: string } | null }[])]
-              .sort((a, b) => a.position - b.position)
-              .map((i) => ({ id: i.service_id, name: i.services?.name ?? "serviço", sessions: i.sessions })),
-            // "4× Manicure + 2× Pedicure"
-            contents: [...((its ?? []) as unknown as { sessions: number; position: number; services: { name: string } | null }[])]
-              .sort((a, b) => a.position - b.position)
-              .map((i) => `${i.sessions}× ${i.services?.name ?? "serviço"}`)
-              .join(" + "),
-          }))}
+          templates={sale.templates}
           canSell={canSell}
-          professionals={((pros ?? []) as unknown as { id: string; name: string; professional_services: { service_id: string }[] | null }[]).map((p) => ({
-            id: p.id,
-            name: p.name,
-            serviceIds: (p.professional_services ?? []).map((l) => l.service_id),
-          }))}
+          professionals={sale.professionals}
           locked={plan.tier !== "completo"}
         />
       )}

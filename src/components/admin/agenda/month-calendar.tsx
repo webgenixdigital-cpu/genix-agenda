@@ -130,6 +130,7 @@ function useNewBooking(props: Props) {
       services={props.services}
       professionals={props.professionals}
       fullAccess={props.fullAccess}
+      canSellPackages={props.reschedule?.canChooseProfessional}
       open={!!slot}
       onOpenChange={(o) => !o && setSlot(null)}
       initial={slot ?? undefined}

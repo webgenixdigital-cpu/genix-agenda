@@ -21,6 +21,7 @@ import { METHOD_LABEL, type CashMethod } from "@/lib/cash";
 import { brl } from "@/lib/format";
 import { FREQUENCY_LABEL, SKIP_REASON } from "@/lib/series";
 import { cn } from "@/lib/utils";
+import type { SaleProfessional, SaleTemplate } from "@/lib/package-sale";
 
 export type CustomerPackage = {
   id: string;
@@ -43,17 +44,7 @@ export type CustomerPackage = {
   future_count: number;
 };
 
-export type SaleTemplate = {
-  id: string;
-  name: string;
-  sessions: number;
-  price: number;
-  validity_days: number | null;
-  /** "4× Manicure + 2× Pedicure" */
-  contents: string;
-  /** serviços do modelo, na ordem (regras de datas fixas) */
-  services: { id: string; name: string; sessions: number }[];
-};
+export type { SaleTemplate };
 
 const br = (iso: string) => iso.split("-").reverse().join("/");
 
@@ -275,7 +266,7 @@ export function PackagesCard({
   );
 }
 
-type ProOption = { id: string; name: string; serviceIds: string[] };
+type ProOption = SaleProfessional;
 
 type RuleDraft = {
   key: number;
@@ -295,18 +286,21 @@ const weekday = (iso: string) => WEEKDAY[new Date(`${iso}T12:00:00`).getDay()];
 
 const proDoes = (p: ProOption | undefined, serviceId: string) => !p || p.serviceIds.length === 0 || p.serviceIds.includes(serviceId);
 
-function SellPackageDialog({
+export function SellPackageDialog({
   open,
   onOpenChange,
   customerId,
   templates,
   professionals,
+  onSold,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   customerId: string;
   templates: SaleTemplate[];
   professionals: ProOption[];
+  /** venda concluída (Agenda: recarrega os pacotes do cliente e marca o novo) */
+  onSold?: () => void;
 }) {
   const [pending, start] = useTransition();
   const [templateId, setTemplateId] = useState("");
@@ -445,6 +439,7 @@ function SellPackageDialog({
       }
       reset();
       onOpenChange(false);
+      onSold?.();
     });
   }
 

@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarDays, Check, Loader2, Lock, Plus, Repeat, X } from "lucide-react";
+import { CalendarDays, Check, Loader2, Lock, Package, Plus, Repeat, X } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
 import {
@@ -16,6 +16,9 @@ import {
   type SeriesFrequency,
   type SeriesInput,
 } from "@/app/admin/(painel)/agenda/actions";
+import { startPackageSale } from "@/app/admin/(painel)/clientes/actions";
+import { SellPackageDialog } from "@/components/admin/clientes/packages-card";
+import type { SaleProfessional, SaleTemplate } from "@/lib/package-sale";
 import { FREQUENCY_LABEL, SKIP_REASON } from "@/lib/series";
 import { CustomerSearch } from "@/components/admin/agenda/customer-search";
 import { cn } from "@/lib/utils";
@@ -35,6 +38,8 @@ type Props = {
   professionals: { id: string; name: string }[];
   /** plano pago (Profissional ou Equipe): libera "Repetir" (agendamentos recorrentes) */
   fullAccess?: boolean;
+  /** matriz e recepção: botão "Vender pacote" (no Grátis aparece com cadeado) */
+  canSellPackages?: boolean;
   /** modo controlado (grade semanal): abre por fora, sem o botão próprio */
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -57,6 +62,7 @@ export function NewBookingDialog({
   services,
   professionals,
   fullAccess = false,
+  canSellPackages = false,
   open: openProp,
   onOpenChange,
   initial,
@@ -95,6 +101,31 @@ export function NewBookingDialog({
       alive = false;
     };
   }, [open, serviceId, phoneDigits]);
+
+  // "Vender pacote": acha/cadastra o cliente pelo WhatsApp e abre o diálogo da ficha
+  const [sale, setSale] = useState<{ customerId: string; templates: SaleTemplate[]; professionals: SaleProfessional[] } | null>(null);
+  const [saleOpen, setSaleOpen] = useState(false);
+  const [saleLoading, startSale] = useTransition();
+
+  function openSale() {
+    startSale(async () => {
+      const r = await startPackageSale({ name, phone });
+      if (!r) return; // demonstração: o servidor redirecionou
+      if (!r.ok) return void toast.error(r.error);
+      setSale({ customerId: r.customerId, templates: r.templates, professionals: r.professionals });
+      setSaleOpen(true);
+    });
+  }
+
+  // vendeu: recarrega os pacotes deste serviço e já marca o novo para este horário
+  async function afterSale() {
+    const before = new Set(packages.map((p) => p.id));
+    const list = (await findCustomerPackages(phoneDigits, serviceId)) ?? [];
+    setPackages(list);
+    const fresh = list.find((p) => !before.has(p.id));
+    if (fresh) setPackageId(fresh.id);
+    else if (list.length === 0) toast.info("O pacote vendido não inclui este serviço.");
+  }
 
   // recorrência: qualquer mudança nos dados invalida a prévia
   const [repeat, setRepeat] = useState(false);
@@ -342,6 +373,29 @@ export function NewBookingDialog({
               </div>
             )}
 
+            {/* vender pacote sem sair da Agenda (mesmo diálogo da ficha do cliente) */}
+            {canSellPackages && serviceId && phoneDigits.length >= 10 && (
+              fullAccess ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-11 w-full"
+                  disabled={saleLoading}
+                  onClick={openSale}
+                  data-testid="btn-vender-pacote-agenda"
+                >
+                  {saleLoading ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Package className="mr-1.5 h-4 w-4" />}
+                  Vender pacote
+                </Button>
+              ) : (
+                <Button asChild variant="outline" className="h-11 w-full" data-testid="btn-liberar-pacotes-agenda">
+                  <Link href="/admin/assinatura">
+                    <Lock className="mr-1.5 h-4 w-4" /> Vender pacote · planos pagos
+                  </Link>
+                </Button>
+              )
+            )}
+
             <div className="space-y-1.5">
               <Label htmlFor="nb-notes">Observações (opcional)</Label>
               <Textarea id="nb-notes" rows={2} value={notes} onChange={(e) => setNotes(e.target.value.slice(0, 500))} />
@@ -458,6 +512,17 @@ export function NewBookingDialog({
           </form>
         </DialogContent>
       </Dialog>
+
+      {sale && (
+        <SellPackageDialog
+          open={saleOpen}
+          onOpenChange={setSaleOpen}
+          customerId={sale.customerId}
+          templates={sale.templates}
+          professionals={sale.professionals}
+          onSold={afterSale}
+        />
+      )}
     </>
   );
 }

@@ -2,7 +2,7 @@
 // A RLS de cash_entries ("matriz ve caixa") decide quem lê.
 import type { createClient } from "@/lib/supabase/server";
 import type { CashCategory, CashMethod } from "@/lib/cash";
-import { formaMethods, tipoKind, type CashFilters } from "@/lib/cash-period";
+import { tipoKind, type CashFilters } from "@/lib/cash-period";
 
 type Db = ReturnType<typeof createClient>;
 type One<T> = T | T[] | null;
@@ -28,7 +28,7 @@ export type CashSummary = {
   byMethod: Partial<Record<CashMethod, { income: number; expense: number }>>;
 };
 
-type Filters = Pick<CashFilters, "de" | "ate" | "forma" | "tipo">;
+type Filters = Pick<CashFilters, "de" | "ate" | "tipo">;
 
 const COLUMNS = "id, kind, category, method, amount, description, entry_date, created_at, booking_id";
 // cliente (do atendimento ou do pacote vendido) e profissional
@@ -47,10 +47,8 @@ export function entryPeople(e: CashEntryRow) {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function applyFilters(q: any, businessId: string, f: Filters) {
-  const methods = formaMethods(f.forma);
   const kind = tipoKind(f.tipo);
   let r = q.eq("business_id", businessId).gte("entry_date", f.de).lte("entry_date", f.ate);
-  if (methods) r = r.in("method", methods);
   if (kind) r = r.eq("kind", kind);
   return r;
 }
@@ -89,7 +87,7 @@ export async function loadCashSummary(db: Db, businessId: string, f: Filters): P
     p_business: businessId,
     p_from: f.de,
     p_to: f.ate,
-    p_methods: formaMethods(f.forma),
+    p_methods: null,
     p_kind: tipoKind(f.tipo),
   });
   if (!error && data) {

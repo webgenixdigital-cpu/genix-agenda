@@ -1,10 +1,8 @@
-// Filtros do Caixa (Financeiro): período, forma de pagamento e tipo, lidos da URL
-// (?de=&ate=&forma=&tipo=). Datas "yyyy-mm-dd" no fuso do espaço.
+// Filtros do Caixa (Financeiro): período e tipo, lidos da URL (?de=&ate=&tipo=).
+// Datas "yyyy-mm-dd" no fuso do espaço. ?forma= (links antigos) é ignorado.
 import { addDaysISO, mondayOf } from "@/lib/dates";
-import type { CashMethod } from "@/lib/cash";
 
 export type PeriodPreset = "hoje" | "ontem" | "semana" | "semana_passada" | "mes" | "mes_passado";
-export type CashForma = "pix" | "cartao" | "dinheiro";
 export type CashTipo = "entrada" | "saida";
 
 export const PRESETS: { key: PeriodPreset; label: string }[] = [
@@ -14,12 +12,6 @@ export const PRESETS: { key: PeriodPreset; label: string }[] = [
   { key: "semana_passada", label: "Semana passada" },
   { key: "mes", label: "Este mês" },
   { key: "mes_passado", label: "Mês passado" },
-];
-
-export const FORMAS: { key: CashForma; label: string; methods: CashMethod[] }[] = [
-  { key: "pix", label: "Pix", methods: ["pix"] },
-  { key: "cartao", label: "Cartão", methods: ["credito", "debito"] },
-  { key: "dinheiro", label: "Dinheiro", methods: ["dinheiro"] },
 ];
 
 export const TIPOS: { key: CashTipo; label: string; kind: "income" | "expense" }[] = [
@@ -74,7 +66,6 @@ export type CashFilters = {
   ate: string;
   /** atalho que bate com o período; null = "Período" personalizado */
   preset: PeriodPreset | null;
-  forma: CashForma | null;
   tipo: CashTipo | null;
   limite: number;
   /** aviso amigável quando a URL trazia algo inválido e foi corrigido */
@@ -82,7 +73,7 @@ export type CashFilters = {
 };
 
 export function parseCashFilters(
-  sp: { de?: string; ate?: string; forma?: string; tipo?: string; limite?: string },
+  sp: { de?: string; ate?: string; tipo?: string; limite?: string },
   today: string
 ): CashFilters {
   let notice: string | null = null;
@@ -108,22 +99,20 @@ export function parseCashFilters(
     return r.de === de && r.ate === ate;
   })?.key ?? null;
 
-  const forma = FORMAS.some((f) => f.key === sp.forma) ? (sp.forma as CashForma) : null;
   const tipo = TIPOS.some((t) => t.key === sp.tipo) ? (sp.tipo as CashTipo) : null;
   const n = Number(sp.limite);
   const limite = Number.isInteger(n) && n > PAGE_SIZE ? Math.min(n, 5000) : PAGE_SIZE;
 
-  return { de, ate, preset, forma, tipo, limite, notice };
+  return { de, ate, preset, tipo, limite, notice };
 }
 
 /** Link do Caixa com os filtros atuais + mudanças (valor null tira o parâmetro) */
-export function cashHref(f: Pick<CashFilters, "de" | "ate" | "forma" | "tipo">, change: Record<string, string | number | null> = {}) {
-  const params: Record<string, string | number | null> = { de: f.de, ate: f.ate, forma: f.forma, tipo: f.tipo, ...change };
+export function cashHref(f: Pick<CashFilters, "de" | "ate" | "tipo">, change: Record<string, string | number | null> = {}) {
+  const params: Record<string, string | number | null> = { de: f.de, ate: f.ate, tipo: f.tipo, ...change };
   const q = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) if (v !== null && v !== "") q.set(k, String(v));
   const s = q.toString();
   return s ? `/admin/financeiro?${s}` : "/admin/financeiro";
 }
 
-export const formaMethods = (f: CashForma | null) => FORMAS.find((x) => x.key === f)?.methods ?? null;
 export const tipoKind = (t: CashTipo | null) => TIPOS.find((x) => x.key === t)?.kind ?? null;

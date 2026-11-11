@@ -6,7 +6,7 @@ import { requireRoles } from "@/lib/admin";
 import { getPlanContext } from "@/lib/plan";
 import { todayInZone } from "@/lib/dates";
 import { CATEGORY_LABEL, METHOD_LABEL } from "@/lib/cash";
-import { FORMAS, TIPOS, parseCashFilters } from "@/lib/cash-period";
+import { TIPOS, parseCashFilters } from "@/lib/cash-period";
 import { entryPeople, loadCashEntries, loadCashSummary } from "@/lib/cash-data";
 import { csvNum, csvText } from "@/lib/faturamento-csv";
 
@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
   const today = todayInZone(tz);
   const sp = req.nextUrl.searchParams;
   const f = parseCashFilters(
-    { de: sp.get("de") ?? undefined, ate: sp.get("ate") ?? undefined, forma: sp.get("forma") ?? undefined, tipo: sp.get("tipo") ?? undefined },
+    { de: sp.get("de") ?? undefined, ate: sp.get("ate") ?? undefined, tipo: sp.get("tipo") ?? undefined },
     today
   );
 
@@ -39,7 +39,6 @@ export async function GET(req: NextRequest) {
   row(csvText("Caixa"));
   row(csvText("Espaço"), csvText(business.name));
   row(csvText("Período"), csvText(f.de === f.ate ? br(f.de) : `${br(f.de)} a ${br(f.ate)}`));
-  row(csvText("Forma de pagamento"), csvText(FORMAS.find((x) => x.key === f.forma)?.label ?? "Todas"));
   row(csvText("Tipo"), csvText(TIPOS.find((x) => x.key === f.tipo)?.label ?? "Entradas e saídas"));
   row(csvText("Gerado em"), csvText(br(today)));
   row(csvText("Entradas"), csvNum(summary.income));

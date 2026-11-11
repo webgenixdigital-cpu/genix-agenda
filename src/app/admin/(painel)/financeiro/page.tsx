@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ArrowDownRight, ArrowUpRight, CalendarRange, FileSpreadsheet } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, CalendarRange } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { requireRoles } from "@/lib/admin";
 import { getPlanContext } from "@/lib/plan";
@@ -10,28 +10,18 @@ import { todayInZone } from "@/lib/dates";
 import { brl } from "@/lib/format";
 import { CATEGORY_LABEL, METHOD_LABEL, type CashMethod } from "@/lib/cash";
 import { entryPeople, loadCashEntries, loadCashMonthly, loadCashSummary } from "@/lib/cash-data";
-import {
-  FORMAS,
-  PAGE_SIZE,
-  PRESETS,
-  TIPOS,
-  cashHref,
-  parseCashFilters,
-  presetRange,
-  type CashFilters,
-} from "@/lib/cash-period";
+import { PAGE_SIZE, PRESETS, TIPOS, cashHref, parseCashFilters, presetRange } from "@/lib/cash-period";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { RevenueChart } from "@/components/admin/financeiro/revenue-chart";
 import { CashEntryDialog } from "@/components/admin/financeiro/cash-entry-dialog";
 import { DeleteEntryButton } from "@/components/admin/financeiro/delete-entry-button";
 import { FinanceTabs } from "@/components/admin/financeiro/finance-tabs";
+import { CashFilterBar } from "@/components/admin/financeiro/cash-filter-bar";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
-type Props = { searchParams: { de?: string; ate?: string; forma?: string; tipo?: string; limite?: string } };
+type Props = { searchParams: { de?: string; ate?: string; tipo?: string; limite?: string } };
 
 const METHODS = Object.keys(METHOD_LABEL) as CashMethod[];
 
@@ -82,17 +72,27 @@ export default async function FinanceiroPage({ searchParams }: Props) {
             <FinanceTabs active="caixa" />
           </div>
         </div>
-        <div className="flex flex-wrap justify-center gap-2">
-          <CashEntryDialog defaultDate={dialogDate} />
-          <Button asChild variant="outline" className="h-11">
-            <a href={`/admin/caixa/csv?${cashHref(f).split("?")[1] ?? ""}`} download data-testid="btn-caixa-baixar-csv">
-              <FileSpreadsheet className="mr-1.5 h-4 w-4" /> Baixar planilha (CSV)
-            </a>
-          </Button>
-        </div>
+        <CashEntryDialog defaultDate={dialogDate} />
       </header>
 
-      <Filters f={f} today={today} />
+      <CashFilterBar
+        presets={PRESETS.map((p) => ({
+          key: p.key,
+          label: p.label,
+          // "Hoje" sem datas na URL (padrão); os outros atalhos gravam de/ate do momento
+          href: cashHref(f, p.key === "hoje" ? { de: null, ate: null } : presetRange(p.key, today)),
+          active: f.preset === p.key,
+        }))}
+        periodActive={!f.preset}
+        tipos={[
+          { key: "todos", label: "Todos", href: cashHref(f, { tipo: null }), active: !f.tipo },
+          ...TIPOS.map((t) => ({ key: t.key, label: t.label, href: cashHref(f, { tipo: t.key }), active: f.tipo === t.key })),
+        ]}
+        csvHref={`/admin/caixa/csv?${cashHref(f).split("?")[1] ?? ""}`}
+        de={f.de}
+        ate={f.ate}
+        tipo={f.tipo}
+      />
 
       {f.notice && (
         <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900" role="status">
@@ -105,7 +105,6 @@ export default async function FinanceiroPage({ searchParams }: Props) {
         <p className="text-sm text-muted-foreground" data-testid="caixa-periodo">
           <CalendarRange className="mr-1.5 inline h-4 w-4 align-[-3px]" />
           {periodLabel}
-          {f.forma && ` · ${FORMAS.find((x) => x.key === f.forma)?.label}`}
           {f.tipo && ` · só ${TIPOS.find((x) => x.key === f.tipo)?.label.toLowerCase()}`}
         </p>
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
@@ -234,83 +233,5 @@ export default async function FinanceiroPage({ searchParams }: Props) {
         )}
       </section>
     </main>
-  );
-}
-
-// ---------------------------------------------------------------------
-// Filtros (links e formulário GET: funcionam sem JavaScript e ficam na URL)
-// ---------------------------------------------------------------------
-const chip = (active: boolean) =>
-  cn(
-    "inline-flex h-11 shrink-0 items-center rounded-full border px-4 text-sm font-medium transition-colors",
-    active ? "border-primary bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:text-foreground"
-  );
-
-function Filters({ f, today }: { f: CashFilters; today: string }) {
-  return (
-    <section className="space-y-3 rounded-2xl border bg-card p-4 md:p-5" aria-label="Filtros do caixa">
-      <nav className="flex flex-wrap gap-2" aria-label="Período">
-        {PRESETS.map((p) => (
-          <Link
-            key={p.key}
-            // atalho: o link guarda as datas do momento (o "Hoje" de amanhã é outro dia)
-            href={cashHref(f, p.key === "hoje" ? { de: null, ate: null } : presetRange(p.key, today))}
-            className={chip(f.preset === p.key)}
-            aria-current={f.preset === p.key ? "true" : undefined}
-            data-testid={`filtro-periodo-${p.key.replace("_", "-")}`}
-          >
-            {p.label}
-          </Link>
-        ))}
-      </nav>
-
-      <details className="group" open={!f.preset}>
-        <summary
-          className={cn(chip(!f.preset), "cursor-pointer list-none [&::-webkit-details-marker]:hidden")}
-          data-testid="filtro-periodo-personalizado"
-        >
-          <CalendarRange className="mr-1.5 h-4 w-4" /> Período
-        </summary>
-        <form action="/admin/financeiro" method="get" className="mt-3 flex flex-wrap items-end gap-3">
-          {f.forma && <input type="hidden" name="forma" value={f.forma} />}
-          {f.tipo && <input type="hidden" name="tipo" value={f.tipo} />}
-          <div className="space-y-1.5">
-            <Label htmlFor="caixa-de">Data inicial</Label>
-            <Input id="caixa-de" name="de" type="date" required defaultValue={f.de} className="h-11 w-44" data-testid="input-caixa-de" />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="caixa-ate">Data final</Label>
-            <Input id="caixa-ate" name="ate" type="date" required defaultValue={f.ate} className="h-11 w-44" data-testid="input-caixa-ate" />
-          </div>
-          <Button type="submit" className="h-11" data-testid="btn-caixa-aplicar-periodo">
-            Aplicar
-          </Button>
-          <p className="w-full text-xs text-muted-foreground">Até 1 ano entre as datas.</p>
-        </form>
-      </details>
-
-      <div className="flex flex-wrap gap-x-6 gap-y-3 border-t pt-3">
-        <nav className="flex flex-wrap gap-2" aria-label="Forma de pagamento">
-          <Link href={cashHref(f, { forma: null })} className={chip(!f.forma)} data-testid="filtro-forma-todas">
-            Todas as formas
-          </Link>
-          {FORMAS.map((x) => (
-            <Link key={x.key} href={cashHref(f, { forma: x.key })} className={chip(f.forma === x.key)} data-testid={`filtro-forma-${x.key}`}>
-              {x.label}
-            </Link>
-          ))}
-        </nav>
-        <nav className="flex flex-wrap gap-2" aria-label="Tipo">
-          <Link href={cashHref(f, { tipo: null })} className={chip(!f.tipo)} data-testid="filtro-tipo-todos">
-            Entradas e saídas
-          </Link>
-          {TIPOS.map((x) => (
-            <Link key={x.key} href={cashHref(f, { tipo: x.key })} className={chip(f.tipo === x.key)} data-testid={`filtro-tipo-${x.key}`}>
-              {x.label}
-            </Link>
-          ))}
-        </nav>
-      </div>
-    </section>
   );
 }

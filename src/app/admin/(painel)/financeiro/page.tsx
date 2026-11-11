@@ -10,7 +10,7 @@ import { todayInZone } from "@/lib/dates";
 import { brl } from "@/lib/format";
 import { CATEGORY_LABEL, METHOD_LABEL, type CashMethod } from "@/lib/cash";
 import { entryPeople, loadCashEntries, loadCashMonthly, loadCashSummary } from "@/lib/cash-data";
-import { PAGE_SIZE, PRESETS, TIPOS, cashHref, parseCashFilters, presetRange } from "@/lib/cash-period";
+import { PAGE_SIZE, PRESETS, TIPOS, cashHref, customPeriodLabel, parseCashFilters, presetRange } from "@/lib/cash-period";
 import { Button } from "@/components/ui/button";
 import { RevenueChart } from "@/components/admin/financeiro/revenue-chart";
 import { CashEntryDialog } from "@/components/admin/financeiro/cash-entry-dialog";
@@ -79,13 +79,14 @@ export default async function FinanceiroPage({ searchParams }: Props) {
         presets={PRESETS.map((p) => ({
           key: p.key,
           label: p.label,
+          short: p.short,
           // "Hoje" sem datas na URL (padrão); os outros atalhos gravam de/ate do momento
           href: cashHref(f, p.key === "hoje" ? { de: null, ate: null } : presetRange(p.key, today)),
           active: f.preset === p.key,
         }))}
-        periodActive={!f.preset}
+        customLabel={f.preset ? null : customPeriodLabel(f.de, f.ate, today)}
         tipos={[
-          { key: "todos", label: "Todos", href: cashHref(f, { tipo: null }), active: !f.tipo },
+          { key: "todos" as const, label: "Todos", href: cashHref(f, { tipo: null }), active: !f.tipo },
           ...TIPOS.map((t) => ({ key: t.key, label: t.label, href: cashHref(f, { tipo: t.key }), active: f.tipo === t.key })),
         ]}
         csvHref={`/admin/caixa/csv?${cashHref(f).split("?")[1] ?? ""}`}

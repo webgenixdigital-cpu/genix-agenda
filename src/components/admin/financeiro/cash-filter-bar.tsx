@@ -1,123 +1,125 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { CalendarRange, FileSpreadsheet } from "lucide-react";
+import { ArrowDownRight, ArrowUpDown, ArrowUpRight, CalendarRange, Check, ChevronDown, FileSpreadsheet } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
-type Chip = { key: string; label: string; href: string; active: boolean };
+type Preset = { key: string; label: string; short: string; href: string; active: boolean };
+type Tipo = { key: "todos" | "entrada" | "saida"; label: string; href: string; active: boolean };
+
+const TIPO_ICON = { todos: ArrowUpDown, entrada: ArrowUpRight, saida: ArrowDownRight } as const;
 
 // 44 px de toque no celular/tablet; ~36 px no desktop
-const chip = (active: boolean) =>
-  cn(
-    "inline-flex h-11 shrink-0 items-center whitespace-nowrap rounded-full border px-3 text-sm font-medium transition-colors lg:h-9 lg:px-2.5",
-    active ? "border-primary bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:text-foreground"
-  );
+const H = "h-11 lg:h-9";
 
 /**
- * Barra única do Caixa: atalhos de período · Período · tipo · Baixar CSV.
- * Uma linha só; se não couber, rola na horizontal só dentro dela (a página não).
- * Os filtros são links (ficam na URL); "Período" abre as datas abaixo da barra.
+ * Barra do Caixa numa linha só, em qualquer largura:
+ * [Período ▾] · [Todos | Entradas | Saídas] · [CSV]
+ * O período é um menu (atalhos + "Período..." que abre as datas abaixo da barra).
  */
 export function CashFilterBar({
   presets,
-  periodActive,
+  customLabel,
   tipos,
   csvHref,
   de,
   ate,
   tipo,
 }: {
-  presets: Chip[];
-  /** período personalizado (nenhum atalho bate com as datas) */
-  periodActive: boolean;
-  tipos: Chip[];
+  presets: Preset[];
+  /** rótulo do período personalizado ("01/11 – 10/11"); null quando um atalho está ativo */
+  customLabel: string | null;
+  tipos: Tipo[];
   csvHref: string;
   de: string;
   ate: string;
   tipo: string | null;
 }) {
-  const [periodOpen, setPeriodOpen] = useState(periodActive);
-  const rowRef = useRef<HTMLDivElement>(null);
-
-  // o chip ativo rola até ficar visível (só a barra rola, nunca a página)
-  useEffect(() => {
-    const row = rowRef.current;
-    const active = row?.querySelector<HTMLElement>("[data-active='true']");
-    if (!row || !active) return;
-    const left = active.offsetLeft - row.offsetLeft;
-    const right = left + active.offsetWidth;
-    if (left < row.scrollLeft || right > row.scrollLeft + row.clientWidth)
-      row.scrollLeft = Math.max(0, left - (row.clientWidth - active.offsetWidth) / 2);
-  }, [de, ate, tipo]);
+  const [periodOpen, setPeriodOpen] = useState(false);
+  const active = presets.find((p) => p.active);
+  const label = active?.label ?? customLabel ?? "Período";
+  const short = active?.short ?? customLabel ?? "Período";
 
   return (
-    <section className="rounded-2xl border bg-card p-2" aria-label="Filtros do caixa">
-      <div className="flex items-center gap-2">
-        <div
-          ref={rowRef}
-          className="scroll-shadow-x flex min-w-0 flex-1 items-center gap-1.5 [scrollbar-width:none] lg:gap-1 [&::-webkit-scrollbar]:hidden"
-          data-testid="caixa-barra-filtros"
-        >
-          {presets.map((p) => (
-            <Link
-              key={p.key}
-              href={p.href}
-              scroll={false}
-              className={chip(p.active)}
-              aria-current={p.active ? "true" : undefined}
-              data-active={p.active}
-              data-testid={`filtro-periodo-${p.key.replace("_", "-")}`}
+    <section className="rounded-2xl border bg-card p-1.5 sm:p-2" aria-label="Filtros do caixa">
+      <div className="flex items-center gap-1 sm:gap-2" data-testid="caixa-barra-filtros">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              className={cn(H, "min-w-0 flex-1 justify-between gap-0.5 rounded-full px-2 text-sm font-medium sm:flex-none sm:gap-1.5 sm:px-3")}
+              title={label}
+              data-testid="filtro-periodo-menu"
             >
-              {p.label}
-            </Link>
-          ))}
-          <button
-            type="button"
-            className={chip(periodActive || periodOpen)}
-            aria-expanded={periodOpen}
-            aria-controls="caixa-periodo-campos"
-            data-active={periodActive}
-            onClick={() => setPeriodOpen((o) => !o)}
-            data-testid="filtro-periodo-personalizado"
-          >
-            <CalendarRange className="mr-1.5 h-4 w-4" /> Período
-          </button>
+              <CalendarRange className="hidden h-4 w-4 shrink-0 sm:block" aria-hidden />
+              <span className="truncate sm:hidden">{short}</span>
+              <span className="hidden truncate sm:inline">{label}</span>
+              <ChevronDown className="h-4 w-4 shrink-0 opacity-70" aria-hidden />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-52">
+            {presets.map((p) => (
+              <DropdownMenuItem key={p.key} asChild className="min-h-11 lg:min-h-9">
+                <Link href={p.href} scroll={false} data-testid={`filtro-periodo-${p.key.replace("_", "-")}`}>
+                  <Check className={cn("h-4 w-4", !p.active && "invisible")} aria-hidden />
+                  {p.label}
+                </Link>
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="min-h-11 lg:min-h-9"
+              onSelect={() => setPeriodOpen(true)}
+              data-testid="filtro-periodo-personalizado"
+            >
+              <Check className={cn("h-4 w-4", !customLabel && "invisible")} aria-hidden />
+              Período...
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
-          <span className="mx-0.5 h-6 w-px shrink-0 bg-border" aria-hidden />
-
-          <nav className="flex shrink-0 items-center gap-1.5 lg:gap-1" aria-label="Tipo">
-            {tipos.map((t) => (
+        {/* tipo: controle segmentado; no celular só ícones (o nome fica no aria-label) */}
+        <nav className="flex shrink-0 items-center rounded-full border" aria-label="Tipo de lançamento">
+          {tipos.map((t) => {
+            const Icon = TIPO_ICON[t.key];
+            return (
               <Link
                 key={t.key}
                 href={t.href}
                 scroll={false}
-                className={chip(t.active)}
+                aria-label={t.label}
+                title={t.label}
                 aria-current={t.active ? "true" : undefined}
-                data-active={t.active && t.key !== "todos"}
+                className={cn(
+                  "inline-flex h-11 min-w-11 items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-2 text-sm font-medium transition-colors sm:px-3 lg:h-9 lg:min-w-0",
+                  t.active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                )}
                 data-testid={`filtro-tipo-${t.key}`}
               >
-                {t.label}
+                <Icon className="h-4 w-4 sm:hidden" aria-hidden />
+                <span className="hidden sm:inline">{t.label}</span>
               </Link>
-            ))}
-          </nav>
-        </div>
+            );
+          })}
+        </nav>
 
-        {/* fora da parte que rola: sempre visível, à direita */}
-        <a
-          href={csvHref}
-          download
-          className={cn(chip(false), "text-foreground")}
-          aria-label="Baixar planilha CSV do período"
-          data-testid="btn-caixa-baixar-csv"
-        >
-          <FileSpreadsheet className="h-4 w-4 sm:mr-1.5" />
-          <span className="hidden sm:inline">Baixar CSV</span>
-          <span className="sm:hidden">&nbsp;CSV</span>
-        </a>
+        <Button asChild variant="outline" className={cn(H, "min-w-11 shrink-0 rounded-full px-3 text-sm sm:ml-auto")}>
+          <a href={csvHref} download aria-label="Baixar planilha CSV do período" data-testid="btn-caixa-baixar-csv">
+            <FileSpreadsheet className="h-4 w-4" aria-hidden />
+            <span className="hidden sm:inline">Baixar CSV</span>
+          </a>
+        </Button>
       </div>
 
       {/* "hidden" + "flex" não combinam no Tailwind (a classe vence): esconde por classe */}
@@ -138,6 +140,9 @@ export function CashFilterBar({
         </div>
         <Button type="submit" className="h-11" data-testid="btn-caixa-aplicar-periodo">
           Aplicar
+        </Button>
+        <Button type="button" variant="ghost" className="h-11" onClick={() => setPeriodOpen(false)} data-testid="btn-caixa-fechar-periodo">
+          Fechar
         </Button>
         <p className="w-full text-xs text-muted-foreground">Até 1 ano entre as datas.</p>
       </form>

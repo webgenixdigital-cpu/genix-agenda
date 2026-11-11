@@ -497,6 +497,12 @@ const prevMonth = (() => {
   d.setUTCMonth(d.getUTCMonth() - 1);
   return iso(d).slice(0, 7);
 })();
+// último dia do mês anterior (Caixa: atalho "Mês passado" = ?de=<mês>-01&ate=<último dia>)
+const prevMonthEnd = (() => {
+  const d = new Date();
+  d.setUTCDate(0);
+  return iso(d);
+})();
 
 const PANEL_ROUTES: [string, (m: Meta) => string | null][] = [
   ["Início", () => "/admin"],
@@ -513,7 +519,7 @@ const PANEL_ROUTES: [string, (m: Meta) => string | null][] = [
   ["Bloqueios", () => "/admin/bloqueios"],
   ["Serviços (+ Combos, Pacotes)", () => "/admin/servicos"],
   ["Equipe", () => "/admin/profissionais"],
-  ["Financeiro · Caixa (mês anterior)", () => `/admin/financeiro?mes=${prevMonth}`],
+  ["Financeiro · Caixa (mês anterior)", () => `/admin/financeiro?de=${prevMonth}-01&ate=${prevMonthEnd}`],
   ["Financeiro · Faturamento", () => "/admin/financeiro/faturamento"],
   ["Financeiro · Contador", () => "/admin/financeiro/contador"],
   ["Assinatura", () => "/admin/assinatura"],

@@ -5,13 +5,14 @@ import { addDaysISO, mondayOf } from "@/lib/dates";
 export type PeriodPreset = "hoje" | "ontem" | "semana" | "semana_passada" | "mes" | "mes_passado";
 export type CashTipo = "entrada" | "saida";
 
-export const PRESETS: { key: PeriodPreset; label: string }[] = [
-  { key: "hoje", label: "Hoje" },
-  { key: "ontem", label: "Ontem" },
-  { key: "semana", label: "Esta semana" },
-  { key: "semana_passada", label: "Semana passada" },
-  { key: "mes", label: "Este mês" },
-  { key: "mes_passado", label: "Mês passado" },
+/** short: rótulo do botão-menu no celular */
+export const PRESETS: { key: PeriodPreset; label: string; short: string }[] = [
+  { key: "hoje", label: "Hoje", short: "Hoje" },
+  { key: "ontem", label: "Ontem", short: "Ontem" },
+  { key: "semana", label: "Esta semana", short: "Esta semana" },
+  { key: "semana_passada", label: "Semana passada", short: "Sem. passada" },
+  { key: "mes", label: "Este mês", short: "Este mês" },
+  { key: "mes_passado", label: "Mês passado", short: "Mês passado" },
 ];
 
 export const TIPOS: { key: CashTipo; label: string; kind: "income" | "expense" }[] = [
@@ -116,3 +117,13 @@ export function cashHref(f: Pick<CashFilters, "de" | "ate" | "tipo">, change: Re
 }
 
 export const tipoKind = (t: CashTipo | null) => TIPOS.find((x) => x.key === t)?.kind ?? null;
+
+/** Rótulo do período personalizado: "01/11 – 10/11" (com o ano quando não é o atual) */
+export function customPeriodLabel(de: string, ate: string, today: string) {
+  const sameYear = de.slice(0, 4) === today.slice(0, 4) && ate.slice(0, 4) === today.slice(0, 4);
+  const fmt = (iso: string) => {
+    const [y, m, d] = iso.split("-");
+    return sameYear ? `${d}/${m}` : `${d}/${m}/${y.slice(2)}`;
+  };
+  return de === ate ? fmt(de) : `${fmt(de)} – ${fmt(ate)}`;
+}

@@ -3,8 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getEditorContext } from "@/lib/admin";
-import { todayISO } from "@/lib/dates";
 import { getPlanContext } from "@/lib/plan";
+import { birthISO, birthParts } from "@/lib/birthday";
 import { loadSaleOptions, type SaleProfessional, type SaleTemplate } from "@/lib/package-sale";
 
 type Result = { ok: true; id?: string } | { ok: false; error: string };
@@ -16,11 +16,10 @@ const digits = (v: string) => {
 
 type CustomerInput = { name: string; phone: string; email: string; notes: string; birthDate: string };
 
-/** "AAAA-MM-DD" que existe no calendário (recusa 2026-02-30, por exemplo) */
-function isRealDate(iso: string) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return false;
-  const d = new Date(`${iso}T12:00:00Z`);
-  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === iso;
+/** Aniversário: só dia e mês, gravado como "2000-MM-DD" (43); recusa 31/04, por exemplo */
+function normalizeBirth(raw: string) {
+  const { day, month } = birthParts(raw.trim());
+  return birthISO(day, month);
 }
 
 function validate(input: CustomerInput) {
@@ -28,12 +27,7 @@ function validate(input: CustomerInput) {
   if (!/^\d{10,11}$/.test(digits(input.phone))) return "Informe o WhatsApp com DDD.";
   if (input.email.trim() && !/^\S+@\S+\.\S+$/.test(input.email.trim())) return "E-mail inválido.";
   if (input.notes.length > 1000) return "Observações: no máximo 1000 caracteres.";
-  const birth = input.birthDate.trim();
-  if (birth) {
-    if (!isRealDate(birth)) return "Data de nascimento inválida.";
-    if (birth < "1900-01-01") return "Data de nascimento: use uma data a partir de 1900.";
-    if (birth > todayISO()) return "A data de nascimento não pode ser no futuro.";
-  }
+  if (input.birthDate.trim() && !normalizeBirth(input.birthDate)) return "Aniversário inválido: confira o dia e o mês.";
   return null;
 }
 
@@ -55,7 +49,7 @@ export async function createCustomer(input: CustomerInput): Promise<Result> {
       phone: digits(input.phone),
       email: input.email.trim() || null,
       notes: input.notes.trim() || null,
-      birth_date: input.birthDate.trim() || null,
+      birth_date: normalizeBirth(input.birthDate) || null,
     })
     .select("id")
     .single();
@@ -86,7 +80,7 @@ export async function updateCustomer(
       phone: digits(input.phone),
       email: input.email.trim() || null,
       notes: input.notes.trim() || null,
-      birth_date: input.birthDate.trim() || null,
+      birth_date: normalizeBirth(input.birthDate) || null,
     })
     .eq("id", id)
     .eq("business_id", business.id)

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, MessageCircle, StickyNote } from "lucide-react";
+import { ArrowLeft, Cake, MessageCircle, StickyNote } from "lucide-react";
+import { todayInZone } from "@/lib/dates";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminContext } from "@/lib/admin";
 import { brl, maskPhone, whatsappLink } from "@/lib/format";
@@ -22,6 +23,15 @@ export const dynamic = "force-dynamic";
 type Props = { params: { id: string } };
 
 const br = (iso: string) => iso.split("-").reverse().join("/");
+
+/** Dia e mês iguais aos de hoje (29/02 conta em 28/02 nos anos sem 29/02). Nunca calcula idade. */
+function isBirthdayToday(birth: string, today: string) {
+  const md = birth.slice(5);
+  if (md === today.slice(5)) return true;
+  const year = Number(today.slice(0, 4));
+  const leap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+  return md === "02-29" && !leap && today.slice(5) === "02-28";
+}
 const when = (ts: string) =>
   new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).format(new Date(ts));
 
@@ -75,12 +85,17 @@ export default async function ClientePage({ params }: Props) {
   const { business, role } = await getAdminContext();
   const supabase = createClient();
 
-  const { data: c } = await supabase
-    .from("customers")
-    .select("id, name, phone, email, notes, created_at, profile, no_auto_reminders")
-    .eq("id", params.id)
-    .eq("business_id", business.id)
-    .maybeSingle();
+  const COLS = "id, name, phone, email, notes, created_at, profile, no_auto_reminders";
+  const loadCustomer = (cols: string) =>
+    supabase.from("customers").select(cols).eq("id", params.id).eq("business_id", business.id).maybeSingle();
+  type CustomerRow = {
+    id: string; name: string; phone: string; email: string | null; notes: string | null; birth_date: string | null;
+    created_at: string; profile: unknown; no_auto_reminders: boolean;
+  };
+  let res = await loadCustomer(`${COLS}, birth_date`);
+  // 42703 = coluna não existe: a migration 41 ainda não rodou; a ficha abre sem a data de nascimento
+  if (res.error?.code === "42703") res = await loadCustomer(COLS);
+  const c = res.data ? ({ birth_date: null, ...(res.data as object) } as CustomerRow) : null;
   if (!c) notFound();
 
   const { data: bookings } = await supabase
@@ -236,6 +251,18 @@ export default async function ClientePage({ params }: Props) {
               {maskPhone(c.phone)}
               {c.email && ` · ${c.email}`}
             </p>
+            {c.birth_date && (
+              <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground" data-testid="ficha-nascimento">
+                <span className="inline-flex items-center gap-1">
+                  <Cake className="h-4 w-4 text-primary" /> Nascimento: {br(c.birth_date)}
+                </span>
+                {isBirthdayToday(c.birth_date, todayInZone(business.timezone)) && (
+                  <span className="rounded-full bg-[#F2C078]/40 px-2.5 py-0.5 text-xs font-semibold text-[#7A4520]" data-testid="selo-aniversario-hoje">
+                    Aniversário hoje
+                  </span>
+                )}
+              </p>
+            )}
           </div>
         </div>
         <div className="flex flex-wrap gap-2">

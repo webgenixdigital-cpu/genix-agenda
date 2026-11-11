@@ -7,6 +7,15 @@ export function todayISO(offsetDays = 0) {
   return new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(d);
 }
 
+/** "2026-10-07" (hoje no fuso informado, ex.: businesses.timezone; fuso inválido cai no de São Paulo) */
+export function todayInZone(timeZone: string | null | undefined) {
+  try {
+    return new Intl.DateTimeFormat("en-CA", { timeZone: timeZone || TZ }).format(new Date());
+  } catch {
+    return todayISO();
+  }
+}
+
 /** "2026-10-01" (primeiro dia do mês atual) */
 export function monthStartISO() {
   return todayISO().slice(0, 8) + "01";

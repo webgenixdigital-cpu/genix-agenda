@@ -132,6 +132,10 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
   o gatilho do item 0 abre um item por serviço (`add_service_items`, preço proporcional, `combo_group`).
   `professional_does_service` exige todos os serviços do combo. Serviço desativado/excluído → combo inativo.
 - Clientes (`customers`) identificados por WhatsApp normalizado; trigger liga cada agendamento ao cliente.
+  `customers.birth_date` (41) é opcional; a ficha mostra a data e o selo “Aniversário hoje” (fuso do espaço), nunca a idade.
+- **Texto da fila manual (41):** `manual_reminder_texts` (1 linha por espaço, “Amanhã”/“Hoje”, null = padrão); todos os
+  papéis leem, grava só `save_manual_reminder_texts` (matriz e recepção). Variáveis do automático + `{total}`
+  (`MANUAL_TEMPLATE_VARS`); montagem em `manualReminderText` (`lib/messages.ts`).
   `booking_events` registra o histórico automaticamente (criado, confirmado, remarcado...).
 - Webhook Asaas: `/api/asaas/webhook`, valida header `asaas-access-token`, idempotente (`asaas_webhook_events`).
 - **Cobrança do profissional extra (29):** valor sempre por `billing_quote` (servidor) / `subscription_quote` (painel).

@@ -12,7 +12,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { maskPhone } from "@/lib/format";
 
-type Customer = { id: string; name: string; phone: string; email: string | null; notes: string | null };
+import { todayISO } from "@/lib/dates";
+
+type Customer = { id: string; name: string; phone: string; email: string | null; notes: string | null; birth_date: string | null };
 
 // ---------------------------------------------------------------------
 // PARTE 1 — Diálogo de cadastro / edição
@@ -21,7 +23,7 @@ export function CustomerDialog({ customer }: { customer?: Customer }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
-  const [f, setF] = useState({ name: "", phone: "", email: "", notes: "" });
+  const [f, setF] = useState({ name: "", phone: "", email: "", notes: "", birthDate: "" });
   const [error, setError] = useState<string | null>(null);
 
   function openDialog() {
@@ -30,6 +32,7 @@ export function CustomerDialog({ customer }: { customer?: Customer }) {
       phone: maskPhone(customer?.phone ?? ""),
       email: customer?.email ?? "",
       notes: customer?.notes ?? "",
+      birthDate: customer?.birth_date ?? "",
     });
     setError(null);
     setOpen(true);
@@ -88,8 +91,13 @@ export function CustomerDialog({ customer }: { customer?: Customer }) {
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="ct-email">E-mail (opcional)</Label>
-                <Input id="ct-email" type="email" className="h-11" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} />
+                <Input id="ct-email" type="email" className="h-11" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} data-testid="input-cliente-email" />
               </div>
+            </div>
+            <div className="space-y-1.5 sm:max-w-[calc(50%-0.375rem)]">
+              <Label htmlFor="ct-birth">Data de nascimento (opcional)</Label>
+              <Input id="ct-birth" type="date" className="h-11" min="1900-01-01" max={todayISO()} value={f.birthDate}
+                onChange={(e) => setF({ ...f, birthDate: e.target.value })} data-testid="input-cliente-nascimento" />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="ct-notes">Observações</Label>

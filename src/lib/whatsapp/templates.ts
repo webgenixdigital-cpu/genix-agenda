@@ -1,5 +1,5 @@
 // Textos do lembrete automático (usado no servidor e no navegador)
-import { longDate } from "@/lib/format";
+import { brl, longDate } from "@/lib/format";
 
 /** Variáveis aceitas nos textos A, B e C */
 export const TEMPLATE_VARS = [
@@ -10,6 +10,9 @@ export const TEMPLATE_VARS = [
   { key: "hora", label: "hora" },
   { key: "espaco", label: "nome do espaço" },
 ] as const;
+
+/** Fila manual de Lembretes: as mesmas variáveis + {total} (o automático não usa) */
+export const MANUAL_TEMPLATE_VARS = [...TEMPLATE_VARS, { key: "total", label: "valor total" }] as const;
 
 // Base no lembrete manual (lib/messages.ts → reminderMessage), sem "amanhã"
 // fixo: o mesmo texto serve para o envio da véspera e do próprio dia.
@@ -41,6 +44,8 @@ export type TemplateData = {
   /** "HH:MM" ou "HH:MM:SS" */
   time: string;
   businessName: string;
+  /** só na fila manual: valor total do agendamento; sem valor (null/0) = {total} vazio */
+  total?: number | null;
 };
 
 export function renderTemplate(text: string, d: TemplateData) {
@@ -52,6 +57,8 @@ export function renderTemplate(text: string, d: TemplateData) {
     hora: d.time.slice(0, 5),
     espaco: d.businessName,
   };
+  // undefined = texto do automático, que não tem {total} (fica como está)
+  if (d.total !== undefined) vars.total = d.total && Number(d.total) > 0 ? brl(Number(d.total)) : "";
   return text.replace(/\{(\w+)\}/g, (all, key: string) => (key in vars ? vars[key] : all));
 }
 

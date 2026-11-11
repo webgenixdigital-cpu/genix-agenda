@@ -50,6 +50,24 @@ const ACTION_LABEL: Record<string, string> = {
   discount_removed: "Desconto removido",
 };
 
+/** Mensagens automáticas do WhatsApp (42): enviada ou fora da validade, por tipo */
+const AUTO_SENT: Record<string, string> = {
+  confirmation: "Confirmação enviada",
+  before: "Lembrete antes do horário enviado",
+  eve: "Lembrete de véspera enviado",
+};
+const AUTO_EXPIRED: Record<string, string> = {
+  confirmation: "Confirmação não enviada (fora da validade)",
+  before: "Lembrete antes do horário não enviado (fora da validade)",
+  eve: "Lembrete de véspera não enviado (fora da validade)",
+};
+function eventLabel(action: string, d: Record<string, unknown> | null) {
+  const kind = typeof d?.kind === "string" ? d.kind : "";
+  if (action === "whatsapp_auto") return AUTO_SENT[kind] ?? "Mensagem automática enviada";
+  if (action === "whatsapp_auto_expired") return AUTO_EXPIRED[kind] ?? "Mensagem automática não enviada";
+  return ACTION_LABEL[action] ?? action;
+}
+
 /** Detalhe dos eventos de edição (31_editar_agendamento): serviço, valores e motivo */
 function editDetail(action: string, d: Record<string, unknown> | null) {
   if (!d) return "";
@@ -366,7 +384,7 @@ export default async function ClientePage({ params }: Props) {
                       const to = (e.details?.to ?? null) as { date?: string; time?: string } | null;
                       return (
                         <li key={i}>
-                          <span className="font-semibold text-foreground">{ACTION_LABEL[e.action] ?? e.action}</span>{" "}
+                          <span className="font-semibold text-foreground">{eventLabel(e.action, e.details)}</span>{" "}
                           {ROLE_LABEL[e.actor_role ?? ""] ?? ""} · {when(e.created_at)}
                           {e.action === "rescheduled" && to?.date && ` → ${br(to.date)} às ${to.time}`}
                           {e.action === "confirmed" && autoReason(e.details) && ` · ${autoReason(e.details)}`}

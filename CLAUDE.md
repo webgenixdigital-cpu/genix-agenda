@@ -61,6 +61,7 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
 | `WHATSAPP_PROVIDER` | só servidor | `evolution` ou `zapi` (padrão `zapi`): provider das conexões **novas**; cada linha de `whatsapp_instances` guarda o seu |
 | `EVOLUTION_API_URL` / `EVOLUTION_API_KEY` | **só servidor** | Evolution API v2 self-hosted (`https://wa.genixagenda.com.br`); a chave global só cria/apaga instâncias, o resto usa o token da instância (coluna `token`, sem grant para `authenticated`) |
 | `WHATSAPP_SEND_ENABLED` | só servidor | `1` liga os envios automáticos; sem ela nada sai (local fica desligado: o banco é o mesmo da produção) |
+| `WHATSAPP_QUEUE_V2` | só servidor | `1` = fila nova da 42 (confirmação, antes do horário, véspera, aniversário); sem ela ou `0` = caminho antigo, só véspera. É a chave de volta: desligar na Vercel + redeploy, sem SQL. Lógica em `lib/whatsapp/queue.ts` |
 | `PLANS_PREVIEW` | só servidor, **só local** | `1` no `.env.local` + `npm run dev`: tabela de preços, Assinatura e actions tratam os planos novos (`gratis`, `profissional_*`, `equipe_*`) como ativos mesmo com `active = false`, para testar no sandbox do Asaas antes da 28b. Nunca liga com `NODE_ENV=production` (`next build`/`start`, Vercel); **não cadastrar na Vercel**. Lógica em `lib/plans-server.ts` |
 
 - Nunca prefixar segredos com `NEXT_PUBLIC_`. Nunca importar `lib/supabase/admin.ts` em componente `"use client"`.
@@ -108,6 +109,15 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
   `whatsapp_instances.next_send_at`, 35, com piso de 7 min; relógio a cada minuto),
   08:00–20:00 no `businesses.timezone`, só `confirmed`; 3 textos em rodízio A → B → C (34: `template_c`,
   `next_variant` 0–2; aceite do risco só no primeiro “ligar”); envio "desconectado" desfaz a reserva (fica na fila). API oficial com cota mensal — etapa futura, como outra implementação do provider.
+  - **Tipos de mensagem (42, com `WHATSAPP_QUEUE_V2=1`):** confirmação (5 min após ficar `confirmed` ou remarcado;
+    fora da janela vai para as 08:00; vale 2 h e nunca passa do horário), antes do horário (1h/1h30/2h; vale até o
+    horário), véspera (A/B/C; vale até 2 h antes) e aniversário (`customers.birth_date`, 29/02 → 28/02; horário
+    sorteado 08–19h; vale até 20:00; 1 por ano). Cada tipo liga/desliga em Configurações (véspera ligada, novos
+    desligados). Fila gravada em `whatsapp_reminder_sends` (`kind`, `queued`/`skipped`, `due_at`, `expires_at`,
+    `priority`, `claimed_at`): `whatsapp_queue_refresh` (a cada minuto) → `claim_auto_message` →
+    `finish_auto_reminder`. Prioridade confirmação → antes → véspera → aniversário; ritmo da 35 para todos juntos;
+    perdeu a validade = `EXPIRADA` (conta no painel e na ficha); 1 mensagem a cada 6 h por agendamento + horário
+    (`DISPENSADA`); cancelado/remarcado não sai.
 - Recebimento de **sinal via Pix** do cliente final: decisão adiada (avaliar subcontas Asaas).
 
 ## 5. Segurança e banco

@@ -35,6 +35,52 @@ export const DEFAULT_TEMPLATE_C =
 /** Textos padrão na ordem do rodízio (variant 0, 1, 2) */
 export const DEFAULT_TEMPLATES = [DEFAULT_TEMPLATE_A, DEFAULT_TEMPLATE_B, DEFAULT_TEMPLATE_C] as const;
 
+// ---------------------------------------------------------------------
+// Tipos de mensagem automática (42_whatsapp_tipos_mensagem)
+// ---------------------------------------------------------------------
+export type MessageKind = "confirmation" | "before" | "eve" | "birthday";
+
+export const MESSAGE_KINDS: readonly MessageKind[] = ["confirmation", "before", "eve", "birthday"];
+
+export const KIND_LABEL: Record<MessageKind, string> = {
+  confirmation: "Confirmação",
+  before: "Antes do horário",
+  eve: "Véspera",
+  birthday: "Aniversário",
+};
+
+export const DEFAULT_TEMPLATE_CONFIRM =
+  "Olá, {primeiro_nome}! Seu horário está confirmado ✅\n\n" +
+  "• {servico}\n• Com {profissional}\n• {data}, às {hora}\n\n" +
+  "Se precisar remarcar, é só responder esta mensagem.\n{espaco}";
+
+export const DEFAULT_TEMPLATE_BEFORE =
+  "{primeiro_nome}, seu horário é daqui a pouco ⏰\n\n" +
+  "• {servico} com {profissional}\n• Hoje, às {hora}\n\n" +
+  "Estamos te esperando! Se tiver algum imprevisto, responda esta mensagem.\n{espaco}";
+
+export const DEFAULT_TEMPLATE_BIRTHDAY =
+  "Feliz aniversário, {primeiro_nome}! 🎉\n\n" +
+  "Toda a equipe deseja um dia lindo e um novo ano cheio de coisas boas. Obrigado por estar com a gente 💛\n{espaco}";
+
+/** Texto padrão de cada tipo (véspera: pelo rodízio A/B/C) */
+export function defaultTemplateFor(kind: MessageKind, variant = 0): string {
+  if (kind === "confirmation") return DEFAULT_TEMPLATE_CONFIRM;
+  if (kind === "before") return DEFAULT_TEMPLATE_BEFORE;
+  if (kind === "birthday") return DEFAULT_TEMPLATE_BIRTHDAY;
+  return DEFAULT_TEMPLATES[variant] ?? DEFAULT_TEMPLATES[0];
+}
+
+/** Aniversário não tem agendamento: só nome e espaço */
+export const BIRTHDAY_VARS = TEMPLATE_VARS.filter((v) => v.key === "primeiro_nome" || v.key === "espaco");
+
+/** Antecedência do "antes do horário" (minutos) */
+export const BEFORE_OPTIONS = [
+  { minutes: 60, label: "1h antes" },
+  { minutes: 90, label: "1h30 antes" },
+  { minutes: 120, label: "2h antes" },
+] as const;
+
 export type TemplateData = {
   customerName: string;
   serviceName: string;
@@ -53,8 +99,9 @@ export function renderTemplate(text: string, d: TemplateData) {
     primeiro_nome: d.customerName.trim().split(" ")[0] ?? "",
     servico: d.serviceName,
     profissional: d.professionalName,
-    data: longDate(d.date),
-    hora: d.time.slice(0, 5),
+    // aniversário: sem agendamento, data e hora vêm vazias
+    data: d.date ? longDate(d.date) : "",
+    hora: (d.time ?? "").slice(0, 5),
     espaco: d.businessName,
   };
   // undefined = texto do automático, que não tem {total} (fica como está)
@@ -72,6 +119,15 @@ const REASON_LABEL: Record<string, string> = {
   RECUSADO: "envio recusado pelo serviço de WhatsApp",
   INTERROMPIDO: "envio interrompido",
   AGENDAMENTO_MUDOU: "o agendamento mudou durante o envio",
+  // fila (42)
+  EXPIRADA: "fora da validade (o limite de envios do número estava ocupado)",
+  DISPENSADA: "outra mensagem deste horário saiu há pouco",
+  CANCELADO: "agendamento cancelado",
+  REMARCADO: "agendamento remarcado",
+  NAO_CONFIRMADO: "agendamento deixou de estar confirmado",
+  JA_LEMBRADO: "lembrete já enviado pela fila manual",
+  OPT_OUT: "cliente não recebe mensagens automáticas",
+  DESLIGADO: "tipo de mensagem desligado",
 };
 
 export const reasonLabel = (r: string | null | undefined) => (r && REASON_LABEL[r]) || "erro no envio";

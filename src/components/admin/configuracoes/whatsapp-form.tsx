@@ -19,19 +19,20 @@ import {
   disconnectWhatsapp,
   getWhatsappQr,
   refreshWhatsappStatus,
-  saveWhatsappTemplates,
   setWhatsappAuto,
 } from "@/app/admin/(painel)/configuracoes/whatsapp-actions";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
-import { TemplateTextField } from "@/components/admin/template-text-field";
-import { DEFAULT_TEMPLATES, TEMPLATE_VARS } from "@/lib/whatsapp/templates";
-import { addDaysISO, todayISO } from "@/lib/dates";
+import {
+  WhatsappMessages,
+  type MessagesSettings,
+  type WhatsappStats,
+} from "@/components/admin/configuracoes/whatsapp-messages";
 import { maskPhone } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-export type WhatsappPanelStatus = {
+export type WhatsappPanelStatus = MessagesSettings & {
   /** liberado pela Genix E com instância pronta */
   genix_enabled: boolean;
   /** só a liberação da Genix */
@@ -62,7 +63,8 @@ function RiskPoints({ className }: { className?: string }) {
 
 const SAFE_SENDING = [
   { title: "Limite por hora", text: "no máximo 6 mensagens por hora, com 7 a 13 minutos entre uma e outra (o intervalo varia)." },
-  { title: "3 versões de mensagem", text: "os lembretes alternam entre 3 textos diferentes." },
+  { title: "Versões de mensagem", text: "o lembrete de véspera alterna entre 3 textos diferentes." },
+  { title: "Sem repetição", text: "o mesmo cliente não recebe duas mensagens do mesmo horário em menos de 6 horas." },
   { title: "Horário comercial", text: "só entre 8h e 20h e apenas para agendamentos confirmados." },
 ] as const;
 
@@ -78,9 +80,15 @@ export function WhatsappForm({
   businessName,
   canEdit,
   selfConnect,
+  queueV2,
+  stats,
 }: {
   initial: WhatsappPanelStatus;
   businessName: string;
+  /** WHATSAPP_QUEUE_V2 ligada (tipos novos enviados) */
+  queueV2: boolean;
+  /** whatsapp_auto_stats (42); null antes da migration */
+  stats: WhatsappStats | null;
   /** só a matriz; a demonstração vê a tela sem os botões de conexão */
   canEdit: boolean;
   /** Evolution: o próprio espaço conecta (antes da liberação). Z-API: só com a liberação. */
@@ -232,9 +240,9 @@ export function WhatsappForm({
       {/* Liga/desliga */}
       <label className={cn("flex items-center justify-between gap-4 rounded-xl border p-4", released ? "cursor-pointer" : "opacity-60")}>
         <span>
-          <span className="block font-semibold">Enviar lembretes automaticamente</span>
+          <span className="block font-semibold">Enviar mensagens automaticamente</span>
           <span className="text-sm text-muted-foreground">
-            Lembretes a partir da véspera, em ritmo seguro. O que não sair continua na fila.
+            Liga o envio das mensagens escolhidas abaixo, em ritmo seguro. O que não sair continua na fila enquanto valer.
           </span>
         </span>
         <Switch
@@ -245,10 +253,7 @@ export function WhatsappForm({
         />
       </label>
 
-      <TemplatesEditor
-        initial={[initial.template_a, initial.template_b, initial.template_c ?? null]}
-        businessName={businessName}
-      />
+      <WhatsappMessages initial={initial} businessName={businessName} canEdit={canEdit} queueV2={queueV2} stats={stats} />
 
       {/* Informativo: como o envio protege o número */}
       <div className="flex gap-3 rounded-xl border border-green-200 bg-green-50/60 p-4 text-sm" data-testid="whatsapp-envio-inteligente">
@@ -465,70 +470,3 @@ function QrConnect({ onConnected }: { onConnected: (phone: string | null) => voi
   );
 }
 
-// ---------------------------------------------------------------------
-// Textos A, B e C (alternam a cada envio: A → B → C → A)
-// ---------------------------------------------------------------------
-const LETTERS = ["a", "b", "c"] as const;
-
-function TemplatesEditor({ initial, businessName }: { initial: (string | null)[]; businessName: string }) {
-  const [texts, setTexts] = useState<string[]>(() => DEFAULT_TEMPLATES.map((d, i) => initial[i] || d));
-  const [pending, start] = useTransition();
-
-  const sample = {
-    customerName: "Ana Souza",
-    serviceName: "Corte e escova",
-    professionalName: "Carla",
-    date: addDaysISO(todayISO(), 1),
-    time: "14:30",
-    businessName,
-  };
-
-  function set(i: number, v: string) {
-    setTexts((t) => t.map((x, j) => (j === i ? v : x)));
-  }
-
-  function save() {
-    start(async () => {
-      // texto igual ao padrão é gravado vazio (acompanha melhorias futuras do padrão)
-      const [a, b, c] = texts.map((t, i) => (t.trim() === DEFAULT_TEMPLATES[i].trim() ? "" : t));
-      const r = await saveWhatsappTemplates(a, b, c);
-      if (!r) return;
-      if (r.ok) toast.success("Textos salvos");
-      else toast.error(r.error);
-    });
-  }
-
-  return (
-    <div className="space-y-5">
-      <div>
-        <p className="font-semibold">Textos do lembrete</p>
-        <p className="text-sm text-muted-foreground">Os três textos se alternam para a mensagem não ser sempre igual.</p>
-      </div>
-
-      {texts.map((t, i) => {
-        const letter = LETTERS[i];
-        return (
-          <TemplateTextField
-            key={letter}
-            id={`wa-texto-${letter}`}
-            label={`Texto ${letter.toUpperCase()}`}
-            value={t}
-            onChange={(v) => set(i, v)}
-            defaultText={DEFAULT_TEMPLATES[i]}
-            vars={TEMPLATE_VARS}
-            sample={sample}
-            testIds={{
-              restore: `btn-whatsapp-texto-padrao-${letter}`,
-              textarea: `textarea-whatsapp-texto-${letter}`,
-              varButton: (key) => `btn-whatsapp-var-${letter}-${key}`,
-            }}
-          />
-        );
-      })}
-
-      <Button className="h-12 w-full text-base sm:w-auto sm:px-8" disabled={pending} onClick={save} data-testid="btn-salvar-whatsapp-textos">
-        {pending ? <Loader2 className="h-5 w-5 animate-spin" /> : "Salvar textos"}
-      </Button>
-    </div>
-  );
-}

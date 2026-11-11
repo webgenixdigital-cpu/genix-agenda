@@ -7,6 +7,8 @@ import { HoursForm } from "@/components/admin/configuracoes/hours-form";
 import { WhatsappForm, type WhatsappPanelStatus } from "@/components/admin/configuracoes/whatsapp-form";
 import { getPlanContext } from "@/lib/plan";
 import { defaultProviderName } from "@/lib/whatsapp/provider";
+import { queueV2Enabled } from "@/lib/whatsapp/queue";
+import type { WhatsappStats } from "@/components/admin/configuracoes/whatsapp-messages";
 import { loadFiscal } from "@/lib/faturamento-data";
 import { FiscalForm } from "@/components/admin/configuracoes/fiscal-form";
 import { ConfirmModeForm } from "@/components/admin/configuracoes/confirm-mode-form";
@@ -47,11 +49,13 @@ export default async function ConfiguracoesPage() {
   const b = business as unknown as FullBusiness;
   const supabase = createClient();
 
-  const [{ data: hours }, plan, { data: wa }, fiscal] = await Promise.all([
+  const [{ data: hours }, plan, { data: wa }, fiscal, { data: waStats }] = await Promise.all([
     supabase.from("business_hours").select("weekday, closed, open_time, close_time").eq("business_id", b.id),
     getPlanContext(b.id),
     supabase.rpc("whatsapp_panel_status", { p_business: b.id }),
     loadFiscal(b.id),
+    // 42: números dos últimos 7 dias por tipo (antes da migration: erro → sem o cartão)
+    supabase.rpc("whatsapp_auto_stats", { p_business: b.id }),
   ]);
 
   // "Rever configuração inicial" só quando o cartão do Início teria algo a mostrar
@@ -121,13 +125,15 @@ export default async function ConfiguracoesPage() {
         <Section
           id="whatsapp"
           title="WhatsApp automático (beta)"
-          description="Lembrete de véspera enviado sozinho do WhatsApp do seu espaço."
+          description="Confirmação, lembretes e parabéns enviados sozinhos do WhatsApp do seu espaço."
         >
           <WhatsappForm
             initial={waPanel}
             selfConnect={waEvolution}
             businessName={b.name}
             canEdit={role === "owner"}
+            queueV2={queueV2Enabled()}
+            stats={(waStats as WhatsappStats | null) ?? null}
           />
         </Section>
       )}

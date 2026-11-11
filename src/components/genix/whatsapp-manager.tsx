@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { reasonLabel } from "@/lib/whatsapp/templates";
+import { KIND_LABEL, MESSAGE_KINDS, reasonLabel, type MessageKind } from "@/lib/whatsapp/templates";
 import { maskPhone } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -32,6 +32,8 @@ export type WhatsappOverview = {
   phone_number: string | null;
   /** próximo envio liberado (sorteado 7–13 min após o último resultado); null = livre */
   next_send_at?: string | null;
+  /** 42: últimos 7 dias por tipo (enviadas, falhas, expiradas por limite/validade...) */
+  stats_7d?: Partial<Record<MessageKind, { sent: number; failed: number; expired: number; skipped: number; queued: number }>> | null;
 };
 
 const STATUS: Record<WhatsappOverview["status"], { label: string; cls: string }> = {
@@ -115,6 +117,11 @@ function InstanceCard({ row, defaultProvider }: { row: WhatsappOverview; default
   }
 
   const id = row.business_id.slice(0, 8);
+  // tipos com movimento nos últimos 7 dias (42)
+  const kindStats = MESSAGE_KINDS.flatMap((k) => {
+    const s = row.stats_7d?.[k];
+    return s && (s.sent || s.expired || s.failed) ? [[k, s] as const] : [];
+  });
   return (
     <li className="rounded-2xl border bg-card p-4 md:p-5" data-testid={`whatsapp-espaco-${row.slug}`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -213,6 +220,19 @@ function InstanceCard({ row, defaultProvider }: { row: WhatsappOverview; default
           {row.failed_7d === 1 ? "falha" : "falhas"}
           {row.last_reason && ` · última falha: ${reasonLabel(row.last_reason)}`}
         </p>
+      )}
+      {kindStats.length > 0 && (
+        <ul className="mt-2 flex flex-wrap gap-2 text-xs" data-testid={`whatsapp-tipos-${row.slug}`}>
+          {kindStats.map(([k, s]) => {
+            return (
+              <li key={k} className={cn("rounded-full px-2.5 py-1", s.expired ? "bg-amber-100 text-amber-900" : "bg-stone-100 text-stone-700")}>
+                {KIND_LABEL[k]}: {Number(s.sent)} {Number(s.sent) === 1 ? "enviada" : "enviadas"}
+                {s.expired > 0 && ` · ${Number(s.expired)} não ${Number(s.expired) === 1 ? "enviada" : "enviadas"} (limite/validade)`}
+                {s.failed > 0 && ` · ${Number(s.failed)} ${Number(s.failed) === 1 ? "falha" : "falhas"}`}
+              </li>
+            );
+          })}
+        </ul>
       )}
       {nextSend && (
         <p className="mt-1 text-xs text-muted-foreground" data-testid={`whatsapp-proximo-envio-${row.slug}`}>

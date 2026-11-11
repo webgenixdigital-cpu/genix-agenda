@@ -223,6 +223,54 @@ export async function setWhatsappAuto(enabled: boolean, acceptRisk: boolean): Pr
   return { ok: true };
 }
 
+// ---------------------------------------------------------------------
+// PARTE 6 — Tipos de mensagem (42): liga/desliga, antecedência e textos
+// Texto vazio = padrão do sistema. Os textos A/B/C da véspera continuam
+// em saveWhatsappTemplates.
+// ---------------------------------------------------------------------
+export type WhatsappMessagesInput = {
+  eve_enabled: boolean;
+  confirm_enabled: boolean;
+  before_enabled: boolean;
+  before_minutes: 60 | 90 | 120;
+  birthday_enabled: boolean;
+  template_confirm: string;
+  template_before: string;
+  template_birthday: string;
+};
+
+export async function saveWhatsappMessages(input: WhatsappMessagesInput): Promise<Result> {
+  const { business } = await ownerContext();
+  const flags = [input.eve_enabled, input.confirm_enabled, input.before_enabled, input.birthday_enabled];
+  const texts = [input.template_confirm, input.template_before, input.template_birthday];
+  if (flags.some((f) => typeof f !== "boolean") || texts.some((t) => typeof t !== "string")) {
+    return { ok: false, error: "Dados inválidos." };
+  }
+  if (![60, 90, 120].includes(input.before_minutes)) return { ok: false, error: "Escolha 1h, 1h30 ou 2h antes." };
+  if (texts.some((t) => t.length > 1000)) return { ok: false, error: "Cada texto pode ter no máximo 1000 caracteres." };
+
+  const supabase = createClient();
+  const { error } = await supabase.rpc("save_whatsapp_messages", {
+    p_business: business.id,
+    p: {
+      eve_enabled: input.eve_enabled,
+      confirm_enabled: input.confirm_enabled,
+      before_enabled: input.before_enabled,
+      before_minutes: input.before_minutes,
+      birthday_enabled: input.birthday_enabled,
+      template_confirm: input.template_confirm,
+      template_before: input.template_before,
+      template_birthday: input.template_birthday,
+    },
+  });
+  if (error) {
+    if (error.message.includes("SEM_PERMISSAO")) return { ok: false, error: AUTO_ERRORS.SEM_PERMISSAO };
+    return { ok: false, error: "Não foi possível salvar as mensagens." };
+  }
+  refresh();
+  return { ok: true };
+}
+
 export async function saveWhatsappTemplates(a: string, b: string, c: string): Promise<Result> {
   const { business } = await ownerContext();
   const texts = [a, b, c];

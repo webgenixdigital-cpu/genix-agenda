@@ -239,30 +239,39 @@ export type WhatsappMessagesInput = {
   template_birthday: string;
 };
 
-export async function saveWhatsappMessages(input: WhatsappMessagesInput): Promise<Result> {
+const MESSAGE_FLAGS = ["eve_enabled", "confirm_enabled", "before_enabled", "birthday_enabled"] as const;
+const MESSAGE_TEXTS = ["template_confirm", "template_before", "template_birthday"] as const;
+
+/**
+ * Grava só os campos enviados (44): campo ausente mantém o valor do banco.
+ * A tela manda apenas o que o dono mudou, para que uma tela aberta há
+ * tempo não desligue outro tipo (ex.: a véspera) com um valor antigo.
+ */
+export async function saveWhatsappMessages(input: Partial<WhatsappMessagesInput>): Promise<Result> {
   const { business } = await ownerContext();
-  const flags = [input.eve_enabled, input.confirm_enabled, input.before_enabled, input.birthday_enabled];
-  const texts = [input.template_confirm, input.template_before, input.template_birthday];
-  if (flags.some((f) => typeof f !== "boolean") || texts.some((t) => typeof t !== "string")) {
-    return { ok: false, error: "Dados inválidos." };
+  if (!input || typeof input !== "object") return { ok: false, error: "Dados inválidos." };
+
+  const p: Record<string, boolean | number | string> = {};
+  for (const k of MESSAGE_FLAGS) {
+    if (input[k] === undefined) continue;
+    if (typeof input[k] !== "boolean") return { ok: false, error: "Dados inválidos." };
+    p[k] = input[k];
   }
-  if (![60, 90, 120].includes(input.before_minutes)) return { ok: false, error: "Escolha 1h, 1h30 ou 2h antes." };
-  if (texts.some((t) => t.length > 1000)) return { ok: false, error: "Cada texto pode ter no máximo 1000 caracteres." };
+  for (const k of MESSAGE_TEXTS) {
+    const t = input[k];
+    if (t === undefined) continue;
+    if (typeof t !== "string") return { ok: false, error: "Dados inválidos." };
+    if (t.length > 1000) return { ok: false, error: "Cada texto pode ter no máximo 1000 caracteres." };
+    p[k] = t;
+  }
+  if (input.before_minutes !== undefined) {
+    if (![60, 90, 120].includes(input.before_minutes)) return { ok: false, error: "Escolha 1h, 1h30 ou 2h antes." };
+    p.before_minutes = input.before_minutes;
+  }
+  if (Object.keys(p).length === 0) return { ok: true };
 
   const supabase = createClient();
-  const { error } = await supabase.rpc("save_whatsapp_messages", {
-    p_business: business.id,
-    p: {
-      eve_enabled: input.eve_enabled,
-      confirm_enabled: input.confirm_enabled,
-      before_enabled: input.before_enabled,
-      before_minutes: input.before_minutes,
-      birthday_enabled: input.birthday_enabled,
-      template_confirm: input.template_confirm,
-      template_before: input.template_before,
-      template_birthday: input.template_birthday,
-    },
-  });
+  const { error } = await supabase.rpc("save_whatsapp_messages", { p_business: business.id, p });
   if (error) {
     if (error.message.includes("SEM_PERMISSAO")) return { ok: false, error: AUTO_ERRORS.SEM_PERMISSAO };
     return { ok: false, error: "Não foi possível salvar as mensagens." };

@@ -3,7 +3,11 @@
 import { useState, useTransition } from "react";
 import { ChevronDown, Info, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { saveWhatsappMessages, saveWhatsappTemplates } from "@/app/admin/(painel)/configuracoes/whatsapp-actions";
+import {
+  saveWhatsappMessages,
+  saveWhatsappTemplates,
+  type WhatsappMessagesInput,
+} from "@/app/admin/(painel)/configuracoes/whatsapp-actions";
 import { TemplateTextField } from "@/components/admin/template-text-field";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -103,25 +107,46 @@ export function WhatsappMessages({
   // texto igual ao padrão é gravado vazio (acompanha melhorias futuras do padrão)
   const orEmpty = (t: string, def: string) => (t.trim() === def.trim() ? "" : t);
 
+  /** Valores como seriam gravados; a comparação com o último salvo decide o que vai ao banco */
+  const snapshot = () => ({
+    messages: {
+      eve_enabled: on.eve,
+      confirm_enabled: on.confirmation,
+      before_enabled: on.before,
+      before_minutes: minutes,
+      birthday_enabled: on.birthday,
+      template_confirm: orEmpty(texts.confirmation, defaultTemplateFor("confirmation")),
+      template_before: orEmpty(texts.before, defaultTemplateFor("before")),
+      template_birthday: orEmpty(texts.birthday, defaultTemplateFor("birthday")),
+    } satisfies WhatsappMessagesInput,
+    eve: eveTexts.map((t, i) => orEmpty(t, DEFAULT_TEMPLATES[i])) as [string, string, string],
+  });
+  // último estado gravado (começa no que veio do banco); só o que difere dele é enviado
+  const [saved, setSaved] = useState(snapshot);
+
   function save() {
+    const cur = snapshot();
+    const changed: Partial<WhatsappMessagesInput> = {};
+    for (const k of Object.keys(cur.messages) as (keyof WhatsappMessagesInput)[]) {
+      if (cur.messages[k] !== saved.messages[k]) Object.assign(changed, { [k]: cur.messages[k] });
+    }
+    const eveChanged = cur.eve.some((t, i) => t !== saved.eve[i]);
+    if (Object.keys(changed).length === 0 && !eveChanged) return void toast.info("Nenhuma alteração para salvar");
+
     start(async () => {
-      const r = await saveWhatsappMessages({
-        eve_enabled: on.eve,
-        confirm_enabled: on.confirmation,
-        before_enabled: on.before,
-        before_minutes: minutes,
-        birthday_enabled: on.birthday,
-        template_confirm: orEmpty(texts.confirmation, defaultTemplateFor("confirmation")),
-        template_before: orEmpty(texts.before, defaultTemplateFor("before")),
-        template_birthday: orEmpty(texts.birthday, defaultTemplateFor("birthday")),
-      });
-      if (!r) return; // demonstração: o servidor redirecionou
-      if (!r.ok) return void toast.error(r.error);
-      const [a, b, c] = eveTexts.map((t, i) => orEmpty(t, DEFAULT_TEMPLATES[i]));
-      const r2 = await saveWhatsappTemplates(a, b, c);
-      if (!r2) return;
-      if (r2.ok) toast.success("Mensagens salvas");
-      else toast.error(r2.error);
+      if (Object.keys(changed).length > 0) {
+        const r = await saveWhatsappMessages(changed);
+        if (!r) return; // demonstração: o servidor redirecionou
+        if (!r.ok) return void toast.error(r.error);
+        setSaved((s) => ({ ...s, messages: cur.messages }));
+      }
+      if (eveChanged) {
+        const r2 = await saveWhatsappTemplates(...cur.eve);
+        if (!r2) return;
+        if (!r2.ok) return void toast.error(r2.error);
+        setSaved((s) => ({ ...s, eve: cur.eve }));
+      }
+      toast.success("Mensagens salvas");
     });
   }
 
@@ -145,18 +170,21 @@ export function WhatsappMessages({
 
       {MESSAGE_KINDS.map((kind) => (
         <div key={kind} className="rounded-xl border bg-white" data-testid={`whatsapp-tipo-${kind}`}>
-          <label className="flex cursor-pointer items-center justify-between gap-4 p-4">
+          {/* só o switch liga/desliga: tocar no texto do cartão não muda nada */}
+          <div className="flex items-center justify-between gap-4 p-4">
             <span className="min-w-0">
-              <span className="block font-semibold">{KIND_LABEL[kind]}</span>
-              <span className="text-sm text-muted-foreground">{DESCRIPTION[kind]}</span>
+              <span id={`wa-tipo-${kind}`} className="block font-semibold">{KIND_LABEL[kind]}</span>
+              <span id={`wa-tipo-${kind}-desc`} className="text-sm text-muted-foreground">{DESCRIPTION[kind]}</span>
             </span>
             <Switch
               checked={on[kind]}
               onCheckedChange={(v) => setOn((o) => ({ ...o, [kind]: v }))}
               disabled={pending || !canEdit}
+              aria-labelledby={`wa-tipo-${kind}`}
+              aria-describedby={`wa-tipo-${kind}-desc`}
               data-testid={`switch-whatsapp-tipo-${kind}`}
             />
-          </label>
+          </div>
 
           {kind === "before" && (
             <div className="flex flex-wrap gap-2 px-4 pb-4" role="radiogroup" aria-label="Quanto tempo antes">

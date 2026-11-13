@@ -290,7 +290,7 @@ export function NewBlockDialog({
           <ul className="space-y-3" data-testid="lista-afetados">
             {affected?.map((b) => {
               const done = cancelled.includes(b.id);
-              const wa = whatsappLink(b.customer_phone, rescheduleMessage(b, businessName, savedReason));
+              const wa = whatsappLink(b.customer_phone, rescheduleMessage(b, businessName, savedReason), b.customer_phone_country);
               return (
                 <li key={b.id} className={cn("rounded-xl border p-4", done && "opacity-50")}>
                   <p className="font-semibold">{b.customer_name}</p>

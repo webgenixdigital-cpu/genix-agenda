@@ -2,7 +2,8 @@ import Link from "next/link";
 import { ChevronRight, Search } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminContext } from "@/lib/admin";
-import { brl, maskPhone } from "@/lib/format";
+import { brl } from "@/lib/format";
+import { formatPhone } from "@/lib/phone";
 import { customerSearchFilter } from "@/lib/customer-search";
 import { CustomerDialog } from "@/components/admin/clientes/customer-dialog";
 import { Button } from "@/components/ui/button";
@@ -24,7 +25,7 @@ export default async function ClientesPage({ searchParams }: Props) {
   const q = (searchParams.q ?? "").replace(/[,()%]/g, " ").trim().slice(0, 60);
   const filter = customerSearchFilter(q, 4);
 
-  let query = supabase.from("customers").select("id, name, phone").eq("business_id", business.id).order("name").limit(300);
+  let query = supabase.from("customers").select("id, name, phone, phone_country").eq("business_id", business.id).order("name").limit(300);
   if (filter) query = query.ilike(filter.column, filter.pattern);
 
   const [{ data: customers }, { data: summary }] = await Promise.all([
@@ -76,7 +77,7 @@ export default async function ClientesPage({ searchParams }: Props) {
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-semibold">{c.name}</p>
-                    <p className="text-sm text-muted-foreground">{maskPhone(c.phone)}</p>
+                    <p className="text-sm text-muted-foreground">{formatPhone(c.phone, c.phone_country)}</p>
                   </div>
                   <div className="hidden text-right text-sm sm:block">
                     <p>{s?.visits ?? 0} {s?.visits === 1 ? "visita" : "visitas"} · {brl(s?.total ?? 0)}</p>

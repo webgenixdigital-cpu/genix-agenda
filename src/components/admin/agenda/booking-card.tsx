@@ -5,7 +5,8 @@ import { CalendarOff, Globe, Package, Phone, Repeat, StickyNote } from "lucide-r
 import { StatusBadge } from "@/components/admin/status-badge";
 import { AutoConfirmBadge } from "@/components/admin/auto-confirm-badge";
 import { BookingActions, type RescheduleProps } from "@/components/admin/agenda/booking-actions";
-import { brl, maskPhone } from "@/lib/format";
+import { brl } from "@/lib/format";
+import { formatPhone } from "@/lib/phone";
 import type { AgendaBlock, AgendaItem } from "@/lib/agenda";
 import { cn } from "@/lib/utils";
 
@@ -79,7 +80,7 @@ export function BookingCard({
             )}
           </p>
           <p className="inline-flex items-center gap-1 text-sm text-muted-foreground">
-            <Phone className="h-3.5 w-3.5" /> {maskPhone(b.customer_phone)}
+            <Phone className="h-3.5 w-3.5" /> {formatPhone(b.customer_phone, b.customer_phone_country)}
           </p>
           {b.customer_notes && (
             <p className="flex items-start gap-1 rounded-lg bg-secondary px-2.5 py-1.5 text-sm">

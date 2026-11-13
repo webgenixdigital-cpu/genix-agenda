@@ -14,7 +14,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
-import { brl, duration, longDate, maskPhone, whatsappLink } from "@/lib/format";
+import { brl, duration, longDate, whatsappLink } from "@/lib/format";
+import { BR, isPhoneShapeValid, normalizePhone } from "@/lib/phone";
+import { PhoneInput } from "@/components/phone-input-lazy";
 import type { BusinessHour, Professional, Service } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { createPublicBooking } from "@/app/v/[slug]/actions";
@@ -79,6 +81,7 @@ export function BookingWizard({ slug, businessName, whatsapp, services, professi
 
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [phoneCountry, setPhoneCountry] = useState(BR);
   const [notes, setNotes] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -173,6 +176,7 @@ export function BookingWizard({ slug, businessName, whatsapp, services, professi
       time,
       name,
       phone,
+      phoneCountry,
       notes: notes || null,
       professionalId: proId === ANY ? null : proId,
       token,
@@ -195,8 +199,9 @@ export function BookingWizard({ slug, businessName, whatsapp, services, professi
     setDone(r.booking);
   }
 
-  const phoneDigits = phone.replace(/\D/g, "");
-  const canSubmit = name.trim().length >= 2 && phoneDigits.length >= 10 && !!token && !sending;
+  // regra do banco; a validação completa (libphonenumber) roda na server action
+  const phoneOk = isPhoneShapeValid(phoneCountry, normalizePhone(phone, phoneCountry));
+  const canSubmit = name.trim().length >= 2 && phoneOk && !!token && !sending;
 
   const confirmed = done?.status === "confirmed";
   const waText = done
@@ -445,16 +450,18 @@ export function BookingWizard({ slug, businessName, whatsapp, services, professi
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="bk-phone">WhatsApp com DDD</Label>
-                    <Input
+                    <Label htmlFor="bk-phone">{phoneCountry === BR ? "WhatsApp com DDD" : "WhatsApp"}</Label>
+                    <PhoneInput
                       id="bk-phone"
                       value={phone}
-                      onChange={(e) => setPhone(maskPhone(e.target.value))}
-                      inputMode="tel"
+                      country={phoneCountry}
+                      onChange={(v, c) => {
+                        setPhone(v);
+                        setPhoneCountry(c);
+                      }}
                       autoComplete="tel"
-                      placeholder="(35) 99999-9999"
-                      className="h-12 text-base"
-                      data-testid="input-whatsapp-phone"
+                      inputClassName="h-12 text-base"
+                      testId="input-whatsapp-phone"
                     />
                   </div>
                   <div className="space-y-1.5">

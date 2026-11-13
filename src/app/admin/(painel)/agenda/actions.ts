@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminContext, getEditorContext } from "@/lib/admin";
 import { customerSearchFilter } from "@/lib/customer-search";
+import { cleanCountry, phoneError } from "@/lib/phone";
+import { parseCustomerPhone } from "@/lib/phone-intl";
 
 type Result = { ok: true } | { ok: false; error: string };
 type Method = "pix" | "dinheiro" | "credito" | "debito";
@@ -87,6 +89,8 @@ export async function createManualBooking(input: {
   time: string;   // HH:MM
   customerName: string;
   customerPhone: string;
+  /** código do país (45); ausente = Brasil */
+  customerPhoneCountry?: string;
   notes?: string;
   packageId?: string | null;
 }): Promise<Result> {
@@ -94,9 +98,9 @@ export async function createManualBooking(input: {
   const supabase = createClient();
 
   const name = input.customerName.trim();
-  const phone = input.customerPhone.replace(/\D/g, "");
+  const parsedPhone = parseCustomerPhone(input.customerPhone, input.customerPhoneCountry);
   if (name.length < 2) return { ok: false, error: "Informe o nome do cliente." };
-  if (phone.length < 10) return { ok: false, error: "Informe o WhatsApp com DDD." };
+  if (!parsedPhone) return { ok: false, error: phoneError(input.customerPhoneCountry) };
   if (!/^\d{4}-\d{2}-\d{2}$/.test(input.date) || !/^\d{2}:\d{2}$/.test(input.time)) {
     return { ok: false, error: "Escolha data e horário." };
   }
@@ -132,7 +136,8 @@ export async function createManualBooking(input: {
     duration_min: service.duration_min,
     professional_name: pro.name,
     customer_name: name,
-    customer_phone: phone,
+    customer_phone: parsedPhone.phone,
+    customer_phone_country: parsedPhone.country,
     customer_notes: input.notes?.trim() || null,
     booking_date: input.date,
     start_time: input.time,
@@ -161,14 +166,15 @@ export async function createManualBooking(input: {
 // ---------------------------------------------------------------------
 export type PackageOption = { id: string; name: string; remaining: number; sessions_total: number; expires_at: string | null };
 
-export async function findCustomerPackages(phone: string, serviceId: string): Promise<PackageOption[]> {
+export async function findCustomerPackages(phone: string, serviceId: string, phoneCountry?: string): Promise<PackageOption[]> {
   const { business } = await getAdminContext();
-  const digits = phone.replace(/\D/g, "");
-  if (!/^\d{10,11}$/.test(digits) || !serviceId) return [];
+  const parsedPhone = parseCustomerPhone(phone, phoneCountry);
+  if (!parsedPhone || !serviceId) return [];
 
   const supabase = createClient();
   const { data: customer } = await supabase
-    .from("customers").select("id").eq("business_id", business.id).eq("phone", digits).maybeSingle();
+    .from("customers").select("id").eq("business_id", business.id)
+    .eq("phone_country", parsedPhone.country).eq("phone", parsedPhone.phone).maybeSingle();
   if (!customer) return [];
 
   // 37_plano_fechado: saldo do serviço dentro do pacote (pacote de vários serviços também vale)
@@ -204,6 +210,8 @@ export type SeriesInput = {
   count: number;
   customerName: string;
   customerPhone: string;
+  /** código do país (45); ausente = Brasil */
+  customerPhoneCountry?: string;
   notes?: string;
   packageId?: string | null;
 };
@@ -243,7 +251,8 @@ export async function previewSeries(
   const supabase = createClient();
   const { data, error } = await supabase.rpc("preview_booking_series", {
     ...seriesArgs(input, business.id),
-    p_phone: input.customerPhone.replace(/\D/g, ""),
+    p_phone: input.customerPhone,
+    p_country: cleanCountry(input.customerPhoneCountry),
   });
   if (error) return { ok: false, error: seriesError(error.message, "Não foi possível montar a prévia.") };
 
@@ -264,7 +273,8 @@ export async function createSeries(
   const { data, error } = await supabase.rpc("create_booking_series", {
     ...seriesArgs(input, business.id),
     p_customer_name: input.customerName.trim(),
-    p_customer_phone: input.customerPhone.replace(/\D/g, ""),
+    p_customer_phone: input.customerPhone,
+    p_customer_country: cleanCountry(input.customerPhoneCountry),
     p_notes: input.notes?.trim() || null,
   });
   if (error) {
@@ -366,7 +376,7 @@ export async function rescheduleBooking(input: {
 // Cliente normal (sem service role): a RLS de customers/bookings vale,
 // então o profissional só encontra quem já atendeu.
 // ---------------------------------------------------------------------
-export type CustomerHit = { id: string; name: string; phone: string; lastVisit: string | null };
+export type CustomerHit = { id: string; name: string; phone: string; phoneCountry: string; lastVisit: string | null };
 
 export async function searchCustomers(q: string): Promise<CustomerHit[]> {
   const { business } = await getAdminContext();
@@ -380,7 +390,7 @@ export async function searchCustomers(q: string): Promise<CustomerHit[]> {
   const supabase = createClient();
   const { data: customers } = await supabase
     .from("customers")
-    .select("id, name, phone")
+    .select("id, name, phone, phone_country")
     .eq("business_id", business.id)
     .ilike(filter.column, filter.pattern)
     .order("name")
@@ -399,7 +409,9 @@ export async function searchCustomers(q: string): Promise<CustomerHit[]> {
   const last = new Map<string, string>();
   for (const v of visits ?? []) if (v.customer_id && !last.has(v.customer_id)) last.set(v.customer_id, v.booking_date);
 
-  return list.map((c) => ({ id: c.id, name: c.name, phone: c.phone, lastVisit: last.get(c.id) ?? null }));
+  return list.map((c) => ({
+    id: c.id, name: c.name, phone: c.phone, phoneCountry: c.phone_country as string, lastVisit: last.get(c.id) ?? null,
+  }));
 }
 
 // ---------------------------------------------------------------------

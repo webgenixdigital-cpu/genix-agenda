@@ -24,6 +24,8 @@ type Claim = {
   variant: 0 | 1 | 2;
   template: string | null;
   phone: string;
+  /** código do país (45); ausente = Brasil */
+  phone_country?: string | null;
   customer_name: string;
   /** null no aniversário (sem agendamento) */
   service_name: string | null;
@@ -120,7 +122,7 @@ export async function runWhatsappTick(opts: { startNewBefore: number; sendBefore
     });
 
     // 3) envio (uma chamada; nada de repetir em loop)
-    const res = await provider.sendText(cl.phone, text);
+    const res = await provider.sendText(cl.phone, text, cl.phone_country);
     await db.rpc("finish_auto_reminder", {
       p_send: cl.send_id,
       p_ok: res.ok,

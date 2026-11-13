@@ -19,11 +19,16 @@ export function maskPhone(value: string) {
   return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
 }
 
-/** Link wa.me. Aceita número com ou sem 55. */
-export function whatsappLink(number: string | null | undefined, text?: string) {
+/**
+ * Link wa.me. Sem país (ou "55"): número brasileiro com ou sem 55; 10–11 dígitos
+ * sempre ganham o 55 (antes um DDD 55 ficava sem). Outro país (45): país + número.
+ */
+export function whatsappLink(number: string | null | undefined, text?: string, country?: string | null) {
   if (!number) return null;
   let d = number.replace(/\D/g, "");
-  if (!d.startsWith("55")) d = `55${d}`;
+  const c = (country ?? "").replace(/\D/g, "");
+  if (c && c !== "55") d = `${c}${d}`;
+  else if (/^\d{10,11}$/.test(d) || !d.startsWith("55")) d = `55${d}`;
   return `https://wa.me/${d}${text ? `?text=${encodeURIComponent(text)}` : ""}`;
 }
 

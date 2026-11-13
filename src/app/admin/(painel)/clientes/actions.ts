@@ -6,15 +6,13 @@ import { getEditorContext } from "@/lib/admin";
 import { getPlanContext } from "@/lib/plan";
 import { birthISO, birthParts } from "@/lib/birthday";
 import { loadSaleOptions, type SaleProfessional, type SaleTemplate } from "@/lib/package-sale";
+import { phoneError } from "@/lib/phone";
+import { parseCustomerPhone } from "@/lib/phone-intl";
 
 type Result = { ok: true; id?: string } | { ok: false; error: string };
 
-const digits = (v: string) => {
-  const d = v.replace(/\D/g, "");
-  return /^55\d{10,11}$/.test(d) ? d.slice(2) : d;
-};
-
-type CustomerInput = { name: string; phone: string; email: string; notes: string; birthDate: string };
+/** phoneCountry: código do país (45); ausente = Brasil */
+type CustomerInput = { name: string; phone: string; phoneCountry?: string; email: string; notes: string; birthDate: string };
 
 /** Aniversário: só dia e mês, gravado como "2000-MM-DD" (43); recusa 31/04, por exemplo */
 function normalizeBirth(raw: string) {
@@ -22,9 +20,15 @@ function normalizeBirth(raw: string) {
   return birthISO(day, month);
 }
 
+/** Colunas do telefone (validado antes em validate) */
+function phoneColumns(input: CustomerInput) {
+  const p = parseCustomerPhone(input.phone, input.phoneCountry)!;
+  return { phone: p.phone, phone_country: p.country };
+}
+
 function validate(input: CustomerInput) {
   if (input.name.trim().length < 2) return "Informe o nome do cliente.";
-  if (!/^\d{10,11}$/.test(digits(input.phone))) return "Informe o WhatsApp com DDD.";
+  if (!parseCustomerPhone(input.phone, input.phoneCountry)) return phoneError(input.phoneCountry);
   if (input.email.trim() && !/^\S+@\S+\.\S+$/.test(input.email.trim())) return "E-mail inválido.";
   if (input.notes.length > 1000) return "Observações: no máximo 1000 caracteres.";
   if (input.birthDate.trim() && !normalizeBirth(input.birthDate)) return "Aniversário inválido: confira o dia e o mês.";
@@ -46,7 +50,7 @@ export async function createCustomer(input: CustomerInput): Promise<Result> {
     .insert({
       business_id: business.id,
       name: input.name.trim(),
-      phone: digits(input.phone),
+      ...phoneColumns(input),
       email: input.email.trim() || null,
       notes: input.notes.trim() || null,
       birth_date: normalizeBirth(input.birthDate) || null,
@@ -77,7 +81,7 @@ export async function updateCustomer(
     .from("customers")
     .update({
       name: input.name.trim(),
-      phone: digits(input.phone),
+      ...phoneColumns(input),
       email: input.email.trim() || null,
       notes: input.notes.trim() || null,
       birth_date: normalizeBirth(input.birthDate) || null,
@@ -330,6 +334,8 @@ export async function cancelPackage(
 export async function startPackageSale(input: {
   name: string;
   phone: string;
+  /** código do país (45); ausente = Brasil */
+  phoneCountry?: string;
 }): Promise<
   | { ok: true; customerId: string; templates: SaleTemplate[]; professionals: SaleProfessional[] }
   | { ok: false; error: string }
@@ -339,19 +345,21 @@ export async function startPackageSale(input: {
   const plan = await getPlanContext(business.id);
   if (plan.tier !== "completo") return { ok: false, error: "Pacotes são um recurso dos planos Profissional e Equipe." };
 
-  const phone = digits(input.phone);
-  if (!/^\d{10,11}$/.test(phone)) return { ok: false, error: "Informe o WhatsApp do cliente com DDD." };
+  const parsed = parseCustomerPhone(input.phone, input.phoneCountry);
+  if (!parsed) return { ok: false, error: phoneError(input.phoneCountry) };
+  const { phone, country: phone_country } = parsed;
   const name = input.name.trim();
 
   const supabase = createClient();
   const { data: found } = await supabase
-    .from("customers").select("id").eq("business_id", business.id).eq("phone", phone).maybeSingle();
+    .from("customers").select("id").eq("business_id", business.id)
+    .eq("phone_country", phone_country).eq("phone", phone).maybeSingle();
 
   let customerId = found?.id as string | undefined;
   if (!customerId) {
     if (name.length < 2) return { ok: false, error: "Informe o nome do cliente." };
     const { data, error } = await supabase
-      .from("customers").insert({ business_id: business.id, name, phone }).select("id").single();
+      .from("customers").insert({ business_id: business.id, name, phone, phone_country }).select("id").single();
     if (error || !data) return { ok: false, error: "Não foi possível cadastrar o cliente." };
     customerId = data.id as string;
     revalidatePath("/admin/clientes");

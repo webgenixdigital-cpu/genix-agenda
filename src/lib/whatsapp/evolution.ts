@@ -124,10 +124,10 @@ export function createEvolutionProvider(c: { instanceName: string; token: string
   const name = seg(c.instanceName);
 
   return {
-    async sendText(phone, text): Promise<SendResult> {
+    async sendText(phone, text, country): Promise<SendResult> {
       const r = await call(`/message/sendText${name}`, c.token, {
         method: "POST",
-        body: { number: toWhatsappNumber(phone), text },
+        body: { number: toWhatsappNumber(phone, country), text },
       });
 
       if (r.kind === "timeout") return { ok: false, reason: "TIMEOUT", transient: true, disconnected: false };

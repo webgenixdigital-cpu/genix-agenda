@@ -10,6 +10,8 @@ export type AffectedBooking = {
   start_time: string;
   customer_name: string;
   customer_phone: string;
+  /** código do país (45) */
+  customer_phone_country: string;
   service_name: string;
   professional_name: string;
 };
@@ -70,7 +72,7 @@ export async function createBlock(input: BlockInput): Promise<CreateResult> {
   // agendamentos ativos que caem dentro do bloqueio
   let q = supabase
     .from("bookings")
-    .select("id, booking_date, start_time, end_time, customer_name, customer_phone, service_name, professional_name, professional_id")
+    .select("id, booking_date, start_time, end_time, customer_name, customer_phone, customer_phone_country, service_name, professional_name, professional_id")
     .eq("business_id", business.id)
     .in("status", ["pending", "confirmed"])
     .gte("booking_date", input.dateStart)

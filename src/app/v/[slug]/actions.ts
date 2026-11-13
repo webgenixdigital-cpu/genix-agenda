@@ -2,6 +2,8 @@
 
 import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { cleanCountry } from "@/lib/phone";
+import { parseCustomerPhone } from "@/lib/phone-intl";
 
 // ---------------------------------------------------------------------
 // PARTE 1 — Tipos e mensagens
@@ -13,6 +15,8 @@ export type PublicBookingInput = {
   time: string; // HH:MM
   name: string;
   phone: string;
+  /** código do país (45); ausente = Brasil */
+  phoneCountry?: string;
   notes: string | null;
   professionalId: string | null;
   token: string;
@@ -37,7 +41,7 @@ type Result = { ok: true; booking: PublicBooking } | { ok: false; error: string;
 const LIMIT_MESSAGE = "Você já tem horários marcados aqui. Para marcar mais, fale com o espaço pelo WhatsApp.";
 const ERRORS: Record<string, string> = {
   HORARIO_INDISPONIVEL: "Esse horário acabou de ser reservado. Escolha outro horário.",
-  DADOS_INVALIDOS: "Confira seu nome e um WhatsApp com DDD.",
+  DADOS_INVALIDOS: "Confira seu nome e o número de WhatsApp (com DDD ou código de área).",
   SERVICO_INVALIDO: "Este serviço não está disponível para agendamento online.",
   ESTABELECIMENTO_NAO_ENCONTRADO: "Este espaço não está recebendo agendamentos online.",
   LIMITE_ESPACO: LIMIT_MESSAGE,
@@ -100,6 +104,12 @@ export async function createPublicBooking(input: PublicBookingInput): Promise<Re
   const captchaError = await verifyTurnstile(input.token);
   if (captchaError) return { ok: false, error: captchaError, code: "CAPTCHA" };
 
+  // 45: número de outro país confere com a libphonenumber antes de ir ao banco
+  // (Brasil continua só com a regra do banco: 10–11 dígitos com DDD)
+  if (!parseCustomerPhone(input.phone, input.phoneCountry)) {
+    return { ok: false, error: ERRORS.DADOS_INVALIDOS, code: "DADOS_INVALIDOS" };
+  }
+
   const { data, error } = await createAdminClient().rpc("create_public_booking", {
     p_slug: input.slug,
     p_service_id: input.serviceId,
@@ -109,6 +119,8 @@ export async function createPublicBooking(input: PublicBookingInput): Promise<Re
     p_customer_phone: input.phone,
     p_customer_notes: input.notes || null,
     p_professional_id: input.professionalId,
+    // 45: o banco normaliza e valida país + número (Brasil = regra de sempre)
+    p_customer_country: cleanCountry(input.phoneCountry),
   });
 
   if (error) {

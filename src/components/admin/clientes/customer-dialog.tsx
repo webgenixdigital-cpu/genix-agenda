@@ -11,10 +11,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { maskPhone } from "@/lib/format";
+import { PhoneInput } from "@/components/phone-input-lazy";
+import { BR, cleanCountry, displayPhone } from "@/lib/phone";
 import { MONTHS, birthISO, birthParts, daysInMonth } from "@/lib/birthday";
 
-type Customer = { id: string; name: string; phone: string; email: string | null; notes: string | null; birth_date: string | null };
+type Customer = {
+  id: string; name: string; phone: string; phone_country?: string | null;
+  email: string | null; notes: string | null; birth_date: string | null;
+};
 
 // ---------------------------------------------------------------------
 // PARTE 1 — Diálogo de cadastro / edição
@@ -23,7 +27,7 @@ export function CustomerDialog({ customer }: { customer?: Customer }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
-  const [f, setF] = useState({ name: "", phone: "", email: "", notes: "" });
+  const [f, setF] = useState({ name: "", phone: "", phoneCountry: BR, email: "", notes: "" });
   // aniversário: só dia e mês (gravado como 2000-MM-DD)
   const [birth, setBirth] = useState<{ day: number | null; month: number | null }>({ day: null, month: null });
   const [error, setError] = useState<string | null>(null);
@@ -39,9 +43,11 @@ export function CustomerDialog({ customer }: { customer?: Customer }) {
   }
 
   function openDialog() {
+    const phoneCountry = cleanCountry(customer?.phone_country);
     setF({
       name: customer?.name ?? "",
-      phone: maskPhone(customer?.phone ?? ""),
+      phone: displayPhone(customer?.phone ?? "", phoneCountry),
+      phoneCountry,
       email: customer?.email ?? "",
       notes: customer?.notes ?? "",
     });
@@ -100,16 +106,19 @@ export function CustomerDialog({ customer }: { customer?: Customer }) {
               <Label htmlFor="ct-name">Nome</Label>
               <Input id="ct-name" className="h-11" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value.slice(0, 80) })} data-testid="input-cliente-nome" />
             </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label htmlFor="ct-phone">WhatsApp</Label>
-                <Input id="ct-phone" className="h-11" inputMode="tel" placeholder="(35) 99999-9999" value={f.phone}
-                  onChange={(e) => setF({ ...f, phone: maskPhone(e.target.value) })} data-testid="input-cliente-whatsapp" />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="ct-email">E-mail (opcional)</Label>
-                <Input id="ct-email" type="email" className="h-11" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} data-testid="input-cliente-email" />
-              </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="ct-phone">WhatsApp</Label>
+              <PhoneInput
+                id="ct-phone"
+                value={f.phone}
+                country={f.phoneCountry}
+                onChange={(phone, phoneCountry) => setF({ ...f, phone, phoneCountry })}
+                testId="input-cliente-whatsapp"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="ct-email">E-mail (opcional)</Label>
+              <Input id="ct-email" type="email" className="h-11" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} data-testid="input-cliente-email" />
             </div>
             <fieldset className="space-y-1.5">
               <legend className="text-sm font-medium">Aniversário (opcional)</legend>

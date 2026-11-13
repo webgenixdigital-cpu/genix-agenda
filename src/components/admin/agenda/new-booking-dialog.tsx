@@ -30,7 +30,9 @@ import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { brl, duration, maskPhone } from "@/lib/format";
+import { brl, duration } from "@/lib/format";
+import { BR, cleanCountry, displayPhone, isPhoneShapeValid, normalizePhone, phoneError } from "@/lib/phone";
+import { PhoneInput } from "@/components/phone-input-lazy";
 
 type Props = {
   defaultDate: string;
@@ -80,27 +82,33 @@ export function NewBookingDialog({
   const [time, setTime] = useState("");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [phoneCountry, setPhoneCountry] = useState(BR);
   const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [packages, setPackages] = useState<PackageOption[]>([]);
   const [packageId, setPackageId] = useState<string | null>(null);
 
   // cliente com pacote ativo deste serviço? (busca pelo WhatsApp digitado)
-  const phoneDigits = phone.replace(/\D/g, "");
+  const phoneNational = normalizePhone(phone, phoneCountry);
+  // regra do banco (a validação completa, com libphonenumber, fica no servidor)
+  const phoneOk = isPhoneShapeValid(phoneCountry, phoneNational);
+  // chave do número (país + número) para refazer buscas quando muda
+  const phoneKey = phoneOk ? `${phoneCountry}:${phoneNational}` : "";
   useEffect(() => {
     setPackageId(null);
-    if (!open || !serviceId || phoneDigits.length < 10) {
+    if (!open || !serviceId || !phoneKey) {
       setPackages([]);
       return;
     }
     let alive = true;
-    findCustomerPackages(phoneDigits, serviceId).then((list) => {
+    const [c, p] = phoneKey.split(":");
+    findCustomerPackages(p, serviceId, c).then((list) => {
       if (alive) setPackages(list ?? []);
     });
     return () => {
       alive = false;
     };
-  }, [open, serviceId, phoneDigits]);
+  }, [open, serviceId, phoneKey]);
 
   // "Vender pacote": acha/cadastra o cliente pelo WhatsApp e abre o diálogo da ficha
   const [sale, setSale] = useState<{ customerId: string; templates: SaleTemplate[]; professionals: SaleProfessional[] } | null>(null);
@@ -109,7 +117,7 @@ export function NewBookingDialog({
 
   function openSale() {
     startSale(async () => {
-      const r = await startPackageSale({ name, phone });
+      const r = await startPackageSale({ name, phone, phoneCountry });
       if (!r) return; // demonstração: o servidor redirecionou
       if (!r.ok) return void toast.error(r.error);
       setSale({ customerId: r.customerId, templates: r.templates, professionals: r.professionals });
@@ -120,7 +128,7 @@ export function NewBookingDialog({
   // vendeu: recarrega os pacotes deste serviço e já marca o novo para este horário
   async function afterSale() {
     const before = new Set(packages.map((p) => p.id));
-    const list = (await findCustomerPackages(phoneDigits, serviceId)) ?? [];
+    const list = (await findCustomerPackages(phoneNational, serviceId, phoneCountry)) ?? [];
     setPackages(list);
     const fresh = list.find((p) => !before.has(p.id));
     if (fresh) setPackageId(fresh.id);
@@ -134,7 +142,7 @@ export function NewBookingDialog({
   const [preview, setPreview] = useState<Preview | null>(null);
   useEffect(() => {
     setPreview(null);
-  }, [serviceId, professionalId, date, time, phoneDigits, packageId, repeat, frequency, count]);
+  }, [serviceId, professionalId, date, time, phoneKey, packageId, repeat, frequency, count]);
 
   const n = Math.min(Math.max(Number(count) || 0, 0), 52);
   const okDates = preview?.dates.filter((d) => !d.issue) ?? [];
@@ -146,6 +154,7 @@ export function NewBookingDialog({
     if (init?.professionalId) setProfessionalId(init.professionalId);
     setName("");
     setPhone("");
+    setPhoneCountry(BR);
     setNotes("");
     setError(null);
     setRepeat(false);
@@ -169,14 +178,14 @@ export function NewBookingDialog({
   function seriesInput(): SeriesInput {
     return {
       serviceId, professionalId, date, time, frequency, count: n,
-      customerName: name, customerPhone: phone, notes, packageId,
+      customerName: name, customerPhone: phone, customerPhoneCountry: phoneCountry, notes, packageId,
     };
   }
 
   function submitSeries() {
     if (n < 1) return setError("Escolha de 1 a 52 vezes.");
     if (name.trim().length < 2) return setError("Informe o nome do cliente.");
-    if (phoneDigits.length < 10) return setError("Informe o WhatsApp com DDD.");
+    if (!phoneOk) return setError(phoneError(phoneCountry));
     start(async () => {
       // 1º toque: prévia das datas
       if (!preview) {
@@ -207,7 +216,8 @@ export function NewBookingDialog({
     if (repeat) return submitSeries();
     start(async () => {
       const r = await createManualBooking({
-        serviceId, professionalId, date, time, customerName: name, customerPhone: phone, notes, packageId,
+        serviceId, professionalId, date, time, customerName: name, customerPhone: phone,
+        customerPhoneCountry: phoneCountry, notes, packageId,
       });
       if (!r) return; // demonstração: o servidor redirecionou
       if (r.ok) {
@@ -314,10 +324,11 @@ export function NewBookingDialog({
                   // escolher preenche nome + WhatsApp; a busca de pacote dispara pelo efeito do WhatsApp
                   onPick={(c) => {
                     setName(c.name);
-                    setPhone(maskPhone(c.phone));
+                    setPhoneCountry(cleanCountry(c.phoneCountry));
+                    setPhone(displayPhone(c.phone, cleanCountry(c.phoneCountry)));
                   }}
                   onDigitsOnly={(digits) => {
-                    setPhone(maskPhone(digits));
+                    setPhone(displayPhone(normalizePhone(digits, phoneCountry), phoneCountry));
                     setName("");
                   }}
                   onClear={() => {
@@ -328,14 +339,15 @@ export function NewBookingDialog({
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="nb-phone">WhatsApp</Label>
-                <Input
+                <PhoneInput
                   id="nb-phone"
-                  className="h-11"
-                  inputMode="tel"
-                  placeholder="(35) 99999-9999"
                   value={phone}
-                  onChange={(e) => setPhone(maskPhone(e.target.value))}
-                  data-testid="input-whatsapp-manual"
+                  country={phoneCountry}
+                  onChange={(v, c) => {
+                    setPhone(v);
+                    setPhoneCountry(c);
+                  }}
+                  testId="input-whatsapp-manual"
                 />
               </div>
             </div>
@@ -374,7 +386,7 @@ export function NewBookingDialog({
             )}
 
             {/* vender pacote sem sair da Agenda (mesmo diálogo da ficha do cliente) */}
-            {canSellPackages && serviceId && phoneDigits.length >= 10 && (
+            {canSellPackages && serviceId && phoneOk && (
               fullAccess ? (
                 <Button
                   type="button"

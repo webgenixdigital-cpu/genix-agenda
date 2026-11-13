@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { getPlanContext } from "@/lib/plan";
 import { loadSaleOptions } from "@/lib/package-sale";
 import type { BookingStatus } from "@/lib/types";
+import { birthdayLabel } from "@/lib/birthday";
 
 export const dynamic = "force-dynamic";
 
@@ -270,9 +271,9 @@ export default async function ClientePage({ params }: Props) {
               {c.email && ` · ${c.email}`}
             </p>
             {c.birth_date && (
-              <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground" data-testid="ficha-nascimento">
+              <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground" data-testid="ficha-aniversario">
                 <span className="inline-flex items-center gap-1">
-                  <Cake className="h-4 w-4 text-primary" /> Nascimento: {br(c.birth_date)}
+                  <Cake className="h-4 w-4 text-primary" /> Aniversário: {birthdayLabel(c.birth_date)}
                 </span>
                 {isBirthdayToday(c.birth_date, todayInZone(business.timezone)) && (
                   <span className="rounded-full bg-[#F2C078]/40 px-2.5 py-0.5 text-xs font-semibold text-[#7A4520]" data-testid="selo-aniversario-hoje">
@@ -347,7 +348,7 @@ export default async function ClientePage({ params }: Props) {
         role === "owner" && (
           <p className="rounded-2xl border border-dashed bg-white p-4 text-sm text-muted-foreground">
             Escolha o <strong>tipo de espaço</strong> em{" "}
-            <Link href="/admin/configuracoes" className="underline">Configurações</Link> para liberar a ficha técnica dos clientes.
+            <Link href="/admin/configuracoes#perfil" className="underline">Configurações</Link> para liberar a ficha técnica dos clientes.
           </p>
         )
       )}

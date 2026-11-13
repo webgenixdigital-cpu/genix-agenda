@@ -10,9 +10,9 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { maskPhone } from "@/lib/format";
-
-import { todayISO } from "@/lib/dates";
+import { MONTHS, birthISO, birthParts, daysInMonth } from "@/lib/birthday";
 
 type Customer = { id: string; name: string; phone: string; email: string | null; notes: string | null; birth_date: string | null };
 
@@ -23,8 +23,20 @@ export function CustomerDialog({ customer }: { customer?: Customer }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
-  const [f, setF] = useState({ name: "", phone: "", email: "", notes: "", birthDate: "" });
+  const [f, setF] = useState({ name: "", phone: "", email: "", notes: "" });
+  // aniversário: só dia e mês (gravado como 2000-MM-DD)
+  const [birth, setBirth] = useState<{ day: number | null; month: number | null }>({ day: null, month: null });
   const [error, setError] = useState<string | null>(null);
+  const birthIncomplete = !!birth.day !== !!birth.month;
+
+  function setBirthPart(change: { day?: number; month?: number }) {
+    setBirth((b) => {
+      const next = { ...b, ...change };
+      // trocou para um mês mais curto (ex.: 31 → abril): o dia precisa ser escolhido de novo
+      if (next.day && next.month && next.day > daysInMonth(next.month)) next.day = null;
+      return next;
+    });
+  }
 
   function openDialog() {
     setF({
@@ -32,16 +44,21 @@ export function CustomerDialog({ customer }: { customer?: Customer }) {
       phone: maskPhone(customer?.phone ?? ""),
       email: customer?.email ?? "",
       notes: customer?.notes ?? "",
-      birthDate: customer?.birth_date ?? "",
     });
+    setBirth(birthParts(customer?.birth_date));
     setError(null);
     setOpen(true);
   }
 
   function submit() {
     setError(null);
+    if (birthIncomplete) {
+      setError("Aniversário: escolha o dia e o mês, ou limpe o campo.");
+      return;
+    }
+    const input = { ...f, birthDate: birthISO(birth.day, birth.month) };
     start(async () => {
-      const r = customer ? await updateCustomer(customer.id, f) : await createCustomer(f);
+      const r = customer ? await updateCustomer(customer.id, input) : await createCustomer(input);
       if (!r) return; // demonstração
       if (!r.ok) {
         setError(r.error);
@@ -94,11 +111,53 @@ export function CustomerDialog({ customer }: { customer?: Customer }) {
                 <Input id="ct-email" type="email" className="h-11" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} data-testid="input-cliente-email" />
               </div>
             </div>
-            <div className="space-y-1.5 sm:max-w-[calc(50%-0.375rem)]">
-              <Label htmlFor="ct-birth">Data de nascimento (opcional)</Label>
-              <Input id="ct-birth" type="date" className="h-11" min="1900-01-01" max={todayISO()} value={f.birthDate}
-                onChange={(e) => setF({ ...f, birthDate: e.target.value })} data-testid="input-cliente-nascimento" />
-            </div>
+            <fieldset className="space-y-1.5">
+              <legend className="text-sm font-medium">Aniversário (opcional)</legend>
+              <div className="flex flex-wrap items-center gap-3">
+                <Select
+                  value={birth.day ? String(birth.day) : ""}
+                  onValueChange={(v) => setBirthPart({ day: Number(v) })}
+                >
+                  <SelectTrigger className="h-11 w-24" aria-label="Dia do aniversário" data-testid="select-cliente-aniversario-dia">
+                    <SelectValue placeholder="Dia" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: birth.month ? daysInMonth(birth.month) : 31 }, (_, i) => (
+                      <SelectItem key={i + 1} value={String(i + 1)}>
+                        {i + 1}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={birth.month ? String(birth.month) : ""}
+                  onValueChange={(v) => setBirthPart({ month: Number(v) })}
+                >
+                  <SelectTrigger className="h-11 w-40" aria-label="Mês do aniversário" data-testid="select-cliente-aniversario-mes">
+                    <SelectValue placeholder="Mês" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MONTHS.map((m, i) => (
+                      <SelectItem key={m} value={String(i + 1)} className="capitalize">
+                        {m}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {(birth.day || birth.month) && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="h-11 px-3"
+                    onClick={() => setBirth({ day: null, month: null })}
+                    data-testid="btn-cliente-aniversario-limpar"
+                  >
+                    Limpar
+                  </Button>
+                )}
+              </div>
+              {birthIncomplete && <p className="text-xs text-amber-800">Escolha o dia e o mês, ou limpe o campo.</p>}
+            </fieldset>
             <div className="space-y-1.5">
               <Label htmlFor="ct-notes">Observações</Label>
               <Textarea id="ct-notes" rows={3} placeholder="Preferências, horários que prefere, como conheceu o espaço..."

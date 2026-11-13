@@ -12,6 +12,7 @@ import { brl, whatsappLink } from "@/lib/format";
 import { customerMessage } from "@/lib/messages";
 import { RescheduleDialog, type ProOption } from "@/components/admin/agenda/reschedule-dialog";
 import { EditBookingDialog, bookingTotals, itemGroups, useBookingEditInfo } from "@/components/admin/agenda/edit-booking-dialog";
+import { ReopenBookingButton } from "@/components/admin/agenda/reopen-booking-button";
 import type { BookingStatus } from "@/lib/types";
 
 export type AgendaBooking = {
@@ -46,6 +47,8 @@ export type RescheduleProps = {
   professionals: ProOption[];
   /** matriz e recepção: trocam o profissional e podem encaixar */
   canChooseProfessional: boolean;
+  /** "Reabrir atendimento" nos concluídos (matriz e recepção) */
+  canReopen?: boolean;
   today: string;
 };
 
@@ -172,6 +175,10 @@ export function BookingActions({
             {b.status === "completed" ? "Pedir avaliação" : "WhatsApp"}
           </a>
         </Button>
+      )}
+
+      {b.status === "completed" && reschedule?.canReopen && (
+        <ReopenBookingButton bookingId={b.id} customerName={b.customer_name} packageSession={!!b.customer_package_id} />
       )}
 
       {(b.status === "pending" || b.status === "confirmed") && (

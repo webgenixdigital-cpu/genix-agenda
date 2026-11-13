@@ -112,6 +112,8 @@ export async function loadAgenda(ctx: AdminContext, wholeTeam: boolean, o: Optio
       return { id: p.id, name: p.name, serviceIds: ids.length ? [...ids, ...combos] : null };
     }),
     canChooseProfessional: role === "owner" || role === "reception",
+    // 46_reabrir_atendimento: matriz e recepção (prazo de 30 dias da recepção conferido no banco)
+    canReopen: role === "owner" || role === "reception",
     today: todayISO(),
   };
 

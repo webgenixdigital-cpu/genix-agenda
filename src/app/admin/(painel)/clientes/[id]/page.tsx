@@ -14,6 +14,7 @@ import { ProfileCard, type ProfileField } from "@/components/admin/clientes/prof
 import { PackagesCard, type CustomerPackage } from "@/components/admin/clientes/packages-card";
 import { AutoReminderToggle } from "@/components/admin/clientes/auto-reminder-toggle";
 import { EditBookingButton } from "@/components/admin/agenda/edit-booking-dialog";
+import { ReopenBookingButton } from "@/components/admin/agenda/reopen-booking-button";
 import { Button } from "@/components/ui/button";
 import { getPlanContext } from "@/lib/plan";
 import { loadSaleOptions } from "@/lib/package-sale";
@@ -50,7 +51,22 @@ const ACTION_LABEL: Record<string, string> = {
   item_removed: "Serviço removido",
   discount_set: "Desconto aplicado",
   discount_removed: "Desconto removido",
+  reopened: "Atendimento reaberto",
 };
+
+const METHOD_LABEL: Record<string, string> = { pix: "Pix", dinheiro: "Dinheiro", credito: "Crédito", debito: "Débito" };
+
+/** 46_reabrir_atendimento: "Atendimento reaberto por <nome> em <data>" + o que saiu do caixa */
+function reopenedLine(e: { actor_role: string | null; details: Record<string, unknown> | null; created_at: string }) {
+  const d = e.details ?? {};
+  const name = typeof d.actor_name === "string" && d.actor_name ? d.actor_name : null;
+  const who = name ? `por ${name}` : ROLE_LABEL[e.actor_role ?? ""] ?? "";
+  const cash = d.cash as { amount?: number; method?: string } | null | undefined;
+  const undone = cash?.amount
+    ? ` · saiu do caixa: ${brl(Number(cash.amount))}${cash.method ? ` (${METHOD_LABEL[cash.method] ?? cash.method})` : ""}`
+    : "";
+  return { who, undone };
+}
 
 /** Mensagens automáticas do WhatsApp (42): enviada ou fora da validade, por tipo */
 const AUTO_SENT: Record<string, string> = {
@@ -378,11 +394,23 @@ export default async function ClientePage({ params }: Props) {
                     {(b.status === "pending" || b.status === "confirmed") && (
                       <EditBookingButton bookingId={b.id} customerName={c.name} />
                     )}
+                    {b.status === "completed" && canSell && (
+                      <ReopenBookingButton bookingId={b.id} customerName={c.name} packageSession={linked(b).length > 0} />
+                    )}
                   </div>
                 </div>
                 {(byBooking.get(b.id) ?? []).length > 0 && (
                   <ol className="mt-3 space-y-1 border-l-2 border-secondary pl-3 text-xs text-muted-foreground">
                     {byBooking.get(b.id)!.map((e, i) => {
+                      if (e.action === "reopened") {
+                        const r = reopenedLine(e);
+                        return (
+                          <li key={i} data-testid={`evento-reaberto-${b.id}`}>
+                            <span className="font-semibold text-foreground">Atendimento reaberto</span> {r.who} em {when(e.created_at)}
+                            {r.undone}
+                          </li>
+                        );
+                      }
                       const to = (e.details?.to ?? null) as { date?: string; time?: string } | null;
                       return (
                         <li key={i}>

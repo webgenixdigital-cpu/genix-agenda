@@ -92,7 +92,7 @@ export function PhoneInput({
     setOpen(false);
     setQuery("");
     onChange(displayPhone(normalizePhone(value, x.code), x.code), x.code);
-    requestAnimationFrame(() => inputRef.current?.focus());
+    // o foco volta para o número em onCloseAutoFocus (abaixo)
   }
 
   const item = (x: PhoneCountry) => (
@@ -138,7 +138,15 @@ export function PhoneInput({
             <ChevronDown className="h-4 w-4 text-muted-foreground" aria-hidden />
           </button>
         </PopoverTrigger>
-        <PopoverContent align="start" className="w-[min(20rem,calc(100vw-2rem))] p-2">
+        <PopoverContent
+          align="start"
+          className="w-[min(20rem,calc(100vw-2rem))] p-2"
+          // ao fechar, o foco vai para o número (e não volta para o botão do país)
+          onCloseAutoFocus={(e) => {
+            e.preventDefault();
+            inputRef.current?.focus();
+          }}
+        >
           <div className="relative mb-2">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
             <Input

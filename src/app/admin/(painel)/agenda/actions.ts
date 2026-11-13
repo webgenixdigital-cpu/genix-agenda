@@ -80,6 +80,38 @@ export async function completeBooking(id: string, method: Method | null): Promis
 }
 
 // ---------------------------------------------------------------------
+// PARTE 2b — Reabrir concluído por engano (regras em 46_reabrir_atendimento.sql)
+// Status volta ao anterior, sai o lançamento automático do caixa e o
+// histórico ganha "reopened". Tudo numa transação, no banco.
+// ---------------------------------------------------------------------
+const REOPEN_ERRORS: Record<string, string> = {
+  SEM_PERMISSAO: "Só a matriz e a recepção podem reabrir um atendimento.",
+  PRAZO_SO_DONO: "Esse atendimento foi concluído há mais de 30 dias. Só a matriz pode reabrir.",
+  CAIXA_EDITADO:
+    "O lançamento deste atendimento no caixa foi alterado depois da conclusão. Confira o Financeiro com a matriz antes de reabrir.",
+  HORARIO_OCUPADO: "Esse horário já foi ocupado por outro agendamento. Não dá para reabrir.",
+  STATUS_INVALIDO: "Esse atendimento não está concluído.",
+  NAO_ENCONTRADO: "Agendamento não encontrado.",
+};
+
+export async function reopenBooking(id: string): Promise<Result> {
+  await getEditorContext();
+  const supabase = createClient();
+  const { error } = await supabase.rpc("reopen_booking", { p_booking: id });
+  if (error) {
+    const key = Object.keys(REOPEN_ERRORS).find((k) => error.message.includes(k));
+    return { ok: false, error: (key && REOPEN_ERRORS[key]) || "Não foi possível reabrir o atendimento." };
+  }
+
+  refresh();
+  revalidatePath("/admin/financeiro");
+  revalidatePath("/admin/ganhos");
+  revalidatePath("/admin/clientes", "layout");
+  revalidatePath("/admin/lembretes");
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------
 // PARTE 3 — Agendamento manual (balcão / telefone)
 // ---------------------------------------------------------------------
 export async function createManualBooking(input: {

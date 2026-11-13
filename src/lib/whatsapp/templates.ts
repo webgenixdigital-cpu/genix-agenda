@@ -120,8 +120,8 @@ const REASON_LABEL: Record<string, string> = {
   INTERROMPIDO: "envio interrompido",
   AGENDAMENTO_MUDOU: "o agendamento mudou durante o envio",
   // fila (42)
-  EXPIRADA: "fora da validade (o limite de envios do número estava ocupado)",
-  DISPENSADA: "outra mensagem deste horário saiu há pouco",
+  EXPIRADA: "fora da validade (pouco tempo até o horário ou limite de envios do número ocupado)",
+  DISPENSADA: "outra mensagem deste horário saiu há pouco e não deu tempo de esperar 6 h",
   CANCELADO: "agendamento cancelado",
   REMARCADO: "agendamento remarcado",
   NAO_CONFIRMADO: "agendamento deixou de estar confirmado",

@@ -116,8 +116,11 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
     desligados). Fila gravada em `whatsapp_reminder_sends` (`kind`, `queued`/`skipped`, `due_at`, `expires_at`,
     `priority`, `claimed_at`): `whatsapp_queue_refresh` (a cada minuto) → `claim_auto_message` →
     `finish_auto_reminder`. Prioridade confirmação → antes → véspera → aniversário; ritmo da 35 para todos juntos;
-    perdeu a validade = `EXPIRADA` (conta no painel e na ficha); 1 mensagem a cada 6 h por agendamento + horário
-    (`DISPENSADA`); cancelado/remarcado não sai.
+    perdeu a validade = `EXPIRADA` (conta no painel e na ficha); 1 mensagem a cada 6 h por agendamento + horário:
+    a seguinte **é adiada** para 6 h depois (44) e só vira `DISPENSADA` se não couber na validade; cancelado/remarcado não sai.
+    Véspera (44): sai no mínimo 5 min depois do último “ficou confirmado” (a confirmação vai antes); nunca some sem
+    registro (`JA_LEMBRADO` se a fila manual já lembrou; `EXPIRADA` se não coube); véspera desligada = sem linha.
+    `save_whatsapp_messages` grava só os campos enviados (a tela manda só o que mudou).
 - Recebimento de **sinal via Pix** do cliente final: decisão adiada (avaliar subcontas Asaas).
 
 ## 5. Segurança e banco

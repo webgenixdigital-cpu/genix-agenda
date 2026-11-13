@@ -1,7 +1,8 @@
 import { headers } from "next/headers";
 import { CheckCircle2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { longDate, maskPhone, whatsappLink } from "@/lib/format";
+import { longDate, whatsappLink } from "@/lib/format";
+import { formatPhone } from "@/lib/phone";
 import { returnMessage } from "@/lib/messages";
 import { SendReturnButton, UndoReturnButton } from "@/components/admin/lembretes/return-actions";
 import { cn } from "@/lib/utils";
@@ -11,6 +12,8 @@ type Item = {
   service_id: string;
   customer_name: string;
   customer_phone: string;
+  /** código do país (45) */
+  customer_phone_country: string;
   service_name: string;
   professional_name: string;
   last_date: string;
@@ -58,7 +61,8 @@ export async function ReturnQueue({ business }: { business: { id: string; name: 
           {list.map((i) => {
             const href = whatsappLink(
               i.customer_phone,
-              returnMessage(i.customer_name, i.service_name, i.last_date, business.name, bookingUrl)
+              returnMessage(i.customer_name, i.service_name, i.last_date, business.name, bookingUrl),
+              i.customer_phone_country
             );
             return (
               <li
@@ -81,7 +85,7 @@ export async function ReturnQueue({ business }: { business: { id: string; name: 
                   <p className="text-sm text-muted-foreground">
                     {i.service_name} com {i.professional_name} · última vez em {longDate(i.last_date)}
                   </p>
-                  <p className="text-sm text-muted-foreground">{maskPhone(i.customer_phone)}</p>
+                  <p className="text-sm text-muted-foreground">{formatPhone(i.customer_phone, i.customer_phone_country)}</p>
                 </div>
                 {href && <SendReturnButton id={i.booking_id} href={href} />}
               </li>

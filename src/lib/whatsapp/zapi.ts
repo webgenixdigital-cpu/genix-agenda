@@ -45,9 +45,9 @@ const looksDisconnected = (t: string) => /not connected|disconnect|desconect|qr 
 
 export function createZapiProvider(c: Creds): WhatsAppProvider {
   return {
-    async sendText(phone, text): Promise<SendResult> {
-      // telefone do banco (normalize_phone) + 55
-      const r = await call(c, "send-text", { method: "POST", body: { phone: toWhatsappNumber(phone), message: text } });
+    async sendText(phone, text, country): Promise<SendResult> {
+      // telefone do banco (normalize_phone) + código do país (45; padrão 55)
+      const r = await call(c, "send-text", { method: "POST", body: { phone: toWhatsappNumber(phone, country), message: text } });
 
       if (r.kind === "timeout") return { ok: false, reason: "TIMEOUT", transient: true, disconnected: false };
       if (r.kind === "network") return { ok: false, reason: "REDE", transient: true, disconnected: false };

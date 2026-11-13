@@ -4,7 +4,8 @@ import { ArrowLeft, Cake, MessageCircle, StickyNote } from "lucide-react";
 import { todayInZone } from "@/lib/dates";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminContext } from "@/lib/admin";
-import { brl, maskPhone, whatsappLink } from "@/lib/format";
+import { brl, whatsappLink } from "@/lib/format";
+import { formatPhone } from "@/lib/phone";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { AutoConfirmBadge } from "@/components/admin/auto-confirm-badge";
 import { AUTO_CONFIRM_REASON, type AutoConfirmReason } from "@/lib/confirm-mode";
@@ -104,11 +105,11 @@ export default async function ClientePage({ params }: Props) {
   const { business, role } = await getAdminContext();
   const supabase = createClient();
 
-  const COLS = "id, name, phone, email, notes, created_at, profile, no_auto_reminders";
+  const COLS = "id, name, phone, phone_country, email, notes, created_at, profile, no_auto_reminders";
   const loadCustomer = (cols: string) =>
     supabase.from("customers").select(cols).eq("id", params.id).eq("business_id", business.id).maybeSingle();
   type CustomerRow = {
-    id: string; name: string; phone: string; email: string | null; notes: string | null; birth_date: string | null;
+    id: string; name: string; phone: string; phone_country: string; email: string | null; notes: string | null; birth_date: string | null;
     created_at: string; profile: unknown; no_auto_reminders: boolean;
   };
   let res = await loadCustomer(`${COLS}, birth_date`);
@@ -247,7 +248,7 @@ export default async function ClientePage({ params }: Props) {
   // nome do(s) pacote(s) usados na visita, para o histórico
   const packageNames = (b: Booking) =>
     Array.from(new Set(linked(b).map((i) => pkgById.get(i.customer_package_id)?.name).filter(Boolean))).join(", ");
-  const wa = whatsappLink(c.phone, `Olá, ${c.name.split(" ")[0]}! Aqui é do ${business.name}.`);
+  const wa = whatsappLink(c.phone, `Olá, ${c.name.split(" ")[0]}! Aqui é do ${business.name}.`, c.phone_country);
 
   // -------------------------------------------------------------------
   // PARTE 2 — Página
@@ -267,7 +268,7 @@ export default async function ClientePage({ params }: Props) {
           <div className="min-w-0">
             <h1 className="break-words text-3xl">{c.name}</h1>
             <p className="break-words text-muted-foreground [overflow-wrap:anywhere]">
-              {maskPhone(c.phone)}
+              {formatPhone(c.phone, c.phone_country)}
               {c.email && ` · ${c.email}`}
             </p>
             {c.birth_date && (

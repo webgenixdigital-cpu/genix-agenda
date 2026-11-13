@@ -144,7 +144,14 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
   `combo_items`; grava só por `save_combo` (gatilho `guard_service_combo`). Agendar combo: `bookings.service_id` = combo e
   o gatilho do item 0 abre um item por serviço (`add_service_items`, preço proporcional, `combo_group`).
   `professional_does_service` exige todos os serviços do combo. Serviço desativado/excluído → combo inativo.
-- Clientes (`customers`) identificados por WhatsApp normalizado; trigger liga cada agendamento ao cliente.
+- Clientes (`customers`) identificados por país + WhatsApp normalizado (único por `business_id, phone_country, phone`);
+  trigger liga cada agendamento ao cliente.
+- **Telefone internacional (45):** `customers.phone_country` / `bookings.customer_phone_country` (código do país, só
+  dígitos, padrão `'55'`) e `customers.phone_e164` (gerada, usada na busca). `phone` é sempre o número **nacional**:
+  Brasil 10–11 dígitos com DDD (regra de sempre); outros 4–14, país + número ≤ 15. `normalize_phone(p, país)` tira o
+  55 de 12–13 dígitos (Brasil) ou o próprio código do país (com `+`/`00`, ou ≥ 8 dígitos restantes num total ≥ 11);
+  `phone_is_valid(país, telefone)`. Funções com telefone recebem o país com `default '55'`. Fila do WhatsApp devolve
+  `phone_country`; o envio é país + número. O telefone/WhatsApp **do espaço** continua só Brasil.
   `customers.birth_date` (41) é opcional; a ficha mostra a data e o selo “Aniversário hoje” (fuso do espaço), nunca a idade.
 - **Texto da fila manual (41):** `manual_reminder_texts` (1 linha por espaço, “Amanhã”/“Hoje”, null = padrão); todos os
   papéis leem, grava só `save_manual_reminder_texts` (matriz e recepção). Variáveis do automático + `{total}`
@@ -161,7 +168,11 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
 
 ## 6. Padrões do código
 
-- Textos da interface **em pt-BR**; moeda `brl()`, telefone `maskPhone()`, datas no fuso `America/Sao_Paulo` (`lib/dates.ts`).
+- Textos da interface **em pt-BR**; moeda `brl()`, datas no fuso `America/Sao_Paulo` (`lib/dates.ts`).
+- Telefone de **cliente**: campo `PhoneInput` de `components/phone-input-lazy.tsx` (seletor de país, Brasil primeiro;
+  carrega a libphonenumber sob demanda), exibição `formatPhone(phone, país)` e wa.me `whatsappLink(número, texto, país)`.
+  `lib/phone.ts` é leve (sem libphonenumber; pode ir para qualquer tela); `lib/phone-intl.ts` usa a libphonenumber
+  (server actions: `parseCustomerPhone`). Telefone do espaço: `maskPhone()`.
 - Todo botão, link, input e aba interativo com `data-testid` em kebab-case.
 - Painel: páginas leem com `getAdminContext()`; páginas exclusivas usam `requireRoles([...])`;
   **server actions de escrita usam `getEditorContext()`** (bloqueia a demo).

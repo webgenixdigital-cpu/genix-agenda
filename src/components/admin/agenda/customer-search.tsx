@@ -4,7 +4,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { Loader2, Search, UserRound, X } from "lucide-react";
 import { searchCustomers, type CustomerHit } from "@/app/admin/(painel)/agenda/actions";
 import { Input } from "@/components/ui/input";
-import { maskPhone } from "@/lib/format";
+import { formatPhone } from "@/lib/phone";
 import { cn } from "@/lib/utils";
 
 const br = (iso: string) => iso.split("-").reverse().join("/");
@@ -178,7 +178,7 @@ export function CustomerSearch({
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-semibold">{c.name}</span>
                     <span className="block text-xs text-muted-foreground">
-                      {maskPhone(c.phone)} · {c.lastVisit ? `última visita ${br(c.lastVisit)}` : "sem visitas"}
+                      {formatPhone(c.phone, c.phoneCountry)} · {c.lastVisit ? `última visita ${br(c.lastVisit)}` : "sem visitas"}
                     </span>
                   </span>
                 </li>

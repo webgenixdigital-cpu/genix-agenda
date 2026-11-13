@@ -5,7 +5,8 @@ import { getAdminContext } from "@/lib/admin";
 import { getPlanContext } from "@/lib/plan";
 import { LockedFeature } from "@/components/admin/locked-feature";
 import { todayISO } from "@/lib/dates";
-import { longDate, maskPhone, whatsappLink } from "@/lib/format";
+import { longDate, whatsappLink } from "@/lib/format";
+import { formatPhone } from "@/lib/phone";
 import { manualReminderText } from "@/lib/messages";
 import { ReminderTextDialog } from "@/components/admin/lembretes/reminder-text-dialog";
 import { KIND_LABEL, MESSAGE_KINDS, reasonLabel, type MessageKind } from "@/lib/whatsapp/templates";
@@ -49,7 +50,7 @@ export default async function LembretesPage({ searchParams }: Props) {
 
   const { data } = await supabase
     .from("bookings")
-    .select("id, start_time, customer_name, customer_phone, service_name, professional_name, status, reminder_sent_at, price, items_count")
+    .select("id, start_time, customer_name, customer_phone, customer_phone_country, service_name, professional_name, status, reminder_sent_at, price, items_count")
     .eq("business_id", business.id)
     .eq("booking_date", date)
     .in("status", ["pending", "confirmed"])
@@ -174,7 +175,8 @@ export default async function LembretesPage({ searchParams }: Props) {
                 business: business.name,
                 itemsCount: b.items_count,
                 price: b.price === null ? null : Number(b.price),
-              })
+              }),
+              b.customer_phone_country
             );
             return (
               <li key={b.id} className="flex flex-col gap-3 rounded-2xl border bg-card p-4 sm:flex-row sm:items-center" data-testid={`lembrete-${b.id}`}>
@@ -185,7 +187,7 @@ export default async function LembretesPage({ searchParams }: Props) {
                     <StatusBadge status={b.status as BookingStatus} />
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    {b.service_name} com {b.professional_name} · {maskPhone(b.customer_phone)}
+                    {b.service_name} com {b.professional_name} · {formatPhone(b.customer_phone, b.customer_phone_country)}
                   </p>
                   <AutoFailure send={lastSend.get(b.id)} />
                   <OtherAutoMessages sends={otherSends.get(b.id)} />

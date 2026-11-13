@@ -107,7 +107,8 @@ export function RescheduleDialog({
         rescheduleMessage(
           { ...b, booking_date: done.date, start_time: done.time, professional_name: done.professional },
           businessName
-        )
+        ),
+        b.customer_phone_country
       )
     : null;
 

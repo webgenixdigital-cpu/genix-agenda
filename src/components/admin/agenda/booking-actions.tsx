@@ -21,6 +21,8 @@ export type AgendaBooking = {
   end_time: string;
   customer_name: string;
   customer_phone: string;
+  /** código do país (45); ausente = Brasil */
+  customer_phone_country?: string | null;
   customer_notes: string | null;
   service_name: string;
   professional_name: string;
@@ -96,7 +98,7 @@ export function BookingActions({
   useEffect(() => setOrigin(window.location.origin), []);
 
   const reviewUrl = origin ? `${origin}/v/${slug}/avaliar/${b.id}` : undefined;
-  const wa = whatsappLink(b.customer_phone, customerMessage(b, businessName, reviewUrl));
+  const wa = whatsappLink(b.customer_phone, customerMessage(b, businessName, reviewUrl), b.customer_phone_country);
 
   function run(fn: () => Promise<{ ok: boolean; error?: string }>, success: string) {
     start(async () => {

@@ -21,7 +21,8 @@ export type QrResult = { ok: true; image: string } | { ok: true; connected: true
 export type SimpleResult = { ok: true } | { ok: false; reason: string };
 
 export interface WhatsAppProvider {
-  sendText(phone: string, text: string): Promise<SendResult>;
+  /** phone: número nacional do banco; country: código do país (45; ausente = 55) */
+  sendText(phone: string, text: string, country?: string | null): Promise<SendResult>;
   status(): Promise<StatusResult>;
   /** QR Code para conectar o número (data URL de imagem) */
   qrCode(): Promise<QrResult>;

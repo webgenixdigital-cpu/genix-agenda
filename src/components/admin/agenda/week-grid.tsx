@@ -13,7 +13,8 @@ import { StatusBadge } from "@/components/admin/status-badge";
 import { AutoConfirmBadge } from "@/components/admin/auto-confirm-badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { addDaysISO } from "@/lib/dates";
-import { brl, maskPhone } from "@/lib/format";
+import { brl } from "@/lib/format";
+import { formatPhone } from "@/lib/phone";
 import { blockAppliesOn, type AgendaBlock, type AgendaHour, type AgendaItem } from "@/lib/agenda";
 import { STATUS_STYLE } from "@/components/admin/agenda/status-colors";
 import { cn } from "@/lib/utils";
@@ -456,7 +457,7 @@ export function WeekGrid(props: Props) {
                   {selected.service_name} com {selected.professional_name}
                   {!selected.customer_package_id && <span className="text-muted-foreground"> · {brl(selected.price)}</span>}
                 </p>
-                <p className="text-muted-foreground">{maskPhone(selected.customer_phone)}</p>
+                <p className="text-muted-foreground">{formatPhone(selected.customer_phone, selected.customer_phone_country)}</p>
                 {selected.customer_notes && <p className="rounded-lg bg-secondary px-2.5 py-1.5">{selected.customer_notes}</p>}
               </div>
               <div className="border-t pt-3">

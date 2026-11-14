@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { PackageVisitServices } from "@/components/admin/agenda/package-visit-services";
 import { brl, duration } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -269,6 +270,9 @@ export function EditBookingDialog({
                 ))}
               </ul>
             </section>
+
+            {/* Sessão de pacote: quais serviços do pacote nesta data (48) */}
+            <PackageVisitServices bookingId={bookingId} open={open} onSaved={reload} />
 
             {/* Adicionar serviço */}
             {canEdit && (

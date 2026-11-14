@@ -52,6 +52,7 @@ const ACTION_LABEL: Record<string, string> = {
   discount_set: "Desconto aplicado",
   discount_removed: "Desconto removido",
   reopened: "Atendimento reaberto",
+  package_services: "Serviços do pacote alterados",
 };
 
 const METHOD_LABEL: Record<string, string> = { pix: "Pix", dinheiro: "Dinheiro", credito: "Crédito", debito: "Débito" };
@@ -98,6 +99,8 @@ function editDetail(action: string, d: Record<string, unknown> | null) {
     return `: ${pct}${brl(Number(d.amount ?? 0))}${typeof d.reason === "string" && d.reason ? ` · ${d.reason}` : ""}`;
   }
   if (action === "discount_removed") return `: ${brl(Number(d.amount ?? 0))}`;
+  // 48_pacote_servicos_por_data
+  if (action === "package_services") return `: ${String(d.before ?? "")} → ${String(d.after ?? "")}`;
   return "";
 }
 /** motivo da confirmação automática gravado no histórico */

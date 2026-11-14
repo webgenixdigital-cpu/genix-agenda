@@ -2,7 +2,7 @@
 // então a RLS decide o que cada papel vê (profissional = só a própria agenda).
 import { createClient } from "@/lib/supabase/server";
 import type { AdminContext } from "@/lib/admin";
-import { todayISO } from "@/lib/dates";
+import { todayInZone } from "@/lib/dates";
 import { getPlanContext } from "@/lib/plan";
 import type { RescheduleProps } from "@/components/admin/agenda/booking-actions";
 import type { AgendaBlock, AgendaHour, AgendaItem } from "@/lib/agenda";
@@ -114,7 +114,7 @@ export async function loadAgenda(ctx: AdminContext, wholeTeam: boolean, o: Optio
     canChooseProfessional: role === "owner" || role === "reception",
     // 46_reabrir_atendimento: matriz e recepção (prazo de 30 dias da recepção conferido no banco)
     canReopen: role === "owner" || role === "reception",
-    today: todayISO(),
+    today: todayInZone(business.timezone),
   };
 
   return {

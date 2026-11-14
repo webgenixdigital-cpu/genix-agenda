@@ -1,5 +1,6 @@
 "use client";
 
+import { Ajuda } from "@/components/ajuda";
 import { useRef, useState, useTransition } from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -180,7 +181,7 @@ export function ProfessionalDialog({
             </div>
             {/* comissão: recurso do plano Equipe (fora dele, o valor salvo fica como está) */}
             {teamFeatures && <div className="space-y-1.5">
-              <Label htmlFor="pf-com">Comissão (%)</Label>
+              <div className="flex items-center gap-1"><Label htmlFor="pf-com">Comissão (%)</Label><Ajuda id="comissoes" /></div>
               <Input
                 id="pf-com"
                 className="h-11"
@@ -195,7 +196,7 @@ export function ProfessionalDialog({
           {partnerSalon && (
             <label className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border p-4">
               <span>
-                <span className="block font-semibold">Profissional parceiro (salão-parceiro)</span>
+                <span className="flex items-center gap-1 font-semibold">Profissional parceiro (salão-parceiro) <Ajuda id="salao-parceiro" /></span>
                 <span className="text-sm text-muted-foreground">
                   A comissão acima vira o repasse ao parceiro no Faturamento. Vale para parceria com contrato formalizado.
                 </span>

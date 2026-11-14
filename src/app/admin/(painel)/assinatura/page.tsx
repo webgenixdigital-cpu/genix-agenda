@@ -1,3 +1,4 @@
+import { Ajuda } from "@/components/ajuda";
 import { Check, Clock, ExternalLink, Sparkles, XCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { requireRoles } from "@/lib/admin";
@@ -147,7 +148,7 @@ export default async function AssinaturaPage() {
   return (
     <main className="mx-auto max-w-3xl space-y-8 p-4 md:p-8">
       <header className="text-center">
-        <h1 className="text-3xl md:text-4xl">Assinatura</h1>
+        <h1 className="text-3xl md:text-4xl">Assinatura <Ajuda id="assinatura" className="-ml-2" /></h1>
         <p className="mt-1 text-sm text-muted-foreground">Seu plano atual e os planos Profissional e Equipe.</p>
       </header>
 

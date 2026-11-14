@@ -4,6 +4,7 @@
 // que já têm esse serviço (avulso, adicional ou em combo). Mostra o término novo e avisa,
 // antes de aplicar, quem passaria do início do próximo horário do profissional.
 // Os com conflito ficam de fora (o banco também barra pela trava no_overlap).
+import { Ajuda } from "@/components/ajuda";
 import { useState, useTransition } from "react";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -113,7 +114,7 @@ export function DurationUpdateDialog({
         {change && !skipped && (
           <>
             <DialogHeader>
-              <DialogTitle className="font-heading text-2xl">Atualizar os agendamentos futuros?</DialogTitle>
+              <DialogTitle className="font-heading text-2xl">Atualizar os agendamentos futuros? <Ajuda id="atualizar-futuros" className="-ml-2" /></DialogTitle>
               <DialogDescription>
                 {change.serviceName} passou de {duration(change.from)} para {duration(change.to)}.{" "}
                 {items.length === 1 ? "1 agendamento futuro tem" : `${items.length} agendamentos futuros têm`} esse serviço.

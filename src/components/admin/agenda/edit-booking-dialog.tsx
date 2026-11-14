@@ -1,5 +1,6 @@
 "use client";
 
+import { Ajuda } from "@/components/ajuda";
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { AlertTriangle, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -213,7 +214,7 @@ export function EditBookingDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[92svh] max-w-md overflow-y-auto rounded-2xl">
         <DialogHeader>
-          <DialogTitle className="font-heading text-2xl">Editar agendamento</DialogTitle>
+          <DialogTitle className="font-heading text-2xl">Editar agendamento <Ajuda id="editar-agendamento" className="-ml-2" /></DialogTitle>
           <DialogDescription>
             {customerName}
             {info && ` · ${info.start_time} às ${info.end_time}`}

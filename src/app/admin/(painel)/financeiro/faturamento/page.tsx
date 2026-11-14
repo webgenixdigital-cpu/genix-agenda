@@ -1,3 +1,4 @@
+import { Ajuda } from "@/components/ajuda";
 import Link from "next/link";
 import { FileText, Settings } from "lucide-react";
 import { requireRoles } from "@/lib/admin";
@@ -56,7 +57,7 @@ export default async function FaturamentoPage() {
   return (
     <main className="mx-auto max-w-6xl space-y-8 p-4 md:p-8">
       <header className="space-y-3 text-center">
-        <h1 className="text-3xl md:text-4xl">Financeiro</h1>
+        <h1 className="text-3xl md:text-4xl">Financeiro <Ajuda id="faturamento-limites" className="-ml-2" /></h1>
         <FinanceTabs active="faturamento" />
       </header>
 

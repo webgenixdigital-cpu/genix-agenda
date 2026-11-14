@@ -1,3 +1,4 @@
+import { Ajuda } from "@/components/ajuda";
 import { createClient } from "@/lib/supabase/server";
 import { requireRoles } from "@/lib/admin";
 import { ProfileForm } from "@/components/admin/configuracoes/profile-form";
@@ -92,6 +93,7 @@ export default async function ConfiguracoesPage() {
     },
     {
       id: "link",
+      help: "link-vitrine",
       title: "Link da vitrine",
       summary: `/v/${b.slug} · ${b.is_published ? "publicada" : "não publicada"}`,
       description: "O endereço que você divulga no Instagram e no WhatsApp.",
@@ -99,6 +101,7 @@ export default async function ConfiguracoesPage() {
     },
     {
       id: "horarios",
+      help: "horarios",
       title: "Horários e agendamento",
       summary: hoursSummary(hourRows),
       description: "Define os horários oferecidos na vitrine.",
@@ -106,6 +109,7 @@ export default async function ConfiguracoesPage() {
     },
     {
       id: "confirmacao",
+      help: "confirmacao-automatica",
       title: "Confirmação dos agendamentos online",
       summary: CONFIRM_MODES.find((m) => m.value === confirmMode)?.label ?? "",
       description: "Decide se o pedido feito na vitrine já entra confirmado ou espera você confirmar.",
@@ -113,6 +117,7 @@ export default async function ConfiguracoesPage() {
     },
     {
       id: "descontos",
+      help: "descontos",
       title: "Descontos",
       summary: discount > 0 ? `profissional pode dar até ${discount}%` : "profissional sem desconto",
       description: "Quanto o profissional pode descontar ao editar um agendamento.",
@@ -124,6 +129,7 @@ export default async function ConfiguracoesPage() {
       ? [
           {
             id: "whatsapp",
+            help: "whatsapp-automatico" as const,
             title: "WhatsApp automático (beta)",
             summary: `${waStatus}, envio ${waPanel.auto_enabled ? "ligado" : "desligado"}`,
             description: "Confirmação, lembretes e parabéns enviados sozinhos do WhatsApp do seu espaço.",
@@ -142,6 +148,7 @@ export default async function ConfiguracoesPage() {
       : []),
     {
       id: "enquadramento",
+      help: "enquadramento",
       title: "Enquadramento e faturamento",
       summary: fiscal.regime ? REGIME_LABEL[fiscal.regime] : "não definido",
       description: "Usado para acompanhar os limites de faturamento e montar o relatório para o contador.",
@@ -152,7 +159,7 @@ export default async function ConfiguracoesPage() {
   return (
     <main className="mx-auto max-w-3xl space-y-6 p-4 md:space-y-8 md:p-8">
       <header className="text-center">
-        <h1 className="text-3xl md:text-4xl">Configurações</h1>
+        <h1 className="text-3xl md:text-4xl">Configurações <Ajuda id="configuracoes" className="-ml-2" /></h1>
         <p className="mt-1 text-sm text-muted-foreground">Como seu espaço aparece na vitrine e como os clientes agendam.</p>
         {canReviewOnboarding && <ReviewOnboardingLink />}
       </header>

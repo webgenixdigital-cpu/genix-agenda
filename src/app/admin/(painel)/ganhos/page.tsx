@@ -1,3 +1,4 @@
+import { Ajuda } from "@/components/ajuda";
 import Link from "next/link";
 import { addMonths, endOfMonth, format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -57,7 +58,7 @@ export default async function GanhosPage({ searchParams }: Props) {
   return (
     <main className="mx-auto max-w-4xl space-y-8 p-4 md:p-8">
       <header className="text-center">
-        <h1 className="text-3xl md:text-4xl">Meus ganhos</h1>
+        <h1 className="text-3xl md:text-4xl">Meus ganhos <Ajuda id="meus-ganhos" className="-ml-2" /></h1>
         <div className="mt-3 flex flex-wrap items-center justify-center gap-1">
           <Button asChild variant="outline" size="icon" className="shrink-0">
             <Link href={`/admin/ganhos?mes=${prev}`} aria-label="Mês anterior"><ChevronLeft className="h-5 w-5" /></Link>

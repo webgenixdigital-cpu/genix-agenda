@@ -1,5 +1,6 @@
 "use client";
 
+import { Ajuda } from "@/components/ajuda";
 import { useState, useTransition } from "react";
 import { Loader2, Package, Pencil, Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
@@ -69,7 +70,7 @@ export function PackageTemplates({ templates, services }: { templates: PackageTe
     <section className="space-y-3" data-testid="secao-pacotes">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-2xl">Pacotes</h2>
+          <h2 className="text-2xl">Pacotes <Ajuda id="pacotes-modelos" className="-ml-2" /></h2>
           <p className="text-sm text-muted-foreground">
             Modelos para vender na ficha do cliente: um serviço (10 drenagens) ou vários (4 manicures + 2 pedicures).
           </p>

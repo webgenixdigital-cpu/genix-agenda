@@ -1,5 +1,6 @@
 "use client";
 
+import { Ajuda } from "@/components/ajuda";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { CalendarClock, Check, CheckCheck, Loader2, MessageCircle, Pencil, Plus, Repeat, Star, X } from "lucide-react";
@@ -285,7 +286,7 @@ export function BookingActions({
       <Dialog open={completeOpen} onOpenChange={setCompleteOpen}>
         <DialogContent className="max-h-[92svh] max-w-sm overflow-y-auto rounded-2xl">
           <DialogHeader>
-            <DialogTitle className="font-heading text-2xl">Concluir atendimento</DialogTitle>
+            <DialogTitle className="font-heading text-2xl">Concluir atendimento <Ajuda id="concluir" className="-ml-2" /></DialogTitle>
             <DialogDescription>
               {b.customer_name}
               {askMethod ? ". Como foi o pagamento?" : ""}

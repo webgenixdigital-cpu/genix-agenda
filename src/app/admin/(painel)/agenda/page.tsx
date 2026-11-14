@@ -1,3 +1,4 @@
+import { Ajuda } from "@/components/ajuda";
 import Link from "next/link";
 import { CalendarDays } from "lucide-react";
 import { getAdminContext, seesWholeTeam } from "@/lib/admin";
@@ -54,7 +55,7 @@ export default async function AgendaPage({ searchParams }: Props) {
         <ViewPreference view={view} today={today} timeZone={business.timezone} />
         <header className="flex flex-col items-center gap-4 text-center">
           <div>
-            <h1 className="text-3xl md:text-4xl">Agenda do mês</h1>
+            <h1 className="text-3xl md:text-4xl">Agenda do mês <Ajuda id="agenda" className="-ml-2" /></h1>
             <p className="mt-1 text-sm text-muted-foreground">
               {activeCount} {activeCount === 1 ? "atendimento" : "atendimentos"} em {monthTitle(month).replace(/ de \d+$/, "")}
             </p>
@@ -110,7 +111,7 @@ export default async function AgendaPage({ searchParams }: Props) {
         <ViewPreference view={view} today={today} timeZone={business.timezone} />
         <header className="flex flex-col items-center gap-4 text-center">
           <div>
-            <h1 className="text-3xl md:text-4xl">Agenda da semana</h1>
+            <h1 className="text-3xl md:text-4xl">Agenda da semana <Ajuda id="agenda" className="-ml-2" /></h1>
             <p className="mt-1 text-sm text-muted-foreground">
               {activeCount} {activeCount === 1 ? "atendimento" : "atendimentos"} de {shortISO(weekStart)} a {shortISO(weekEnd)}
             </p>
@@ -202,7 +203,7 @@ export default async function AgendaPage({ searchParams }: Props) {
     <main className="mx-auto max-w-5xl space-y-8 p-4 md:p-8">
       <header className="flex flex-col items-center gap-4 text-center">
         <div>
-          <h1 className="text-3xl md:text-4xl">{pendingMode ? "Pedidos pendentes" : "Agenda"}</h1>
+          <h1 className="text-3xl md:text-4xl">{pendingMode ? "Pedidos pendentes" : "Agenda"} <Ajuda id="agenda" className="-ml-2" /></h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {pendingMode
               ? `${list.length} ${list.length === 1 ? "pedido aguardando" : "pedidos aguardando"} confirmação`

@@ -1,5 +1,6 @@
 "use client";
 
+import { Ajuda } from "@/components/ajuda";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -400,7 +401,7 @@ export function NewBookingDialog({
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-h-[92svh] w-[calc(100%-1.5rem)] max-w-lg overflow-y-auto rounded-2xl">
           <DialogHeader>
-            <DialogTitle className="font-heading text-2xl">Novo agendamento</DialogTitle>
+            <DialogTitle className="font-heading text-2xl">Novo agendamento <Ajuda id="novo-agendamento" className="-ml-2" /></DialogTitle>
             <DialogDescription>Para clientes que marcaram por telefone ou no balcão. Já entra como confirmado.</DialogDescription>
           </DialogHeader>
 
@@ -622,6 +623,7 @@ export function NewBookingDialog({
                     Encaixe (fora da lista)
                   </label>
                 )}
+                {serviceId && <Ajuda id="encaixe" className="-ml-2 self-center" />}
               </div>
 
               {!serviceId ? (
@@ -735,6 +737,7 @@ export function NewBookingDialog({
                     data-testid="check-repetir"
                   />
                   <Repeat className="h-4 w-4 text-primary" /> Repetir este horário
+                  <Ajuda id="repetir" className="ml-auto" />
                 </label>
 
                 {repeat && (

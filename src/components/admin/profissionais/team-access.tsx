@@ -1,5 +1,6 @@
 "use client";
 
+import { Ajuda } from "@/components/ajuda";
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { KeyRound, Loader2, Lock, Mail, Plus, UserCheck, UserX } from "lucide-react";
@@ -221,7 +222,7 @@ export function ReceptionSection({ members, canInvite }: { members: AccessInfo[]
     <section className="space-y-3" data-testid="secao-recepcao">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-2xl">Recepção</h2>
+          <h2 className="text-2xl">Recepção <Ajuda id="acessos-equipe" className="-ml-2" /></h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Quem marca e confirma horários para toda a equipe. Não vê financeiro nem configurações.
           </p>

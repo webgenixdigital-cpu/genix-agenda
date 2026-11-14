@@ -2,6 +2,7 @@
 
 // "Reabrir atendimento": desfaz uma conclusão feita por engano (46_reabrir_atendimento.sql).
 // Usado no cartão da Agenda (BookingActions) e no Histórico da ficha do cliente.
+import { Ajuda } from "@/components/ajuda";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, RotateCcw } from "lucide-react";
@@ -37,6 +38,7 @@ export function ReopenBookingButton({
         {pending ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <RotateCcw className="mr-1.5 h-4 w-4" />}
         Reabrir atendimento
       </Button>
+      <Ajuda id="reabrir-atendimento" />
 
       <ConfirmDialog
         open={open}

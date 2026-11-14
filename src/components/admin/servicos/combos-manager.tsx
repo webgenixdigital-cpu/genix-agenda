@@ -1,5 +1,6 @@
 "use client";
 
+import { Ajuda } from "@/components/ajuda";
 import { useState, useTransition } from "react";
 import { AlertTriangle, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -69,7 +70,7 @@ export function CombosManager({ combos, services }: { combos: ComboRow[]; servic
     <section className="space-y-4" aria-labelledby="combos">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 id="combos" className="text-2xl">Combos</h2>
+          <h2 id="combos" className="text-2xl">Combos <Ajuda id="combos" className="-ml-2" /></h2>
           <p className="text-sm text-muted-foreground">Serviços juntos com preço especial, agendados como um só.</p>
         </div>
         <Button

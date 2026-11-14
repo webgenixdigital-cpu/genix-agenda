@@ -1,5 +1,6 @@
 "use client";
 
+import { Ajuda } from "@/components/ajuda";
 import { useEffect, useState, useTransition } from "react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -116,7 +117,7 @@ export function RescheduleDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[92svh] w-[calc(100%-1.5rem)] max-w-md overflow-y-auto rounded-2xl">
         <DialogHeader>
-          <DialogTitle className="font-heading text-2xl">{done ? "Remarcado" : "Remarcar"}</DialogTitle>
+          <DialogTitle className="font-heading text-2xl">{done ? "Remarcado" : "Remarcar"} {!done && <Ajuda id="remarcar" className="-ml-2" />}</DialogTitle>
           <DialogDescription>
             {b.service_name} de {b.customer_name} · hoje em {longDate(b.booking_date)}, às {b.start_time.slice(0, 5)}
           </DialogDescription>
@@ -221,6 +222,7 @@ export function RescheduleDialog({
                     data-testid="check-encaixar"
                   />
                   Encaixar outro horário
+                  <Ajuda id="encaixe" className="ml-auto" />
                 </label>
                 {fit && (
                   <div className="space-y-1.5">

@@ -1,5 +1,6 @@
 "use client";
 
+import { Ajuda } from "@/components/ajuda";
 import { useState, useTransition } from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -82,7 +83,7 @@ export function FiscalForm({ initial }: { initial: FiscalProfile }) {
 
       <label className="flex cursor-pointer items-start justify-between gap-3 rounded-xl border p-4">
         <span>
-          <span className="block font-semibold">Trabalho com profissionais parceiros (Lei 13.352 — salão-parceiro)</span>
+          <span className="block font-semibold">Trabalho com profissionais parceiros (Lei 13.352 — salão-parceiro) <Ajuda id="salao-parceiro" /></span>
           <span className="text-sm text-muted-foreground">
             Marque quem é parceiro em Equipe. O repasse sai da receita usada nos limites. {NOTES.partner}
           </span>

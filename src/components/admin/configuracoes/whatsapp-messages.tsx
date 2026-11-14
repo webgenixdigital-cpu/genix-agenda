@@ -1,5 +1,6 @@
 "use client";
 
+import { Ajuda } from "@/components/ajuda";
 import { useState, useTransition } from "react";
 import { ChevronDown, Info, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -43,6 +44,9 @@ export type MessagesSettings = {
 /** whatsapp_auto_stats: últimos 7 dias por tipo */
 export type KindStats = { sent: number; failed: number; expired: number; skipped: number; queued: number };
 export type WhatsappStats = Partial<Record<MessageKind, KindStats>>;
+
+/** botão de ajuda de cada tipo de mensagem (src/content/ajuda.ts) */
+const KIND_HELP = { confirmation: "msg-confirmacao", before: "msg-antes", eve: "msg-vespera", birthday: "msg-aniversario" } as const;
 
 const DESCRIPTION: Record<MessageKind, string> = {
   confirmation: "5 minutos depois que o agendamento fica confirmado (ou é remarcado). Vale por até 2 horas.",
@@ -173,7 +177,10 @@ export function WhatsappMessages({
           {/* só o switch liga/desliga: tocar no texto do cartão não muda nada */}
           <div className="flex items-center justify-between gap-4 p-4">
             <span className="min-w-0">
-              <span id={`wa-tipo-${kind}`} className="block font-semibold">{KIND_LABEL[kind]}</span>
+              <span className="flex items-center gap-1">
+                <span id={`wa-tipo-${kind}`} className="font-semibold">{KIND_LABEL[kind]}</span>
+                <Ajuda id={KIND_HELP[kind]} />
+              </span>
               <span id={`wa-tipo-${kind}-desc`} className="text-sm text-muted-foreground">{DESCRIPTION[kind]}</span>
             </span>
             <Switch

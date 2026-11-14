@@ -1,3 +1,4 @@
+import { Ajuda } from "@/components/ajuda";
 import { createClient } from "@/lib/supabase/server";
 import { requireRoles } from "@/lib/admin";
 import { getPlanContext, hasTeamFeatures } from "@/lib/plan";
@@ -82,7 +83,7 @@ export default async function ProfissionaisPage() {
   return (
     <main className="mx-auto max-w-5xl space-y-8 p-4 md:p-8">
       <header className="text-center">
-        <h1 className="text-3xl md:text-4xl">Equipe</h1>
+        <h1 className="text-3xl md:text-4xl">Equipe <Ajuda id="equipe" className="-ml-2" /></h1>
         <p className="mx-auto mt-1 max-w-lg text-sm text-muted-foreground">
           Quem atende no seu espaço e quais serviços cada pessoa faz. Isso define os horários oferecidos na vitrine.
         </p>

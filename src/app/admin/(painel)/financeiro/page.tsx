@@ -1,3 +1,4 @@
+import { Ajuda } from "@/components/ajuda";
 import Link from "next/link";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -67,7 +68,7 @@ export default async function FinanceiroPage({ searchParams }: Props) {
     <main className="mx-auto max-w-6xl space-y-6 p-4 md:space-y-8 md:p-8">
       <header className="flex flex-col items-center gap-4 text-center">
         <div>
-          <h1 className="text-3xl md:text-4xl">Financeiro</h1>
+          <h1 className="text-3xl md:text-4xl">Financeiro <Ajuda id="financeiro-caixa" className="-ml-2" /></h1>
           <div className="mt-3">
             <FinanceTabs active="caixa" />
           </div>

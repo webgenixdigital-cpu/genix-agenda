@@ -1,5 +1,7 @@
 "use client";
 
+import { Ajuda } from "@/components/ajuda";
+import type { AjudaId } from "@/content/ajuda";
 import { useCallback, useEffect, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -11,6 +13,8 @@ export type SettingsSection = {
   /** estado atual em poucas palavras (ex.: "seg a sáb, 9h–19h") */
   summary: string;
   description: string;
+  /** botão de ajuda (?) ao lado da descrição */
+  help?: AjudaId;
   content: React.ReactNode;
 };
 
@@ -94,7 +98,10 @@ export function SettingsAccordion({ sections }: { sections: SettingsSection[] })
               </button>
             </h2>
             <div id={panelId} role="region" aria-label={s.title} hidden={!isOpen} className="border-t px-4 pb-5 pt-4 md:px-6 md:pb-6">
-              <p className="mb-5 text-sm text-muted-foreground">{s.description}</p>
+              <div className="mb-5 flex items-start gap-1">
+                <p className="min-w-0 flex-1 text-sm text-muted-foreground">{s.description}</p>
+                {s.help && <Ajuda id={s.help} />}
+              </div>
               {s.content}
             </div>
           </section>

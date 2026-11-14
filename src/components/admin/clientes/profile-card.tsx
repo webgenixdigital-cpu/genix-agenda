@@ -1,5 +1,6 @@
 "use client";
 
+import { Ajuda } from "@/components/ajuda";
 import { useState, useTransition } from "react";
 import { ClipboardList, Loader2, Pencil } from "lucide-react";
 import { toast } from "sonner";
@@ -56,10 +57,11 @@ export function ProfileCard({
 
   return (
     <section className="rounded-2xl border bg-card p-5" data-testid="ficha-tecnica">
-      <div className="flex items-start justify-between gap-3">
-        <div>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
           <h2 className="flex items-center gap-2 text-2xl">
             <ClipboardList className="h-5 w-5 text-primary" /> Ficha técnica
+            <Ajuda id="ficha-tecnica" className="-ml-2" />
           </h2>
           <p className="mt-0.5 text-sm text-muted-foreground">{nicheName}</p>
         </div>

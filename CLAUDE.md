@@ -187,6 +187,10 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
   `lib/phone.ts` é leve (sem libphonenumber; pode ir para qualquer tela); `lib/phone-intl.ts` usa a libphonenumber
   (server actions: `parseCustomerPhone`). Telefone do espaço: `maskPhone()`.
 - Todo botão, link, input e aba interativo com `data-testid` em kebab-case.
+- **Ajuda (?):** `<Ajuda id="..." />` (`components/ajuda.tsx`): Popover no computador, folha de baixo no celular,
+  botão de 44 × 44 px (ícone pequeno), `aria-label` “Ajuda: <título>”, fecha com Esc. Textos só em `src/content/ajuda.ts`
+  (título, “Para que serve”, “Como fazer”, “Atenção”), em linguagem do dono do salão. Tela ou botão novo com efeito não
+  óbvio ganha um ponto de ajuda. Fora de `<label>` quando possível; dentro de rótulo, o toque no “?” só abre a ajuda.
 - Painel: páginas leem com `getAdminContext()`; páginas exclusivas usam `requireRoles([...])`;
   **server actions de escrita usam `getEditorContext()`** (bloqueia a demo).
 - Server actions retornam `{ ok: true } | { ok: false; error: string }` com mensagem amigável em pt-BR.

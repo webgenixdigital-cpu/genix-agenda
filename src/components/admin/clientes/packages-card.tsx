@@ -1,5 +1,6 @@
 "use client";
 
+import { Ajuda } from "@/components/ajuda";
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { AlertTriangle, CalendarDays, Check, Loader2, Lock, Package, Pencil, Plus, Trash2 } from "lucide-react";
@@ -518,7 +519,7 @@ export function SellPackageDialog({
     >
       <DialogContent className="max-h-[92svh] w-[calc(100%-1.5rem)] max-w-lg overflow-y-auto rounded-2xl">
         <DialogHeader>
-          <DialogTitle className="font-heading text-2xl">Vender pacote</DialogTitle>
+          <DialogTitle className="font-heading text-2xl">Vender pacote <Ajuda id="vender-pacote" className="-ml-2" /></DialogTitle>
           <DialogDescription>Pagamento presencial. O valor total entra no caixa uma vez, agora.</DialogDescription>
         </DialogHeader>
 
@@ -562,7 +563,10 @@ export function SellPackageDialog({
 
           {t && (
             <div className="space-y-1.5">
-              <Label>Como agendar</Label>
+              <div className="flex items-center gap-1">
+                <Label>Como agendar</Label>
+                <Ajuda id="datas-fixas" />
+              </div>
               <div className="grid grid-cols-2 gap-2">
                 <Button
                   type="button"

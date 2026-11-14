@@ -1,3 +1,4 @@
+import { Ajuda } from "@/components/ajuda";
 import Link from "next/link";
 import { ChevronRight, Search } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
@@ -44,7 +45,7 @@ export default async function ClientesPage({ searchParams }: Props) {
     <main className="mx-auto max-w-5xl space-y-8 p-4 md:p-8">
       <header className="flex flex-col items-center gap-4 text-center">
         <div>
-          <h1 className="text-3xl md:text-4xl">Clientes</h1>
+          <h1 className="text-3xl md:text-4xl">Clientes <Ajuda id="clientes" className="-ml-2" /></h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {role === "staff" ? "Clientes que você já atendeu ou tem agendados." : "Todos os clientes que já agendaram no espaço."}
           </p>

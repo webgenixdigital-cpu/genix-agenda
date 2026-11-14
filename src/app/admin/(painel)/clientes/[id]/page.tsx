@@ -1,3 +1,4 @@
+import { Ajuda } from "@/components/ajuda";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Cake, MessageCircle, StickyNote } from "lucide-react";
@@ -285,7 +286,7 @@ export default async function ClientePage({ params }: Props) {
             {c.name.charAt(0).toUpperCase()}
           </span>
           <div className="min-w-0">
-            <h1 className="break-words text-3xl">{c.name}</h1>
+            <h1 className="break-words text-3xl">{c.name} <Ajuda id="ficha-cliente" className="-ml-2" /></h1>
             <p className="break-words text-muted-foreground [overflow-wrap:anywhere]">
               {formatPhone(c.phone, c.phone_country)}
               {c.email && ` · ${c.email}`}

@@ -1,3 +1,4 @@
+import { Ajuda } from "@/components/ajuda";
 import { createClient } from "@/lib/supabase/server";
 import { requireRoles } from "@/lib/admin";
 import { getPlanContext } from "@/lib/plan";
@@ -41,7 +42,7 @@ export default async function ServicosPage() {
   return (
     <main className="mx-auto max-w-4xl space-y-8 p-4 md:p-8">
       <header className="text-center">
-        <h1 className="text-3xl md:text-4xl">Serviços</h1>
+        <h1 className="text-3xl md:text-4xl">Serviços <Ajuda id="servicos" className="-ml-2" /></h1>
         <p className="mx-auto mt-1 max-w-lg text-sm text-muted-foreground">
           O que você oferece, com preço e duração. A duração define quanto tempo o horário ocupa na agenda.
         </p>

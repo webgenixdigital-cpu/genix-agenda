@@ -1,5 +1,6 @@
 "use client";
 
+import { Ajuda } from "@/components/ajuda";
 import { useEffect, useState, useTransition } from "react";
 import { Loader2, Package } from "lucide-react";
 import { toast } from "sonner";
@@ -71,6 +72,7 @@ export function PackageVisitServices({
     <section className="space-y-2 rounded-xl border border-primary/30 bg-secondary/30 p-3" data-testid="servicos-pacote-data">
       <h3 className="flex items-center gap-1.5 text-sm font-semibold">
         <Package className="h-4 w-4 text-primary" /> Serviços do pacote nesta data
+        <Ajuda id="servicos-pacote-data" />
       </h3>
       <p className="text-xs text-muted-foreground">
         {options.package_name}

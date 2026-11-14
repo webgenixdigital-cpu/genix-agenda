@@ -1,3 +1,4 @@
+import { Ajuda } from "@/components/ajuda";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
@@ -153,7 +154,7 @@ export default async function Dashboard({ searchParams }: Props) {
     <main className="mx-auto max-w-6xl space-y-10 p-4 md:p-8">
       <header className="text-center">
         <p className="text-sm text-muted-foreground first-letter:uppercase">{longDate(today)}</p>
-        <h1 className="mt-1 text-3xl md:text-4xl">Olá, {greeting}</h1>
+        <h1 className="mt-1 text-3xl md:text-4xl">Olá, {greeting} <Ajuda id="inicio" className="-ml-2" /></h1>
       </header>
 
       {onboarding && onboarding.doneCount < onboarding.total && (

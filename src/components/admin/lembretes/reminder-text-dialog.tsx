@@ -1,5 +1,6 @@
 "use client";
 
+import { Ajuda } from "@/components/ajuda";
 import { useState, useTransition } from "react";
 import { Loader2, PencilLine } from "lucide-react";
 import { toast } from "sonner";
@@ -56,7 +57,7 @@ export function ReminderTextDialog({ businessName, tomorrow, today }: Props) {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-h-[92svh] w-[calc(100%-1.5rem)] max-w-xl overflow-y-auto rounded-2xl">
           <DialogHeader>
-            <DialogTitle className="font-heading text-2xl">Mensagem do lembrete</DialogTitle>
+            <DialogTitle className="font-heading text-2xl">Mensagem do lembrete <Ajuda id="texto-lembrete-manual" className="-ml-2" /></DialogTitle>
             <DialogDescription>
               Texto que abre no WhatsApp ao tocar em “Enviar lembrete”. As variáveis são trocadas pelos dados de cada agendamento.
             </DialogDescription>

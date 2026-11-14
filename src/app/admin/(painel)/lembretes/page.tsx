@@ -1,3 +1,4 @@
+import { Ajuda } from "@/components/ajuda";
 import Link from "next/link";
 import { AlertCircle, Bot, CheckCircle2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
@@ -107,7 +108,7 @@ export default async function LembretesPage({ searchParams }: Props) {
   return (
     <main className="mx-auto max-w-3xl space-y-8 p-4 md:p-8">
       <header className="text-center">
-        <h1 className="text-3xl md:text-4xl">Lembretes</h1>
+        <h1 className="text-3xl md:text-4xl">Lembretes <Ajuda id={isReturns ? "retornos" : "lembretes"} className="-ml-2" /></h1>
         <p className="mx-auto mt-1 max-w-lg text-sm text-muted-foreground">
           Um toque abre o WhatsApp com a mensagem pronta e tira o cliente da fila. Lembrar na véspera reduz faltas.
         </p>

@@ -19,6 +19,7 @@ const WIDTHS = [360, 390, 768, 1024, 1440];
 const DIALOG_SIZES = [
   { width: 360, height: 740 },
   { width: 768, height: 1024 },
+  { width: 1440, height: 900 }, // só nos diálogos com `desktop: true`
 ];
 // RESPONSIVO_LARGURAS=360,768 roda só essas larguras (o relatório continua com todas as colunas)
 const ONLY_WIDTHS = (process.env.RESPONSIVO_LARGURAS ?? "").split(",").map(Number).filter(Boolean);
@@ -406,7 +407,7 @@ if (!process.env.RESPONSIVO_AVALIAR_URL && wanted("avaliar")) {
 
 /* ---------- assistente de agendamento da vitrine (até “Seus dados”, nunca confirma) ---------- */
 
-for (const size of DIALOG_SIZES.filter((s) => runWidth(s.width))) {
+for (const size of DIALOG_SIZES.filter((s) => s.width < 1440 && runWidth(s.width))) {
   if (!wanted("vitrine", "assistente", "wizard", "turnstile")) continue;
   test(`vitrine · assistente passo a passo · ${size.width} px`, async ({ browser }) => {
     const context = await browser.newContext();
@@ -554,11 +555,29 @@ for (const [i, [name, urlOf]] of Array.from(PANEL_ROUTES.entries())) {
 
 /* ---------- diálogos do painel ---------- */
 
-type DialogCase = { name: string; url: (m: Meta) => string | null; open: (page: Page) => Promise<void>; onlyMobile?: boolean };
+/** desktop: também em 1440 px */
+type DialogCase = { name: string; url: (m: Meta) => string | null; open: (page: Page) => Promise<void>; onlyMobile?: boolean; desktop?: boolean };
 const DIALOGS: DialogCase[] = [
-  { name: "Novo agendamento", url: () => `/admin/agenda?visao=dia&data=${addDays(7)}`, open: (p) => p.getByTestId("btn-novo-agendamento").first().click() },
+  { name: "Novo agendamento", desktop: true, url: () => `/admin/agenda?visao=dia&data=${addDays(7)}`, open: (p) => p.getByTestId("btn-novo-agendamento").first().click() },
+  {
+    name: "Novo agendamento (horários)",
+    desktop: true,
+    url: () => `/admin/agenda?visao=dia&data=${addDays(7)}`,
+    open: async (p) => {
+      await p.getByTestId("btn-novo-agendamento").first().click();
+      await p.locator("[role=dialog] [data-testid=select-servico-manual]").click();
+      await p.locator("[role=option]").first().click();
+      // espera a grade (ou o aviso de nenhum horário) antes de medir
+      await p
+        .locator("[role=dialog] [data-testid=grade-horarios-manual], [role=dialog] [data-testid=sem-horarios-manual]")
+        .first()
+        .waitFor({ timeout: 12000 })
+        .catch(() => undefined);
+    },
+  },
   {
     name: "Novo agendamento (recorrência)",
+    desktop: true,
     url: () => `/admin/agenda?visao=dia&data=${addDays(7)}`,
     open: async (p) => {
       await p.getByTestId("btn-novo-agendamento").first().click();
@@ -582,6 +601,7 @@ const DIALOGS: DialogCase[] = [
 for (const [i, dc] of Array.from(DIALOGS.entries())) {
   for (const size of DIALOG_SIZES.filter((s) => runWidth(s.width))) {
     if (dc.onlyMobile && size.width >= 768) continue;
+    if (size.width >= 1440 && !dc.desktop) continue;
     if (!wanted(dc.name, "dialogo", "diálogo")) continue;
     test(`diálogo · ${dc.name} · ${size.width} px`, async ({ browser }) => {
       const url = dc.url(readMeta());

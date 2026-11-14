@@ -194,38 +194,84 @@ export async function createManualBooking(input: {
 }
 
 // ---------------------------------------------------------------------
-// PARTE 4 — Pacotes ativos do cliente (pelo WhatsApp digitado) para o serviço
+// PARTE 4 — Novo agendamento: cliente pelo WhatsApp (com todos os pacotes; 37_plano_fechado)
+// e horários livres (47_horarios_agendamento_manual.sql)
 // ---------------------------------------------------------------------
-export type PackageOption = { id: string; name: string; remaining: number; sessions_total: number; expires_at: string | null };
+export type CustomerPackage = {
+  id: string;
+  name: string;
+  expires_at: string | null;
+  items: { serviceId: string; serviceName: string; remaining: number }[];
+};
 
-export async function findCustomerPackages(phone: string, serviceId: string, phoneCountry?: string): Promise<PackageOption[]> {
+/** Cliente exato pelo país + número (RLS: o profissional só acha quem já atendeu) */
+export async function lookupCustomer(
+  phone: string,
+  phoneCountry?: string
+): Promise<{ name: string; packages: CustomerPackage[] } | null> {
   const { business } = await getAdminContext();
   const parsedPhone = parseCustomerPhone(phone, phoneCountry);
-  if (!parsedPhone || !serviceId) return [];
+  if (!parsedPhone) return null;
 
   const supabase = createClient();
   const { data: customer } = await supabase
-    .from("customers").select("id").eq("business_id", business.id)
+    .from("customers").select("id, name").eq("business_id", business.id)
     .eq("phone_country", parsedPhone.country).eq("phone", parsedPhone.phone).maybeSingle();
-  if (!customer) return [];
+  if (!customer) return null;
 
-  // 37_plano_fechado: saldo do serviço dentro do pacote (pacote de vários serviços também vale)
   const { data } = await supabase
     .from("customer_package_item_balance")
-    .select("customer_package_id, package_name, remaining, sessions_total, expires_at")
+    .select("customer_package_id, package_name, service_id, service_name, remaining, expires_at, position")
     .eq("customer_id", customer.id)
-    .eq("service_id", serviceId)
     .eq("package_status", "active")
     .gt("remaining", 0)
-    .order("sold_at");
-  return ((data ?? []) as { customer_package_id: string; package_name: string; remaining: number; sessions_total: number; expires_at: string | null }[])
-    .map((r) => ({
-      id: r.customer_package_id,
-      name: r.package_name,
-      remaining: r.remaining,
-      sessions_total: r.sessions_total,
-      expires_at: r.expires_at,
-    }));
+    .order("sold_at")
+    .order("position");
+
+  const packages = new Map<string, CustomerPackage>();
+  for (const r of (data ?? []) as {
+    customer_package_id: string; package_name: string; service_id: string; service_name: string;
+    remaining: number; expires_at: string | null;
+  }[]) {
+    const p = packages.get(r.customer_package_id) ??
+      { id: r.customer_package_id, name: r.package_name, expires_at: r.expires_at, items: [] };
+    p.items.push({ serviceId: r.service_id, serviceName: r.service_name, remaining: r.remaining });
+    packages.set(r.customer_package_id, p);
+  }
+  return { name: customer.name as string, packages: Array.from(packages.values()) };
+}
+
+export type ManualSlot = { time: string; professionalIds: string[] };
+
+/**
+ * Horários em que pelo menos um profissional que faz o serviço está livre
+ * (expediente, bloqueios — inclusive almoço e folga fixa —, duração e ocupados).
+ * Com `time` = encaixe: confere só esse horário, sem expediente.
+ */
+export async function listManualSlots(
+  serviceId: string,
+  date: string,
+  time?: string | null
+): Promise<{ ok: true; slots: ManualSlot[] } | { ok: false; error: string }> {
+  const { business } = await getAdminContext();
+  if (!serviceId || !/^\d{4}-\d{2}-\d{2}$/.test(date) || (time && !/^\d{2}:\d{2}$/.test(time))) {
+    return { ok: false, error: "Escolha o serviço, a data e o horário." };
+  }
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("manual_booking_slots", {
+    p_business: business.id,
+    p_service: serviceId,
+    p_date: date,
+    p_time: time || null,
+  });
+  if (error) return { ok: false, error: "Não foi possível carregar os horários." };
+  return {
+    ok: true,
+    slots: ((data ?? []) as { slot_time: string; professional_ids: string[] }[]).map((s) => ({
+      time: s.slot_time,
+      professionalIds: s.professional_ids,
+    })),
+  };
 }
 
 // ---------------------------------------------------------------------

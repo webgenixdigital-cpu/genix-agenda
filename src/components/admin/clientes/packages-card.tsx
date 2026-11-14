@@ -2,16 +2,16 @@
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { AlertTriangle, CalendarDays, Check, Loader2, Lock, Package, Plus, Trash2 } from "lucide-react";
+import { AlertTriangle, CalendarDays, Check, Loader2, Lock, Package, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   cancelPackage,
-  previewPackageSale,
+  previewPackageVisits,
   sellPackage,
-  sellPackageFixed,
-  type PackageRule,
-  type PlannedDate,
+  sellPackageVisits,
+  type VisitCheck,
 } from "@/app/admin/(painel)/clientes/actions";
+import { addDays, markedCount, suggestVisits, type PlanFrequency, type PlanRule, type PlanVisit } from "@/lib/package-plan";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -274,9 +274,12 @@ type RuleDraft = {
   service_ids: string[];
   start_date: string;
   time: string;
-  frequency: PackageRule["frequency"];
+  frequency: PlanFrequency;
   count: number;
 };
+
+/** Uma data da venda na tela: o que vai para o banco + se está aberta para trocar dia/horário */
+type VisitDraft = PlanVisit & { key: number; editing: boolean };
 
 const todaySP = () =>
   new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
@@ -307,19 +310,31 @@ export function SellPackageDialog({
   const [method, setMethod] = useState<CashMethod | "">("");
   const [mode, setMode] = useState<"free" | "fixed">("free");
   const [rules, setRules] = useState<RuleDraft[]>([]);
-  const [preview, setPreview] = useState<PlannedDate[] | null>(null);
+  // 48_pacote_servicos_por_data: datas geradas pelas regras, com os serviços de cada uma
+  const [visits, setVisits] = useState<VisitDraft[] | null>(null);
+  // conferência do banco (horário, validade); null = precisa conferir de novo
+  const [checks, setChecks] = useState<VisitCheck[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [nextKey, setNextKey] = useState(1);
   const t = templates.find((x) => x.id === templateId);
   const total = t?.services.reduce((s, i) => s + i.sessions, 0) ?? 0;
+  // validade contada a partir de hoje (o banco usa o fuso do espaço e confere de novo)
+  const expires = t?.validity_days ? addDays(todaySP(), t.validity_days) : null;
 
   function reset() {
     setTemplateId("");
     setMethod("");
     setMode("free");
     setRules([]);
-    setPreview(null);
+    setVisits(null);
+    setChecks(null);
     setError(null);
+  }
+
+  /** mudou regra: as datas geradas saem (gera de novo) */
+  function clearPlan() {
+    setVisits(null);
+    setChecks(null);
   }
 
   // até o saldo: o maior saldo entre os serviços da regra, sem passar do total do pacote
@@ -348,7 +363,7 @@ export function SellPackageDialog({
 
   function chooseMode(m: "free" | "fixed") {
     setMode(m);
-    setPreview(null);
+    clearPlan();
     setError(null);
     if (m === "fixed" && rules.length === 0) setRules([newRule([])]);
   }
@@ -356,12 +371,12 @@ export function SellPackageDialog({
   function chooseTemplate(id: string) {
     setTemplateId(id);
     setRules([]);
-    setPreview(null);
+    clearPlan();
     setMode("free");
   }
 
   function update(key: number, patch: Partial<RuleDraft>) {
-    setPreview(null);
+    clearPlan();
     setRules((list) =>
       list.map((r) => {
         if (r.key !== key) return r;
@@ -376,7 +391,7 @@ export function SellPackageDialog({
     );
   }
 
-  const toRules = (): PackageRule[] =>
+  const toRules = (): PlanRule[] =>
     rules.map(({ professional_id, service_ids, start_date, time, frequency, count }) => ({
       professional_id,
       // na ordem do pacote: o primeiro marcado é o serviço principal da visita
@@ -407,26 +422,67 @@ export function SellPackageDialog({
     return null;
   }
 
-  function showDates() {
+  /** só o que vai para o banco (sem a chave e o estado da tela) */
+  const toVisits = (list: VisitDraft[]): PlanVisit[] =>
+    list.map(({ rule, date, time, professional_id, service_ids }) => ({ rule, date, time, professional_id, service_ids }));
+
+  /** confere horário e validade de cada data no banco (nada é gravado) */
+  function runCheck(list: VisitDraft[]) {
+    if (!t) return;
+    if (!list.some((v) => v.service_ids.length > 0)) {
+      setChecks(null);
+      return setError("Marque ao menos um serviço em alguma data.");
+    }
+    setError(null);
+    start(async () => {
+      const r = await previewPackageVisits(customerId, t.id, toVisits(list));
+      if (!r) return; // demonstração: o servidor redirecionou
+      if (r.ok) setChecks(r.checks);
+      else setError(r.error);
+    });
+  }
+
+  /** gera as datas das regras com a sugestão de serviços e já confere */
+  function generate() {
     const msg = check();
     setError(msg);
     if (msg || !t) return;
-    start(async () => {
-      const r = await previewPackageSale(customerId, t.id, toRules());
-      if (!r) return; // demonstração: o servidor redirecionou
-      if (r.ok) setPreview(r.dates);
-      else setError(r.error);
-    });
+    const list = suggestVisits(toRules(), t.services, expires, (pid, sid) =>
+      proDoes(professionals.find((p) => p.id === pid), sid)
+    ).map((v, i) => ({ ...v, key: i + 1, editing: false }));
+    setVisits(list);
+    setChecks(null);
+    runCheck(list);
+  }
+
+  function patchVisit(key: number, patch: Partial<VisitDraft>) {
+    setChecks(null);
+    setVisits((list) =>
+      (list ?? []).map((v) => {
+        if (v.key !== key) return v;
+        const next = { ...v, ...patch };
+        // data depois da validade não leva serviço
+        if (expires && next.date > expires) next.service_ids = [];
+        return next;
+      })
+    );
+  }
+
+  function toggleVisitService(v: VisitDraft, serviceId: string, on: boolean) {
+    const ids = on ? [...v.service_ids, serviceId] : v.service_ids.filter((x) => x !== serviceId);
+    const order = (t?.services ?? []).map((s) => s.id);
+    patchVisit(v.key, { service_ids: ids.sort((a, b) => order.indexOf(a) - order.indexOf(b)) });
   }
 
   function submit() {
     const msg = check();
     setError(msg);
     if (msg || !t) return;
+    if (mode === "fixed" && (!visits || !checks)) return setError("Confira as datas antes de vender.");
     const m = t.price > 0 ? (method as CashMethod) : null;
     start(async () => {
-      if (mode === "fixed") {
-        const r = await sellPackageFixed(customerId, t.id, m, toRules());
+      if (mode === "fixed" && visits) {
+        const r = await sellPackageVisits(customerId, t.id, m, toVisits(visits), toRules());
         if (!r) return; // demonstração: o servidor redirecionou
         if (!r.ok) return setError(r.error);
         const made = `${r.created} ${r.created === 1 ? "visita agendada" : "visitas agendadas"}`;
@@ -443,15 +499,14 @@ export function SellPackageDialog({
     });
   }
 
-  // resumo da prévia por serviço: com data × sem data
-  const summary =
-    preview && t
-      ? t.services.map((s) => {
-          const dated = preview.filter((d) => !d.issue && d.service_ids.includes(s.id)).length;
-          return { ...s, dated, free: Math.max(s.sessions - dated, 0) };
-        })
-      : null;
-  const okCount = preview?.filter((d) => !d.issue).length ?? 0;
+  // contador por serviço: marcadas nas datas × saldo do pacote
+  const marked = visits ? markedCount(visits) : {};
+  const counters = t ? t.services.map((s) => ({ ...s, left: Math.max(s.sessions - (marked[s.id] ?? 0), 0) })) : [];
+  const leftovers = counters.filter((s) => s.left > 0);
+  const issueOf = (i: number) => checks?.find((c) => c.idx === i)?.issue ?? null;
+  const withServices = visits?.filter((v) => v.service_ids.length > 0).length ?? 0;
+  const okCount = checks?.filter((c) => !c.issue).length ?? 0;
+  const issueCount = checks?.filter((c) => c.issue).length ?? 0;
 
   return (
     <Dialog
@@ -532,7 +587,7 @@ export function SellPackageDialog({
               <p className="text-xs text-muted-foreground">
                 {mode === "free"
                   ? "A cliente marca cada sessão quando quiser."
-                  : "As visitas já ficam na agenda. Data com conflito é pulada e a sessão fica livre no saldo."}
+                  : "As visitas já ficam na agenda. Você escolhe quais serviços vão em cada data; o que sobrar fica no saldo."}
               </p>
             </div>
           )}
@@ -552,7 +607,7 @@ export function SellPackageDialog({
                           size="sm"
                           className="tap-target text-muted-foreground"
                           onClick={() => {
-                            setPreview(null);
+                            clearPlan();
                             setRules((list) => list.filter((x) => x.key !== r.key));
                           }}
                           data-testid={`btn-remover-regra-${i}`}
@@ -681,7 +736,7 @@ export function SellPackageDialog({
                   variant="outline"
                   className="h-11 w-full"
                   onClick={() => {
-                    setPreview(null);
+                    clearPlan();
                     setRules([...rules, newRule(rules)]);
                   }}
                   data-testid="btn-adicionar-regra"
@@ -690,40 +745,173 @@ export function SellPackageDialog({
                 </Button>
               )}
 
-              <Button type="button" variant="secondary" className="h-11 w-full" disabled={pending} onClick={showDates} data-testid="btn-ver-datas-pacote">
-                {pending && !preview ? <Loader2 className="h-4 w-4 animate-spin" /> : "Ver datas"}
+              <Button type="button" variant="secondary" className="h-11 w-full" disabled={pending} onClick={generate} data-testid="btn-ver-datas-pacote">
+                {pending && !visits ? <Loader2 className="h-4 w-4 animate-spin" /> : visits ? "Gerar as datas de novo" : "Gerar datas"}
               </Button>
 
-              {preview && summary && (
+              {visits && t && (
                 <div className="space-y-3" data-testid="previa-datas-pacote">
-                  <ul className="grid gap-2 sm:grid-cols-2">
-                    {summary.map((s) => (
+                  {/* contador por serviço: não deixa marcar além do saldo */}
+                  <ul className="grid gap-2 sm:grid-cols-2" data-testid="contador-servicos-pacote">
+                    {counters.map((s) => (
                       <li key={s.id} className="rounded-xl bg-secondary/50 px-3 py-2 text-sm">
                         <span className="block truncate font-medium">{s.name}</span>
-                        <span className="text-muted-foreground">
-                          {s.dated}/{s.sessions} com data{s.free > 0 && ` · ${s.free} sem data`}
+                        <span className={cn("text-muted-foreground", s.left === 0 && "text-green-700")}>
+                          {s.left} de {s.sessions} restantes
                         </span>
                       </li>
                     ))}
                   </ul>
-                  <ol className="divide-y rounded-xl border text-sm">
-                    {preview.map((d) => (
-                      <li key={`${d.rule}-${d.seq}`} className="flex items-start gap-2 px-3 py-2">
-                        {d.issue ? (
-                          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-                        ) : (
-                          <Check className="mt-0.5 h-4 w-4 shrink-0 text-green-700" />
-                        )}
-                        <span className="min-w-0">
-                          <span className="font-semibold">
-                            {weekday(d.date)} {br(d.date)} às {d.time}
-                          </span>
-                          {d.services && <span className="text-muted-foreground"> · {d.services}</span>}
-                          {d.issue && <span className="block text-xs text-amber-800">Pulada: {SKIP_REASON[d.issue] ?? d.issue}</span>}
-                        </span>
-                      </li>
-                    ))}
+                  <p className="text-xs text-muted-foreground">
+                    Sugestão espalhando os serviços entre as datas. Marque ou desmarque à vontade; mais de um serviço na mesma
+                    data vira uma visita só.{expires && ` Vale até ${br(expires)}.`}
+                  </p>
+
+                  <ol className="space-y-2">
+                    {visits.map((v, i) => {
+                      const pro = professionals.find((p) => p.id === v.professional_id);
+                      const late = !!expires && v.date > expires;
+                      const issue = issueOf(i);
+                      return (
+                        <li
+                          key={v.key}
+                          className={cn(
+                            "min-w-0 space-y-2 rounded-xl border p-3 text-sm",
+                            issue && "border-amber-300 bg-amber-50/60",
+                            v.service_ids.length === 0 && "bg-secondary/30"
+                          )}
+                          data-testid={`data-pacote-${i}`}
+                        >
+                          <div className="flex items-start gap-2">
+                            {checks && v.service_ids.length > 0 ? (
+                              issue ? (
+                                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+                              ) : (
+                                <Check className="mt-0.5 h-4 w-4 shrink-0 text-green-700" />
+                              )
+                            ) : (
+                              <CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                            )}
+                            <p className="min-w-0 flex-1">
+                              <span className="font-semibold">
+                                {weekday(v.date)} {br(v.date)} às {v.time}
+                              </span>
+                              {pro && <span className="text-muted-foreground"> · {pro.name}</span>}
+                            </p>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="tap-target -my-1 shrink-0 text-muted-foreground"
+                              onClick={() =>
+                                setVisits((list) => (list ?? []).map((x) => (x.key === v.key ? { ...x, editing: !x.editing } : x)))
+                              }
+                              aria-label={`Trocar dia ou horário de ${br(v.date)}`}
+                              data-testid={`btn-trocar-data-pacote-${i}`}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          </div>
+
+                          {v.editing && (
+                            <div className="grid grid-cols-2 gap-2">
+                              <Input
+                                type="date"
+                                className="h-11"
+                                min={todaySP()}
+                                max={expires ?? undefined}
+                                value={v.date}
+                                onChange={(e) => e.target.value && patchVisit(v.key, { date: e.target.value })}
+                                aria-label="Dia desta data"
+                                data-testid={`input-data-pacote-${i}`}
+                              />
+                              <Input
+                                type="time"
+                                step={300}
+                                className="h-11"
+                                value={v.time}
+                                onChange={(e) => e.target.value && patchVisit(v.key, { time: e.target.value.slice(0, 5) })}
+                                aria-label="Horário desta data"
+                                data-testid={`input-hora-pacote-${i}`}
+                              />
+                            </div>
+                          )}
+
+                          {late ? (
+                            <p className="text-xs text-amber-800">
+                              Depois da validade do pacote ({br(expires!)}): esta data não entra. Troque o dia ou deixe sem serviço.
+                            </p>
+                          ) : (
+                            <div className="flex flex-wrap gap-2">
+                              {t.services.map((s) => {
+                                const on = v.service_ids.includes(s.id);
+                                const left = counters.find((c) => c.id === s.id)?.left ?? 0;
+                                const can = proDoes(pro, s.id);
+                                const disabled = !on && (!can || left <= 0);
+                                return (
+                                  <label
+                                    key={s.id}
+                                    className={cn(
+                                      "flex min-h-[44px] cursor-pointer items-center gap-2 rounded-lg border bg-white px-3",
+                                      on && "border-primary",
+                                      disabled && "cursor-not-allowed opacity-50"
+                                    )}
+                                    title={!can ? `${pro?.name ?? "O profissional"} não faz ${s.name}` : undefined}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      className="h-5 w-5 shrink-0 accent-primary"
+                                      checked={on}
+                                      disabled={disabled}
+                                      onChange={(e) => toggleVisitService(v, s.id, e.target.checked)}
+                                      data-testid={`check-data-pacote-${i}-${s.id}`}
+                                    />
+                                    {s.name}
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          )}
+
+                          {v.service_ids.length === 0 && !late && (
+                            <p className="text-xs text-muted-foreground">Sem serviço marcado: esta data não será criada.</p>
+                          )}
+                          {issue && v.service_ids.length > 0 && (
+                            <p className="text-xs text-amber-800">
+                              {SKIP_REASON[issue] ?? issue} — toque no lápis para trocar só esta data. Se ficar assim, ela é pulada.
+                            </p>
+                          )}
+                        </li>
+                      );
+                    })}
                   </ol>
+
+                  {!checks && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-11 w-full"
+                      disabled={pending || withServices === 0}
+                      onClick={() => runCheck(visits)}
+                      data-testid="btn-conferir-datas-pacote"
+                    >
+                      {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Conferir horários"}
+                    </Button>
+                  )}
+
+                  {leftovers.length > 0 && (
+                    <p className="flex gap-2 rounded-lg bg-amber-50 p-3 text-sm text-amber-900" data-testid="aviso-sobra-pacote">
+                      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                      <span>
+                        {leftovers.map((s) => `${s.left} ${s.name.toLowerCase()}`).join(" e ")} sem data. Fica no saldo para agendar depois.
+                      </span>
+                    </p>
+                  )}
+                  {checks && issueCount > 0 && (
+                    <p className="text-xs text-amber-800">
+                      {issueCount} {issueCount === 1 ? "data com problema será pulada" : "datas com problema serão puladas"} (a sessão fica no saldo).
+                    </p>
+                  )}
                 </div>
               )}
             </div>
@@ -733,14 +921,18 @@ export function SellPackageDialog({
 
           <Button
             className="h-12 w-full text-base"
-            disabled={pending || (mode === "fixed" && !preview)}
+            disabled={pending || (mode === "fixed" && (!visits || !checks || okCount === 0))}
             onClick={submit}
             data-testid="btn-confirmar-venda-pacote"
           >
-            {pending && (mode === "free" || preview) ? (
+            {pending && (mode === "free" || checks) ? (
               <Loader2 className="h-5 w-5 animate-spin" />
             ) : mode === "fixed" && t ? (
-              preview ? `Vender e agendar ${okCount} · ${brl(t.price)}` : "Veja as datas para vender"
+              !visits
+                ? "Gere as datas para vender"
+                : !checks
+                  ? "Confira os horários para vender"
+                  : `Vender e agendar ${okCount} · ${brl(t.price)}`
             ) : t ? (
               `Confirmar venda · ${brl(t.price)}`
             ) : (

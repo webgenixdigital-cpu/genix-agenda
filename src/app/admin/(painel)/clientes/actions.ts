@@ -6,6 +6,7 @@ import { getEditorContext } from "@/lib/admin";
 import { getPlanContext } from "@/lib/plan";
 import { birthISO, birthParts } from "@/lib/birthday";
 import { loadSaleOptions, type SaleProfessional, type SaleTemplate } from "@/lib/package-sale";
+import type { PlanRule, PlanVisit } from "@/lib/package-plan";
 import { phoneError } from "@/lib/phone";
 import { parseCustomerPhone } from "@/lib/phone-intl";
 
@@ -201,6 +202,9 @@ const PACKAGE_ERRORS: Record<string, string> = {
   SERVICOS_INVALIDOS: "Escolha ao menos um serviço do pacote em cada regra.",
   PROFISSIONAL_INDISPONIVEL: "Um profissional escolhido não está ativo.",
   PROFISSIONAL_NAO_FAZ: "Um profissional escolhido não faz todos os serviços da regra.",
+  // 48_pacote_servicos_por_data
+  VISITAS_INVALIDAS: "Monte de 1 a 100 datas com serviço marcado.",
+  SALDO_EXCEDIDO: "Um serviço foi marcado em mais datas do que o pacote tem de sessões.",
 };
 const packageError = (message: string, fallback: string) =>
   PACKAGE_ERRORS[Object.keys(PACKAGE_ERRORS).find((k) => message.includes(k)) ?? ""] ?? fallback;
@@ -220,78 +224,68 @@ export async function sellPackage(
   return { ok: true };
 }
 
-// ---- Venda com datas fixas (39_pacote_datas_fixas) ----
-export type PackageRule = {
-  professional_id: string;
-  service_ids: string[];
-  start_date: string; // AAAA-MM-DD
-  time: string;       // HH:MM
-  frequency: "weekly" | "biweekly" | "monthly";
-  count: number;
-};
+// ---- Venda com datas fixas: serviços escolhidos por data (48_pacote_servicos_por_data) ----
+/** Conferência de uma data (idx = posição na lista enviada) */
+export type VisitCheck = { idx: number; issue: string | null; services: string | null; duration: number | null };
 
-export type PlannedDate = {
-  rule: number;
-  seq: number;
-  date: string;
-  time: string;
-  services: string | null;
-  service_ids: string[];
-  issue: string | null;
-};
-
-type PreviewRow = {
-  rule_idx: number;
-  seq: number;
-  occurs_on: string;
-  start_time: string;
-  service_ids: string[] | null;
+type VisitRow = {
+  idx: number;
   service_names: string | null;
+  duration_min: number | null;
   issue: string | null;
   package_expires: string | null;
 };
 
-export async function previewPackageSale(
+/** Só as datas com serviço marcado vão para o banco; idx volta na posição da lista original */
+function visitsPayload(visits: PlanVisit[]) {
+  const sent = visits.map((v, i) => ({ v, i })).filter(({ v }) => v.service_ids.length > 0);
+  return { sent, payload: sent.map(({ v }) => v) };
+}
+
+export async function previewPackageVisits(
   customerId: string,
   templateId: string,
-  rules: PackageRule[]
-): Promise<{ ok: true; dates: PlannedDate[]; expires: string | null } | { ok: false; error: string }> {
+  visits: PlanVisit[]
+): Promise<{ ok: true; checks: VisitCheck[]; expires: string | null } | { ok: false; error: string }> {
   await getEditorContext();
+  const { sent, payload } = visitsPayload(visits);
+  if (payload.length === 0) return { ok: false, error: "Marque ao menos um serviço em alguma data." };
   const supabase = createClient();
-  const { data, error } = await supabase.rpc("preview_package_sale", {
+  const { data, error } = await supabase.rpc("preview_package_sale_visits", {
     p_customer: customerId,
     p_template: templateId,
-    p_rules: rules,
+    p_visits: payload,
   });
-  if (error) return { ok: false, error: packageError(error.message, "Não foi possível montar as datas.") };
-  const rows = (data ?? []) as PreviewRow[];
+  if (error) return { ok: false, error: packageError(error.message, "Não foi possível conferir as datas.") };
+  const rows = (data ?? []) as VisitRow[];
   return {
     ok: true,
     expires: rows[0]?.package_expires ?? null,
-    dates: rows.map((r) => ({
-      rule: r.rule_idx,
-      seq: r.seq,
-      date: r.occurs_on,
-      time: r.start_time.slice(0, 5),
-      services: r.service_names,
-      service_ids: r.service_ids ?? [],
+    checks: rows.map((r) => ({
+      idx: sent[r.idx]?.i ?? r.idx,
       issue: r.issue,
+      services: r.service_names,
+      duration: r.duration_min,
     })),
   };
 }
 
-export async function sellPackageFixed(
+export async function sellPackageVisits(
   customerId: string,
   templateId: string,
   method: "pix" | "dinheiro" | "credito" | "debito" | null,
-  rules: PackageRule[]
+  visits: PlanVisit[],
+  rules: PlanRule[]
 ): Promise<{ ok: true; created: number; skipped: number } | { ok: false; error: string }> {
   await getEditorContext();
+  const { payload } = visitsPayload(visits);
+  if (payload.length === 0) return { ok: false, error: "Marque ao menos um serviço em alguma data." };
   const supabase = createClient();
-  const { data, error } = await supabase.rpc("sell_package_fixed", {
+  const { data, error } = await supabase.rpc("sell_package_fixed_visits", {
     p_customer: customerId,
     p_template: templateId,
     p_method: method,
+    p_visits: payload,
     p_rules: rules,
   });
   if (error) return { ok: false, error: packageError(error.message, "Não foi possível vender o pacote.") };

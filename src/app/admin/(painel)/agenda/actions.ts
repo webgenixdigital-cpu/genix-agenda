@@ -630,6 +630,63 @@ export async function addBookingItem(
   return { ok: true };
 }
 
+// ---- Serviços do pacote numa data já marcada (48_pacote_servicos_por_data) ----
+export type PackageVisitItem = {
+  package_item_id: string;
+  service_id: string | null;
+  service_name: string;
+  sessions_total: number;
+  /** usadas em outras datas (sem contar esta) */
+  used_elsewhere: number;
+  marked: boolean;
+  main: boolean;
+  can_do: boolean;
+};
+export type PackageVisitOptions = {
+  package_name: string;
+  expires_at: string | null;
+  editable: boolean;
+  items: PackageVisitItem[];
+};
+
+const PACKAGE_VISIT_ERRORS: Record<string, string> = {
+  SERVICOS_VAZIOS: "Marque ao menos um serviço. Para não fazer nada nesta data, cancele o agendamento.",
+  SERVICOS_INVALIDOS: "Escolha só serviços deste pacote.",
+  NAO_E_PACOTE: "Este agendamento não é sessão de pacote.",
+  PROFISSIONAL_NAO_FAZ: "O profissional desta data não faz um dos serviços marcados.",
+};
+
+/** null = o agendamento não é sessão de pacote */
+export async function getPackageVisitOptions(
+  id: string
+): Promise<{ ok: true; options: PackageVisitOptions | null } | { ok: false; error: string }> {
+  await getAdminContext();
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("package_visit_options", { p_booking: id });
+  if (error) return { ok: false, error: editError(error.message) };
+  if (!data) return { ok: true, options: null };
+  const r = data as PackageVisitOptions;
+  return {
+    ok: true,
+    options: {
+      ...r,
+      items: r.items.map((i) => ({ ...i, sessions_total: Number(i.sessions_total), used_elsewhere: Number(i.used_elsewhere) })),
+    },
+  };
+}
+
+export async function setPackageVisitServices(id: string, serviceIds: string[]): Promise<Result> {
+  await getEditorContext();
+  const supabase = createClient();
+  const { error } = await supabase.rpc("package_visit_set_services", { p_booking: id, p_service_ids: serviceIds });
+  if (error) {
+    const key = Object.keys(PACKAGE_VISIT_ERRORS).find((k) => error.message.includes(k));
+    return { ok: false, error: key ? PACKAGE_VISIT_ERRORS[key] : editError(error.message) };
+  }
+  refreshEdit();
+  return { ok: true };
+}
+
 export async function removeBookingItem(id: string, itemId: string): Promise<Result> {
   await getEditorContext();
   const supabase = createClient();

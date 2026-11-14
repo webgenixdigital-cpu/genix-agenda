@@ -140,6 +140,14 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
   passo, `professional_does_service`, `slot_conflicts_block` — almoço e folga fixa são bloqueios recorrentes —, ocupados),
   sem as regras só da vitrine (antecedência, limite do Grátis, `bookable_online`). Com horário = **encaixe** (sem expediente
   nem “passado”, como o manual sempre foi). Staff só vê a própria agenda; a gravação continua em `createManualBooking`.
+- **Pacote com datas fixas, serviços por data (48):** as regras geram as datas e a tela sugere a distribuição
+  (`suggestVisits`, `lib/package-plan.ts`); cada data tem caixinhas por serviço, contador “X de N restantes”, aviso do que
+  sobra sem data e troca de dia/horário só daquela data. Banco: `preview_package_sale_visits` / `sell_package_fixed_visits`
+  (lista de visitas; confere saldo → `SALDO_EXCEDIDO`, validade, horário pela duração somada; data sem serviço é ignorada;
+  data com problema é pulada). Depois da venda, em **qualquer** sessão de pacote: `package_visit_options` +
+  `package_visit_set_services` (matriz, recepção e o profissional da própria data). Se o item 0 for desmarcado, outro
+  serviço marcado do mesmo pacote vira o principal (única exceção à regra da 31; histórico `package_services`).
+  `sell_package_fixed`/`preview_package_sale` (39/45) continuam no banco, sem uso na tela.
 - **Serviços do agendamento (31):** `booking_items` (item `position 0` = serviço original, nunca sai). Em `bookings`,
   `service_name`/`price`/`duration_min`/`end_time` são o **total** (“Corte + Barba”, soma − desconto), mantidos só por
   `recalc_booking`; editar só por `booking_add_item`, `booking_remove_item`, `booking_set_discount` (gatilho

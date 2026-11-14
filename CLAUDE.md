@@ -135,6 +135,11 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
 - Operações sensíveis via funções `security definer`: `get_available_slots`, `create_public_booking`,
   `complete_booking` (status + caixa), `create_business_for_user`, `submit_review`, `public_plan_info`.
 - Trava de conflito de horário: constraint `no_overlap` em `bookings`. Caixa: 1 lançamento por atendimento.
+- **Novo agendamento (47):** ordem Cliente (WhatsApp primeiro) → Pacote → Serviço → Data/horário → Profissional → Obs/Repetir.
+  Horários por `manual_booking_slots(bid, serviço, data, horário?)` (só leitura): mesmas peças da vitrine (expediente,
+  passo, `professional_does_service`, `slot_conflicts_block` — almoço e folga fixa são bloqueios recorrentes —, ocupados),
+  sem as regras só da vitrine (antecedência, limite do Grátis, `bookable_online`). Com horário = **encaixe** (sem expediente
+  nem “passado”, como o manual sempre foi). Staff só vê a própria agenda; a gravação continua em `createManualBooking`.
 - **Serviços do agendamento (31):** `booking_items` (item `position 0` = serviço original, nunca sai). Em `bookings`,
   `service_name`/`price`/`duration_min`/`end_time` são o **total** (“Corte + Barba”, soma − desconto), mantidos só por
   `recalc_booking`; editar só por `booking_add_item`, `booking_remove_item`, `booking_set_discount` (gatilho
@@ -226,7 +231,7 @@ supabase-templates/          modelos de e-mail do Supabase
 1. **N3.2 Retornos:** prazo de retorno por serviço (`services.return_after_days`) e fila "hora de voltar" com WhatsApp pronto.
 2. **N4 Pacotes e recorrência:** pacotes de sessões (ex.: 10 drenagens) e agendamentos recorrentes.
 3. **Agenda 2.0:** visão semanal/grade, **Remarcar** (botão com horários livres; arrastar só no desktop),
-   busca de cliente no agendamento manual, proteção da vitrine contra robôs (Cloudflare Turnstile + limite por telefone).
+   busca de cliente no agendamento manual (feito: 47, WhatsApp primeiro + horários livres), proteção da vitrine contra robôs (Cloudflare Turnstile + limite por telefone).
 4. **Confirmação automática:** 3 opções prontas (tudo automático / só clientes recorrentes / tudo manual), com motivo visível.
 5. **Otimização e responsividade:**
    - `next/image` no lugar de `<img>` + upload de fotos no Supabase Storage (redimensionadas, WebP/AVIF);

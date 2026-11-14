@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { todayISO } from "@/lib/dates";
 
@@ -27,11 +27,49 @@ function savedView() {
   }
 }
 
-export function ViewPreference({ view }: { view: AgendaView }) {
+/** "2026-11-14" no fuso informado, calculado no navegador */
+function todayIn(timeZone: string) {
+  try {
+    return new Intl.DateTimeFormat("en-CA", { timeZone }).format(new Date());
+  } catch {
+    return todayISO();
+  }
+}
+
+/**
+ * today = "hoje" calculado no servidor no fuso do espaço.
+ * Aba/app deixado aberto de um dia para o outro: ao voltar para a tela (ou a cada minuto),
+ * se o dia virou e a URL não traz data escolhida, recarrega para abrir em hoje.
+ */
+export function ViewPreference({ view, today, timeZone }: { view: AgendaView; today: string; timeZone: string }) {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
   const explicit = params.get("visao");
+  const pinned = !!(params.get("data") || params.get("calendario"));
+  // 1 recarga por dia novo (relógio do aparelho errado não vira um laço de recargas)
+  const refreshedFor = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (pinned) return;
+    const check = () => {
+      if (document.visibilityState !== "visible") return;
+      const now = todayIn(timeZone);
+      if (now !== today && refreshedFor.current !== now) {
+        refreshedFor.current = now;
+        router.refresh();
+      }
+    };
+    check();
+    document.addEventListener("visibilitychange", check);
+    window.addEventListener("focus", check);
+    const t = setInterval(check, 60_000);
+    return () => {
+      document.removeEventListener("visibilitychange", check);
+      window.removeEventListener("focus", check);
+      clearInterval(t);
+    };
+  }, [pinned, today, timeZone, router]);
 
   useEffect(() => {
     const wide = window.matchMedia(WEEK_MEDIA).matches;
@@ -44,7 +82,7 @@ export function ViewPreference({ view }: { view: AgendaView }) {
       // link do Mês aberto no celular: Dia + calendário tela cheia
       const data = p.get("data") ?? "";
       p.set("visao", "dia");
-      p.set("calendario", data.slice(0, 7) || todayISO().slice(0, 7));
+      p.set("calendario", data.slice(0, 7) || today.slice(0, 7));
       p.delete("data");
       router.replace(`${pathname}?${p.toString()}`);
     } else if (view === "dia" && wide && params.get("calendario")) {
@@ -58,7 +96,7 @@ export function ViewPreference({ view }: { view: AgendaView }) {
       if (saved === "mes" && p.get("data")) p.set("data", p.get("data")!.slice(0, 7));
       router.replace(`${pathname}?${p.toString()}`);
     }
-  }, [view, explicit, params, pathname, router]);
+  }, [view, explicit, params, pathname, router, today]);
 
   return null;
 }

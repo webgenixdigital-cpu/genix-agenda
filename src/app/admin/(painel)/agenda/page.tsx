@@ -2,7 +2,7 @@ import Link from "next/link";
 import { CalendarDays } from "lucide-react";
 import { getAdminContext, seesWholeTeam } from "@/lib/admin";
 import { getPlanContext } from "@/lib/plan";
-import { addDaysISO, mondayOf, todayISO } from "@/lib/dates";
+import { addDaysISO, mondayOf, todayInZone } from "@/lib/dates";
 import { agendaProfessional, blockAppliesOn, loadAgenda } from "@/lib/agenda-data";
 import { monthOf, monthRange, monthTitle } from "@/lib/agenda";
 import { brl, longDate } from "@/lib/format";
@@ -31,7 +31,8 @@ export default async function AgendaPage({ searchParams }: Props) {
   const wholeTeam = seesWholeTeam(role);
   const plan = await getPlanContext(business.id);
 
-  const today = todayISO();
+  // "hoje" no fuso do espaço (o servidor da Vercel roda em UTC)
+  const today = todayInZone(business.timezone);
   const date = /^\d{4}-\d{2}-\d{2}$/.test(searchParams.data ?? "") ? searchParams.data! : today;
   const view = searchParams.visao === "semana" ? "semana" : searchParams.visao === "mes" ? "mes" : "dia";
   const prof = agendaProfessional(wholeTeam, searchParams.prof, professionalId);
@@ -50,7 +51,7 @@ export default async function AgendaPage({ searchParams }: Props) {
 
     return (
       <main className="mx-auto max-w-screen-2xl space-y-8 p-4 md:p-8">
-        <ViewPreference view={view} />
+        <ViewPreference view={view} today={today} timeZone={business.timezone} />
         <header className="flex flex-col items-center gap-4 text-center">
           <div>
             <h1 className="text-3xl md:text-4xl">Agenda do mês</h1>
@@ -106,7 +107,7 @@ export default async function AgendaPage({ searchParams }: Props) {
 
     return (
       <main className="mx-auto max-w-screen-2xl space-y-8 p-4 md:p-8">
-        <ViewPreference view={view} />
+        <ViewPreference view={view} today={today} timeZone={business.timezone} />
         <header className="flex flex-col items-center gap-4 text-center">
           <div>
             <h1 className="text-3xl md:text-4xl">Agenda da semana</h1>
@@ -220,7 +221,7 @@ export default async function AgendaPage({ searchParams }: Props) {
         </div>
       </header>
 
-      <ViewPreference view={view} />
+      <ViewPreference view={view} today={today} timeZone={business.timezone} />
 
       <AgendaToolbar
         view="dia"

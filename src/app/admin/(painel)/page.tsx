@@ -6,7 +6,7 @@ import { getPlanContext } from "@/lib/plan";
 import { getOnboarding } from "@/lib/onboarding";
 import { OnboardingCard } from "@/components/admin/onboarding-card";
 import { ONBOARDING_COOKIE, readOnboardingPref } from "@/lib/ui-prefs";
-import { monthStartISO, todayISO } from "@/lib/dates";
+import { todayInZone } from "@/lib/dates";
 import { brl, longDate } from "@/lib/format";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { VitrineLinkCard } from "@/components/admin/vitrine-link-card";
@@ -19,10 +19,10 @@ export const dynamic = "force-dynamic";
 // ---------------------------------------------------------------------
 // PARTE 1 — Dados
 // ---------------------------------------------------------------------
-async function loadDashboard(businessId: string) {
+async function loadDashboard(businessId: string, timeZone: string) {
   const supabase = createClient();
-  const today = todayISO();
-  const monthStart = monthStartISO();
+  const today = todayInZone(timeZone); // fuso do espaço
+  const monthStart = today.slice(0, 8) + "01";
 
   const [bookingsToday, cashMonth, pendingCount, doneMonth] = await Promise.all([
     supabase
@@ -100,7 +100,7 @@ export default async function Dashboard({ searchParams }: Props) {
   const onboardingPref = readOnboardingPref(cookies().get(ONBOARDING_COOKIE)?.value);
   const showsOnboarding = (role === "viewer" || (isOwner && !plan.internal)) && onboardingPref !== "hidden";
   const [{ today, bookings, stats }, onboarding] = await Promise.all([
-    loadDashboard(business.id),
+    loadDashboard(business.id, business.timezone),
     showsOnboarding ? getOnboarding(business as never, plan) : Promise.resolve(null),
   ]);
   const welcome = searchParams["bem-vindo"] === "1";

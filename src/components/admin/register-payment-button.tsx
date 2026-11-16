@@ -6,7 +6,7 @@
 import { useState } from "react";
 import { Wallet } from "lucide-react";
 import { RegisterPaymentDialog, type PaymentTarget } from "@/components/admin/register-payment-dialog";
-import { Button } from "@/components/ui/button";
+import { ActionTile } from "@/components/admin/agenda/action-tile";
 
 export function RegisterPaymentButton({ target, today }: { target: PaymentTarget; today: string }) {
   const [open, setOpen] = useState(false);
@@ -14,17 +14,16 @@ export function RegisterPaymentButton({ target, today }: { target: PaymentTarget
   const [snapshot, setSnapshot] = useState<PaymentTarget | null>(null);
   return (
     <>
-      <Button
-        size="sm"
-        className="h-10"
+      <ActionTile
+        variant="primary"
+        icon={<Wallet />}
+        label="Pagamento"
         onClick={() => {
           setSnapshot({ ...target });
           setOpen(true);
         }}
         data-testid={`btn-registrar-pagamento-${target.id}`}
-      >
-        <Wallet className="mr-1.5 h-4 w-4" /> Registrar pagamento
-      </Button>
+      />
       <RegisterPaymentDialog open={open} onOpenChange={setOpen} target={snapshot} today={today} />
     </>
   );

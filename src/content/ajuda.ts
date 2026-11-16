@@ -395,6 +395,44 @@ const AJUDA_TEXTOS = {
       "Depois de concluir, o cliente pode receber o link de avaliação.",
     ],
   },
+  "pagamento-pendente": {
+    titulo: "Escolher depois (Pagamento pendente)",
+    serve:
+      "Conclui o atendimento mesmo sem saber ainda a forma de pagamento. Ele fica concluído, com o selo “Pagamento pendente”, até alguém registrar o pagamento.",
+    passos: [
+      "No Concluir, toque em “Escolher depois”.",
+      "O atendimento aparece com o selo “Pagamento pendente” na Agenda e na ficha do cliente.",
+      "Quando o cliente pagar, toque em “Registrar pagamento” no atendimento ou na lista “Pagamentos pendentes” da Agenda.",
+    ],
+    atencao: [
+      "Enquanto estiver pendente, nada entra no caixa nem no faturamento.",
+      "O atendimento já conta em “Meus ganhos”, com o aviso de pagamento pendente.",
+      "Diferente de “Concluir sem lançar no caixa”, que conclui e não fica pendente.",
+    ],
+  },
+  "registrar-pagamento": {
+    titulo: "Registrar pagamento",
+    serve: "Lança no caixa o pagamento de um atendimento ou pacote que ficou com “Pagamento pendente”.",
+    passos: [
+      "Escolha a forma de pagamento.",
+      "Confira o valor (vem o que foi cobrado; dá para mudar se o cliente pagou outro valor).",
+      "Confira a data (hoje, ou o dia em que o cliente pagou).",
+      "Toque em “Registrar no caixa”: o selo some.",
+    ],
+    atencao: [
+      "O pagamento entra no caixa e no faturamento na data escolhida.",
+      "Para desfazer, reabra o atendimento (o lançamento sai junto).",
+    ],
+  },
+  "pagamentos-pendentes": {
+    titulo: "Pagamentos pendentes",
+    serve: "Lista os atendimentos concluídos e os pacotes vendidos com “Escolher depois” que ainda não foram pagos.",
+    passos: [
+      "Confira cliente, data, o que foi feito e o valor.",
+      "Quando o cliente pagar, toque em “Registrar pagamento”.",
+    ],
+    atencao: ["O profissional vê só os atendimentos dele; pacotes, só a matriz e a recepção."],
+  },
   "reabrir-atendimento": {
     titulo: "Reabrir atendimento",
     serve: "Desfaz um “Concluir” feito por engano (valor ou forma de pagamento errados, cliente errado…).",

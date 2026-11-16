@@ -4,6 +4,7 @@ import Link from "next/link";
 import { CalendarOff, Globe, Package, Phone, Repeat, StickyNote } from "lucide-react";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { AutoConfirmBadge } from "@/components/admin/auto-confirm-badge";
+import { PaymentPendingBadge } from "@/components/admin/payment-pending-badge";
 import { BookingActions, type RescheduleProps } from "@/components/admin/agenda/booking-actions";
 import { AgendaCardShell } from "@/components/admin/agenda/agenda-card-shell";
 import { brl } from "@/lib/format";
@@ -56,6 +57,7 @@ export function BookingCard({
             )}
             <StatusBadge status={b.status} />
             <AutoConfirmBadge status={b.status} reason={b.auto_confirm_reason} testId={`selo-auto-confirmado-${b.id}`} />
+            {b.status === "completed" && b.payment_status === "pending" && <PaymentPendingBadge testId={`selo-pagamento-pendente-${b.id}`} />}
             {b.series_id && (
               <span
                 className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-primary"

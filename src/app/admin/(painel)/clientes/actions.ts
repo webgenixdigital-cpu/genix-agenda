@@ -212,7 +212,7 @@ const packageError = (message: string, fallback: string) =>
 export async function sellPackage(
   customerId: string,
   templateId: string,
-  method: "pix" | "dinheiro" | "credito" | "debito" | null
+  method: "pix" | "dinheiro" | "credito" | "debito" | "pendente" | null
 ): Promise<Result> {
   await getEditorContext();
   const supabase = createClient();
@@ -273,7 +273,7 @@ export async function previewPackageVisits(
 export async function sellPackageVisits(
   customerId: string,
   templateId: string,
-  method: "pix" | "dinheiro" | "credito" | "debito" | null,
+  method: "pix" | "dinheiro" | "credito" | "debito" | "pendente" | null,
   visits: PlanVisit[],
   rules: PlanRule[]
 ): Promise<{ ok: true; created: number; skipped: number } | { ok: false; error: string }> {

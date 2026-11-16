@@ -36,7 +36,7 @@ export async function loadAgenda(ctx: AdminContext, wholeTeam: boolean, o: Optio
   const page = (n: number) => {
     let q = supabase
       .from("bookings")
-      .select("id, booking_date, start_time, end_time, customer_name, customer_phone, customer_phone_country, customer_notes, customer_id, service_name, professional_name, professional_id, service_id, price, status, source, customer_package_id, series_id, auto_confirm_reason, items_count")
+      .select("id, booking_date, start_time, end_time, customer_name, customer_phone, customer_phone_country, customer_notes, customer_id, service_name, professional_name, professional_id, service_id, price, status, source, customer_package_id, series_id, auto_confirm_reason, items_count, payment_status")
       .eq("business_id", business.id)
       .order("booking_date")
       .order("start_time")
@@ -126,4 +126,29 @@ export async function loadAgenda(ctx: AdminContext, wholeTeam: boolean, o: Optio
     hours: (hours ?? []) as AgendaHour[],
     reschedule,
   };
+}
+
+// ---------------------------------------------------------------------
+// Pagamentos pendentes (49_pagamento_depois.sql): atendimentos concluídos e
+// pacotes vendidos com "Escolher depois". O banco filtra pelo papel.
+// Sem a 49 no banco (ou erro): lista vazia, a Agenda segue normal.
+// ---------------------------------------------------------------------
+export type PendingPaymentItem = {
+  kind: "booking" | "package";
+  id: string;
+  customer_id: string | null;
+  customer_name: string;
+  customer_phone: string;
+  customer_phone_country: string | null;
+  ref_date: string;
+  description: string;
+  professional_name: string | null;
+  amount: number;
+};
+
+export async function loadPendingPayments(businessId: string): Promise<PendingPaymentItem[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("pending_payments", { p_business: businessId });
+  if (error) return [];
+  return ((data ?? []) as PendingPaymentItem[]).map((r) => ({ ...r, amount: Number(r.amount) }));
 }

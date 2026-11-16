@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { CalendarPlus, ChevronLeft, ChevronRight, Layers, Package, Repeat, X } from "lucide-react";
+import { CalendarPlus, ChevronLeft, ChevronRight, Clock, Layers, Package, Repeat, X } from "lucide-react";
 import { BlockNotice, BookingCard } from "@/components/admin/agenda/booking-card";
 import { NewBookingDialog } from "@/components/admin/agenda/new-booking-dialog";
 import { CancelledToggle, ProfessionalFilter, useAgendaNav } from "@/components/admin/agenda/agenda-toolbar";
@@ -208,6 +208,9 @@ export function MonthCalendar(props: Props) {
                       {b.service_id && comboIds.has(b.service_id) && <Layers className="h-3 w-3" aria-label="Combo" />}
                       {b.customer_package_id && <Package className="h-3 w-3" aria-label="Pacote" />}
                       {b.series_id && <Repeat className="h-3 w-3" aria-label="Recorrente" />}
+                      {b.status === "completed" && b.payment_status === "pending" && (
+                        <Clock className="h-3 w-3 text-amber-700" aria-label="Pagamento pendente" />
+                      )}
                     </span>
                   </span>
                 ))}

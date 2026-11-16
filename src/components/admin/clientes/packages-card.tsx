@@ -3,7 +3,7 @@
 import { Ajuda } from "@/components/ajuda";
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { AlertTriangle, CalendarDays, Check, Loader2, Lock, Package, Pencil, Plus, Trash2 } from "lucide-react";
+import { AlertTriangle, CalendarDays, Check, Loader2, Lock, Package, Pencil, Plus, Trash2, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import {
   cancelPackage,
@@ -23,6 +23,8 @@ import { brl } from "@/lib/format";
 import { FREQUENCY_LABEL, SKIP_REASON } from "@/lib/series";
 import { cn } from "@/lib/utils";
 import type { SaleProfessional, SaleTemplate } from "@/lib/package-sale";
+import { PaymentPendingBadge } from "@/components/admin/payment-pending-badge";
+import { RegisterPaymentDialog, type PaymentTarget } from "@/components/admin/register-payment-dialog";
 
 export type CustomerPackage = {
   id: string;
@@ -37,6 +39,8 @@ export type CustomerPackage = {
   effective_status: "active" | "finished" | "expired" | "cancelled";
   /** 39_pacote_datas_fixas: vendido com as visitas já agendadas */
   fixed: boolean;
+  /** 49_pagamento_depois: vendido com "Escolher depois", ainda sem pagamento no caixa */
+  paymentPending: boolean;
   /** 37_plano_fechado: saldo por serviço do pacote */
   items: { id: string; service_name: string; sessions_total: number; used: number; remaining: number }[];
   /** visitas que usaram o pacote; services = serviços do pacote usados nela */
@@ -70,6 +74,7 @@ export function PackagesCard({
   canSell,
   professionals,
   locked,
+  today,
 }: {
   customerId: string;
   packages: CustomerPackage[];
@@ -77,10 +82,15 @@ export function PackagesCard({
   canSell: boolean; // matriz ou recepção
   professionals: ProOption[];
   locked: boolean;  // plano Grátis: vender fica travado; sessões já vendidas continuam
+  /** hoje no fuso do espaço (data padrão do Registrar pagamento) */
+  today: string;
 }) {
   const [sellOpen, setSellOpen] = useState(false);
   const [toCancel, setToCancel] = useState<CustomerPackage | null>(null);
   const [cancelFuture, setCancelFuture] = useState(true);
+  // 49: um diálogo só, fora da lista, com a cópia do pacote escolhido
+  const [payTarget, setPayTarget] = useState<PaymentTarget | null>(null);
+  const [payOpen, setPayOpen] = useState(false);
   const [pending, start] = useTransition();
 
   function confirmCancel() {
@@ -140,6 +150,7 @@ export function PackagesCard({
                         <p className="font-semibold">{p.name}</p>
                         <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", st.cls)}>{st.label}</span>
                         {p.fixed && <span className="rounded-full bg-secondary px-2 py-0.5 text-xs font-medium">Datas fixas</span>}
+                        {p.paymentPending && p.effective_status !== "cancelled" && <PaymentPendingBadge testId={`selo-pagamento-pendente-${p.id}`} />}
                       </div>
                       <p className="text-sm text-muted-foreground">
                         {p.items.length > 1 ? `${p.items.length} serviços` : p.service_name} · {brl(p.price)} · vendido em {br(p.sold_at.slice(0, 10))}
@@ -156,6 +167,21 @@ export function PackagesCard({
                     <p className="text-xs text-muted-foreground">{p.remaining === 1 ? "sessão restante" : "sessões restantes"}</p>
                   </div>
                 </div>
+
+                {/* 49: pacote vendido com "Escolher depois" */}
+                {p.paymentPending && p.effective_status !== "cancelled" && canSell && !locked && (
+                  <Button
+                    size="sm"
+                    className="mt-3 h-10"
+                    onClick={() => {
+                      setPayTarget({ kind: "package", id: p.id, customerName: "", description: `Pacote ${p.name}`, suggested: p.price });
+                      setPayOpen(true);
+                    }}
+                    data-testid={`btn-registrar-pagamento-${p.id}`}
+                  >
+                    <Wallet className="mr-1.5 h-4 w-4" /> Registrar pagamento
+                  </Button>
+                )}
 
                 {/* datas fixas: sessão que ficou sem data (conflito, cancelada ou saldo sobrando) */}
                 {p.fixed && p.effective_status === "active" && p.remaining > 0 && (
@@ -219,6 +245,8 @@ export function PackagesCard({
           })}
         </ul>
       )}
+
+      <RegisterPaymentDialog open={payOpen} onOpenChange={setPayOpen} target={payTarget} today={today} />
 
       <SellPackageDialog open={sellOpen} onOpenChange={setSellOpen} customerId={customerId} templates={templates} professionals={professionals} />
 
@@ -308,7 +336,7 @@ export function SellPackageDialog({
 }) {
   const [pending, start] = useTransition();
   const [templateId, setTemplateId] = useState("");
-  const [method, setMethod] = useState<CashMethod | "">("");
+  const [method, setMethod] = useState<CashMethod | "pendente" | "">("");
   const [mode, setMode] = useState<"free" | "fixed">("free");
   const [rules, setRules] = useState<RuleDraft[]>([]);
   // 48_pacote_servicos_por_data: datas geradas pelas regras, com os serviços de cada uma
@@ -480,7 +508,7 @@ export function SellPackageDialog({
     setError(msg);
     if (msg || !t) return;
     if (mode === "fixed" && (!visits || !checks)) return setError("Confira as datas antes de vender.");
-    const m = t.price > 0 ? (method as CashMethod) : null;
+    const m = t.price > 0 ? (method as CashMethod | "pendente") : null;
     start(async () => {
       if (mode === "fixed" && visits) {
         const r = await sellPackageVisits(customerId, t.id, m, toVisits(visits), toRules());
@@ -492,7 +520,7 @@ export function SellPackageDialog({
         const r = await sellPackage(customerId, t.id, m);
         if (!r) return; // demonstração: o servidor redirecionou
         if (!r.ok) return setError(r.error);
-        toast.success(t.price > 0 ? "Pacote vendido e lançado no caixa" : "Pacote registrado");
+        toast.success(m === "pendente" ? "Pacote vendido · Pagamento pendente" : t.price > 0 ? "Pacote vendido e lançado no caixa" : "Pacote registrado");
       }
       reset();
       onOpenChange(false);
@@ -557,7 +585,22 @@ export function SellPackageDialog({
                     {METHOD_LABEL[m]}
                   </Button>
                 ))}
+                {/* 49: pacote vendido e já usável, com Pagamento pendente */}
+                <Button
+                  type="button"
+                  variant={method === "pendente" ? "default" : "outline"}
+                  className="col-span-2 h-11"
+                  onClick={() => setMethod("pendente")}
+                  data-testid="btn-pacote-forma-depois"
+                >
+                  Escolher depois
+                </Button>
               </div>
+              {method === "pendente" && (
+                <p className="text-xs text-muted-foreground">
+                  O pacote já pode ser usado e fica com <strong>Pagamento pendente</strong> até você registrar o pagamento.
+                </p>
+              )}
             </div>
           )}
 

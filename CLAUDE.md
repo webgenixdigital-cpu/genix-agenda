@@ -148,6 +148,14 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
   `package_visit_set_services` (matriz, recepção e o profissional da própria data). Se o item 0 for desmarcado, outro
   serviço marcado do mesmo pacote vira o principal (única exceção à regra da 31; histórico `package_services`).
   `sell_package_fixed`/`preview_package_sale` (39/45) continuam no banco, sem uso na tela.
+- **Pagamento pendente (49):** “Escolher depois” no Concluir (`complete_booking(id, 'pendente')`) e na venda de pacote
+  (`sell_package_core(..., 'pendente', ...)`): concluído/vendido e usável, sem caixa, `payment_status = 'pending'`
+  (`bookings` e `customer_packages`; null = como sempre; `'paid'` = pago depois). Só muda pelas funções (gatilhos
+  `guard_*_payment_status`, sinal `genix.payment_edit`); sair de `completed` limpa. Registrar: `register_booking_payment`
+  (quem conclui: `can_manage_booking`) e `register_package_payment` (matriz/recepção), com forma, valor e data → 1 lançamento.
+  `reopen_booking` (49) desfaz o lançamento do pago depois conferindo com o evento `payment_registered`. Lista:
+  `pending_payments` (Agenda `?pagamentos=1`). Comissão/“Meus ganhos” contam (com aviso); faturamento/contador só o caixa.
+  Grátis: sem pendência (não há caixa). Diálogo: `RegisterPaymentDialog` (provider da Agenda, tipo `payment`).
 - **Serviços do agendamento (31):** `booking_items` (item `position 0` = serviço original, nunca sai). Em `bookings`,
   `service_name`/`price`/`duration_min`/`end_time` são o **total** (“Corte + Barba”, soma − desconto), mantidos só por
   `recalc_booking`; editar só por `booking_add_item`, `booking_remove_item`, `booking_set_discount` (gatilho

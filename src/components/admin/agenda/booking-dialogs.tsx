@@ -24,9 +24,11 @@ import { brl } from "@/lib/format";
 import { RescheduleDialog } from "@/components/admin/agenda/reschedule-dialog";
 import { EditBookingDialog, bookingTotals, itemGroups, useBookingEditInfo } from "@/components/admin/agenda/edit-booking-dialog";
 import { ReopenDialog } from "@/components/admin/agenda/reopen-booking-button";
+import { RegisterPaymentDialog } from "@/components/admin/register-payment-dialog";
+import { todayISO } from "@/lib/dates";
 import type { AgendaBooking, RescheduleProps } from "@/components/admin/agenda/booking-actions";
 
-export type BookingDialogKind = "complete" | "edit" | "reschedule" | "cancel" | "cancel-series" | "reopen";
+export type BookingDialogKind = "complete" | "edit" | "reschedule" | "cancel" | "cancel-series" | "reopen" | "payment";
 
 /** O que o diálogo precisa além do agendamento (copiado na abertura) */
 export type BookingDialogContext = {
@@ -139,6 +141,20 @@ export function BookingDialogsProvider({ children }: { children: React.ReactNode
             customerName={active.booking.customer_name}
             packageSession={!!active.booking.customer_package_id}
           />
+
+          {/* 49: atendimento concluído com "Escolher depois" */}
+          <RegisterPaymentDialog
+            open={is("payment")}
+            onOpenChange={onOpenChange}
+            today={active.ctx.reschedule?.today ?? todayISO()}
+            target={{
+              kind: "booking",
+              id: active.booking.id,
+              customerName: active.booking.customer_name,
+              description: `${active.booking.service_name} · ${active.booking.booking_date.split("-").reverse().join("/")}`,
+              suggested: null,
+            }}
+          />
         </>
       )}
     </BookingDialogsCtx.Provider>
@@ -162,7 +178,7 @@ function CompleteDialog({ active, open, onClose }: { active: Active; open: boole
     if (!open) setEditOpen(false);
   }, [open]);
 
-  function finish(method: (typeof METHODS)[number]["value"] | null, success: string) {
+  function finish(method: (typeof METHODS)[number]["value"] | "pendente" | null, success: string) {
     onClose();
     start(async () => {
       const r = await completeBooking(b.id, method);
@@ -255,15 +271,37 @@ function CompleteDialog({ active, open, onClose }: { active: Active; open: boole
             </div>
           )}
           {askMethod && (
-            <Button
-              variant="ghost"
-              className="h-11"
-              disabled={pending}
-              onClick={() => finish(null, "Atendimento concluído")}
-              data-testid={`btn-concluir-sem-caixa-${b.id}`}
-            >
-              Concluir sem lançar no caixa
-            </Button>
+            <div className="space-y-1">
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="secondary"
+                  className="h-12 flex-1"
+                  disabled={pending}
+                  onClick={() => finish("pendente", "Concluído · Pagamento pendente")}
+                  data-testid={`btn-concluir-depois-${b.id}`}
+                >
+                  Escolher depois
+                </Button>
+                <Ajuda id="pagamento-pendente" />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                O atendimento fica concluído, com <strong>Pagamento pendente</strong>, até você registrar o pagamento.
+              </p>
+            </div>
+          )}
+          {askMethod && (
+            <div className="space-y-1">
+              <Button
+                variant="ghost"
+                className="h-11 w-full"
+                disabled={pending}
+                onClick={() => finish(null, "Atendimento concluído")}
+                data-testid={`btn-concluir-sem-caixa-${b.id}`}
+              >
+                Concluir sem lançar no caixa
+              </Button>
+              <p className="text-center text-xs text-muted-foreground">Não fica pendente: nada vai para o caixa.</p>
+            </div>
           )}
         </DialogContent>
       </Dialog>

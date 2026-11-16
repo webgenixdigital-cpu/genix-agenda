@@ -1,10 +1,10 @@
 import { Ajuda } from "@/components/ajuda";
 import Link from "next/link";
-import { CalendarDays } from "lucide-react";
+import { CalendarDays, Clock } from "lucide-react";
 import { getAdminContext, seesWholeTeam } from "@/lib/admin";
 import { getPlanContext } from "@/lib/plan";
 import { addDaysISO, mondayOf, todayInZone } from "@/lib/dates";
-import { agendaProfessional, blockAppliesOn, loadAgenda } from "@/lib/agenda-data";
+import { agendaProfessional, blockAppliesOn, loadAgenda, loadPendingPayments } from "@/lib/agenda-data";
 import { monthOf, monthRange, monthTitle } from "@/lib/agenda";
 import { brl, longDate } from "@/lib/format";
 import { AgendaToolbar } from "@/components/admin/agenda/agenda-toolbar";
@@ -13,11 +13,21 @@ import { MobileCalendar, MonthCalendar } from "@/components/admin/agenda/month-c
 import { ViewPreference } from "@/components/admin/agenda/view-preference";
 import { WeekGrid } from "@/components/admin/agenda/week-grid";
 import { NewBookingDialog } from "@/components/admin/agenda/new-booking-dialog";
+import { PendingPaymentsList } from "@/components/admin/agenda/pending-payments-list";
 
 export const dynamic = "force-dynamic";
 
 type Props = {
-  searchParams: { data?: string; status?: string; prof?: string; visao?: string; cancelados?: string; calendario?: string };
+  searchParams: {
+    data?: string;
+    status?: string;
+    prof?: string;
+    visao?: string;
+    cancelados?: string;
+    calendario?: string;
+    /** "1" = lista de Pagamentos pendentes (49) */
+    pagamentos?: string;
+  };
 };
 
 const STATUSES = ["pending", "confirmed", "completed", "cancelled"];
@@ -38,6 +48,31 @@ export default async function AgendaPage({ searchParams }: Props) {
   const view = searchParams.visao === "semana" ? "semana" : searchParams.visao === "mes" ? "mes" : "dia";
   const prof = agendaProfessional(wholeTeam, searchParams.prof, professionalId);
   const showCancelled = searchParams.cancelados === "1";
+
+  // ------------------------- PAGAMENTOS PENDENTES (49) -------------------------
+  // o banco filtra pelo papel: matriz/recepção veem tudo; profissional, só os dele
+  const pendingPayments = plan.tier === "completo" ? await loadPendingPayments(business.id) : [];
+  if (searchParams.pagamentos === "1") {
+    const total = pendingPayments.reduce((s, p) => s + p.amount, 0);
+    return (
+      <main className="mx-auto max-w-5xl space-y-6 p-4 md:p-8">
+        <header className="flex flex-col items-center gap-2 text-center">
+          <h1 className="text-3xl md:text-4xl">
+            Pagamentos pendentes <Ajuda id="pagamentos-pendentes" className="-ml-2" />
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {pendingPayments.length === 0
+              ? "Nenhum pagamento pendente."
+              : `${pendingPayments.length} ${pendingPayments.length === 1 ? "pendente" : "pendentes"} · ${brl(total)}`}
+          </p>
+          <Link href="/admin/agenda" className="inline-flex h-11 items-center text-sm font-semibold text-primary" data-testid="link-voltar-agenda">
+            Voltar para a Agenda
+          </Link>
+        </header>
+        <PendingPaymentsList items={pendingPayments} today={today} />
+      </main>
+    );
+  }
 
   // ------------------------- VISÃO MÊS (md+) -------------------------
   if (view === "mes") {
@@ -219,6 +254,15 @@ export default async function AgendaPage({ searchParams }: Props) {
           >
             <CalendarDays className="h-4 w-4 text-primary" /> Calendário
           </Link>
+          {pendingPayments.length > 0 && (
+            <Link
+              href="/admin/agenda?pagamentos=1"
+              className="inline-flex h-11 items-center gap-2 rounded-md border border-amber-300 bg-amber-50 px-4 text-sm font-semibold text-amber-900 hover:bg-amber-100"
+              data-testid="link-pagamentos-pendentes"
+            >
+              <Clock className="h-4 w-4" /> Pagamentos pendentes ({pendingPayments.length})
+            </Link>
+          )}
         </div>
       </header>
 

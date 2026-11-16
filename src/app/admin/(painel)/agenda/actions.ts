@@ -58,7 +58,8 @@ export async function updateBookingStatus(id: string, status: "confirmed" | "can
 // ---------------------------------------------------------------------
 // PARTE 2 — Concluir (e lançar no caixa)
 // ---------------------------------------------------------------------
-export async function completeBooking(id: string, method: Method | null): Promise<Result> {
+/** method "pendente" = "Escolher depois" (49): conclui sem caixa e fica Pagamento pendente */
+export async function completeBooking(id: string, method: Method | "pendente" | null): Promise<Result> {
   await getEditorContext();
   const supabase = createClient();
 
@@ -76,6 +77,79 @@ export async function completeBooking(id: string, method: Method | null): Promis
   refresh();
   revalidatePath("/admin/financeiro");
   revalidatePath("/admin/ganhos");
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------
+// PARTE 2a — Pagamento pendente (49_pagamento_depois.sql)
+// ---------------------------------------------------------------------
+const PAYMENT_ERRORS: Record<string, string> = {
+  SEM_PERMISSAO: "Você não pode registrar o pagamento deste atendimento.",
+  PLANO_GRATIS: "Registrar pagamento no caixa é um recurso dos planos pagos.",
+  NAO_PENDENTE: "Esse pagamento já foi registrado.",
+  JA_LANCADO: "Esse atendimento já tem um lançamento no caixa.",
+  FORMA_INVALIDA: "Escolha a forma de pagamento.",
+  VALOR_INVALIDO: "Informe um valor maior que zero.",
+  DATA_INVALIDA: "A data do pagamento não pode ser no futuro.",
+  NAO_ENCONTRADO: "Não encontrado.",
+};
+const paymentError = (message?: string) =>
+  PAYMENT_ERRORS[Object.keys(PAYMENT_ERRORS).find((k) => message?.includes(k)) ?? ""] ??
+  "Não foi possível registrar o pagamento.";
+
+export type PaymentMethod = Method;
+
+export async function registerBookingPayment(input: {
+  bookingId: string;
+  method: Method;
+  amount: number;
+  date: string; // AAAA-MM-DD
+}): Promise<Result> {
+  await getEditorContext();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.date)) return { ok: false, error: "Escolha a data do pagamento." };
+  const supabase = createClient();
+  const { error } = await supabase.rpc("register_booking_payment", {
+    p_booking: input.bookingId,
+    p_method: input.method,
+    p_amount: input.amount,
+    p_date: input.date,
+  });
+  if (error) return { ok: false, error: paymentError(error.message) };
+  refresh();
+  revalidatePath("/admin/financeiro");
+  revalidatePath("/admin/clientes", "layout");
+  revalidatePath("/admin");
+  return { ok: true };
+}
+
+/** Pacote vendido com "Escolher depois": matriz e recepção registram (lançamento "pacote") */
+export async function registerPackagePayment(input: {
+  packageId: string;
+  method: Method;
+  amount: number;
+  date: string; // AAAA-MM-DD
+}): Promise<Result> {
+  await getEditorContext();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.date)) return { ok: false, error: "Escolha a data do pagamento." };
+  const supabase = createClient();
+  const { error } = await supabase.rpc("register_package_payment", {
+    p_package: input.packageId,
+    p_method: input.method,
+    p_amount: input.amount,
+    p_date: input.date,
+  });
+  if (error) {
+    return {
+      ok: false,
+      error: error.message.includes("SEM_PERMISSAO")
+        ? "Só a matriz e a recepção registram o pagamento de pacotes."
+        : paymentError(error.message),
+    };
+  }
+  refresh();
+  revalidatePath("/admin/financeiro");
+  revalidatePath("/admin/clientes", "layout");
+  revalidatePath("/admin");
   return { ok: true };
 }
 

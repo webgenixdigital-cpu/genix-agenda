@@ -5,7 +5,7 @@
 // cópia do agendamento, para não trocarem de agendamento nem fecharem sozinhos quando a
 // lista é redesenhada depois de salvar (ver booking-dialogs.tsx).
 import { useEffect, useState, useTransition } from "react";
-import { CalendarClock, Check, CheckCheck, Loader2, MessageCircle, Pencil, Repeat, Star, X } from "lucide-react";
+import { CalendarClock, Check, CheckCheck, Loader2, MessageCircle, Pencil, Repeat, Star, Wallet, X } from "lucide-react";
 import { toast } from "sonner";
 import { updateBookingStatus } from "@/app/admin/(painel)/agenda/actions";
 import { Button } from "@/components/ui/button";
@@ -41,6 +41,8 @@ export type AgendaBooking = {
   service_id: string | null;
   /** quantos serviços (original + adicionais); mais de 1 mostra o total nas mensagens */
   items_count?: number;
+  /** 49: 'pending' = concluído com "Escolher depois"; 'paid' = pago depois */
+  payment_status?: "pending" | "paid" | null;
 };
 
 /** Dados para o botão "Remarcar" (opcional: sem ele, o botão não aparece) */
@@ -133,6 +135,12 @@ export function BookingActions({
             {b.status === "completed" ? <Star className="mr-1.5 h-4 w-4" /> : <MessageCircle className="mr-1.5 h-4 w-4" />}
             {b.status === "completed" ? "Pedir avaliação" : "WhatsApp"}
           </a>
+        </Button>
+      )}
+
+      {b.status === "completed" && b.payment_status === "pending" && (
+        <Button size="sm" className="h-10" onClick={() => open("payment")} data-testid={`btn-registrar-pagamento-${b.id}`}>
+          <Wallet className="mr-1.5 h-4 w-4" /> Registrar pagamento
         </Button>
       )}
 

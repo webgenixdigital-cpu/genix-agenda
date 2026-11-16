@@ -33,7 +33,7 @@ export default async function GanhosPage({ searchParams }: Props) {
     supabase.from("professionals").select("name, commission_pct").eq("id", professionalId ?? "").maybeSingle(),
     supabase
       .from("bookings")
-      .select("id, booking_date, start_time, service_name, customer_name, price")
+      .select("id, booking_date, start_time, service_name, customer_name, price, payment_status")
       .eq("business_id", business.id)
       .eq("status", "completed")
       .gte("booking_date", start)
@@ -108,6 +108,10 @@ export default async function GanhosPage({ searchParams }: Props) {
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold">{b.service_name}</p>
                   <p className="truncate text-xs text-muted-foreground">{b.customer_name}</p>
+                  {/* 49: conta no ganho; o pagamento do cliente ainda não foi registrado */}
+                  {b.payment_status === "pending" && (
+                    <p className="text-xs font-semibold text-amber-800" data-testid={`ganho-pendente-${b.id}`}>pagamento pendente</p>
+                  )}
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-semibold">{brl(b.price)}</p>

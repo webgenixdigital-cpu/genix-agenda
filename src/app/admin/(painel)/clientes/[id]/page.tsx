@@ -16,6 +16,8 @@ import { PackagesCard, type CustomerPackage } from "@/components/admin/clientes/
 import { AutoReminderToggle } from "@/components/admin/clientes/auto-reminder-toggle";
 import { EditBookingButton } from "@/components/admin/agenda/edit-booking-dialog";
 import { ReopenBookingButton } from "@/components/admin/agenda/reopen-booking-button";
+import { PaymentPendingBadge } from "@/components/admin/payment-pending-badge";
+import { RegisterPaymentButton } from "@/components/admin/register-payment-button";
 import { Button } from "@/components/ui/button";
 import { getPlanContext } from "@/lib/plan";
 import { loadSaleOptions } from "@/lib/package-sale";
@@ -53,6 +55,7 @@ const ACTION_LABEL: Record<string, string> = {
   discount_set: "Desconto aplicado",
   discount_removed: "Desconto removido",
   reopened: "Atendimento reaberto",
+  payment_registered: "Pagamento registrado",
   package_services: "Serviços do pacote alterados",
 };
 
@@ -102,6 +105,12 @@ function editDetail(action: string, d: Record<string, unknown> | null) {
   if (action === "discount_removed") return `: ${brl(Number(d.amount ?? 0))}`;
   // 48_pacote_servicos_por_data
   if (action === "package_services") return `: ${String(d.before ?? "")} → ${String(d.after ?? "")}`;
+  // 49_pagamento_depois
+  if (action === "payment_registered") {
+    const m = METHOD_LABEL[String(d.method ?? "")] ?? String(d.method ?? "");
+    const dt = typeof d.entry_date === "string" ? ` em ${d.entry_date.split("-").reverse().join("/")}` : "";
+    return `: ${m} · ${brl(Number(d.amount ?? 0))}${dt}`;
+  }
   return "";
 }
 /** motivo da confirmação automática gravado no histórico */
@@ -140,7 +149,7 @@ export default async function ClientePage({ params }: Props) {
 
   const { data: bookings } = await supabase
     .from("bookings")
-    .select("id, booking_date, start_time, service_name, professional_name, price, status, customer_package_id, auto_confirm_reason, booking_items(price, paid_by_package, customer_package_item_id)")
+    .select("id, booking_date, start_time, service_name, professional_name, price, status, customer_package_id, auto_confirm_reason, payment_status, booking_items(price, paid_by_package, customer_package_item_id)")
     .eq("customer_id", c.id)
     .order("booking_date", { ascending: false })
     .order("start_time", { ascending: false })
@@ -195,9 +204,11 @@ export default async function ClientePage({ params }: Props) {
     canSell ? loadSaleOptions(supabase, business.id) : Promise.resolve({ templates: [], professionals: [] }),
     getPlanContext(business.id),
     // 39_pacote_datas_fixas: modo de agendamento de cada pacote
-    supabase.from("customer_packages").select("id, schedule_mode").eq("customer_id", c.id),
+    supabase.from("customer_packages").select("id, schedule_mode, payment_status").eq("customer_id", c.id),
   ]);
   const modeById = new Map(((pkgModes ?? []) as { id: string; schedule_mode: string }[]).map((m) => [m.id, m.schedule_mode]));
+  // 49_pagamento_depois: pacote vendido com "Escolher depois"
+  const paymentById = new Map(((pkgModes ?? []) as { id: string; payment_status: string | null }[]).map((m) => [m.id, m.payment_status]));
 
   type PkgItem = {
     id: string;
@@ -229,6 +240,7 @@ export default async function ClientePage({ params }: Props) {
     ...p,
     price: Number(p.price),
     fixed: modeById.get(p.id) === "fixed",
+    paymentPending: paymentById.get(p.id) === "pending",
     items: items
       .filter((i) => i.customer_package_id === p.id)
       .map(({ id, service_name, sessions_total, used, remaining }) => ({ id, service_name, sessions_total, used, remaining })),
@@ -354,6 +366,7 @@ export default async function ClientePage({ params }: Props) {
           canSell={canSell}
           professionals={sale.professionals}
           locked={plan.tier !== "completo"}
+          today={todayInZone(business.timezone)}
         />
       )}
 
@@ -395,11 +408,28 @@ export default async function ClientePage({ params }: Props) {
                   <div className="flex flex-wrap items-center gap-2">
                     <AutoConfirmBadge status={b.status} reason={b.auto_confirm_reason} testId={`selo-auto-confirmado-${b.id}`} />
                     <StatusBadge status={b.status as BookingStatus} />
+                    {b.status === "completed" && b.payment_status === "pending" && (
+                      <PaymentPendingBadge testId={`selo-pagamento-pendente-${b.id}`} />
+                    )}
+                    {/* key pelo id: componente com diálogo dentro de lista desenhada no servidor (PR 43) */}
                     {(b.status === "pending" || b.status === "confirmed") && (
-                      <EditBookingButton bookingId={b.id} customerName={c.name} />
+                      <EditBookingButton key={`e-${b.id}`} bookingId={b.id} customerName={c.name} />
+                    )}
+                    {b.status === "completed" && b.payment_status === "pending" && role !== "viewer" && plan.tier === "completo" && (
+                      <RegisterPaymentButton
+                        key={`p-${b.id}`}
+                        today={todayInZone(business.timezone)}
+                        target={{
+                          kind: "booking",
+                          id: b.id,
+                          customerName: c.name,
+                          description: `${b.service_name} · ${br(b.booking_date)}`,
+                          suggested: charged(b),
+                        }}
+                      />
                     )}
                     {b.status === "completed" && canSell && (
-                      <ReopenBookingButton bookingId={b.id} customerName={c.name} packageSession={linked(b).length > 0} />
+                      <ReopenBookingButton key={`r-${b.id}`} bookingId={b.id} customerName={c.name} packageSession={linked(b).length > 0} />
                     )}
                   </div>
                 </div>

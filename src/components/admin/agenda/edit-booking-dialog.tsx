@@ -20,6 +20,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { PackageVisitServices } from "@/components/admin/agenda/package-visit-services";
+import { ActionTile } from "@/components/admin/agenda/action-tile";
 import { brl, duration } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -110,9 +111,7 @@ export function EditBookingButton({ bookingId, customerName }: { bookingId: stri
   const [open, setOpen] = useState(false);
   return (
     <>
-      <Button size="sm" variant="outline" className="h-10" onClick={() => setOpen(true)} data-testid={`btn-editar-${bookingId}`}>
-        <Pencil className="mr-1.5 h-4 w-4" /> Editar
-      </Button>
+      <ActionTile icon={<Pencil />} label="Editar" onClick={() => setOpen(true)} data-testid={`btn-editar-${bookingId}`} />
       <EditBookingDialog open={open} onOpenChange={setOpen} bookingId={bookingId} customerName={customerName} />
     </>
   );

@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { reopenBooking } from "@/app/admin/(painel)/agenda/actions";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { ActionTile } from "@/components/admin/agenda/action-tile";
 
 type ReopenProps = {
   bookingId: string;
@@ -66,26 +67,28 @@ export function ReopenDialog({
 /** Botão "Reabrir atendimento" (+ ajuda). Sem onOpen, abre o próprio diálogo (ficha do cliente). */
 export function ReopenBookingButton({
   onOpen,
+  variant = "button",
   ...props
 }: ReopenProps & {
   /** Agenda: quem abre é o BookingDialogsProvider */
   onOpen?: () => void;
+  /** "tile": botão quadrado da fileira de ações (cartão e ficha) */
+  variant?: "button" | "tile";
 }) {
   const [open, setOpen] = useState(false);
+  const onClick = () => (onOpen ? onOpen() : setOpen(true));
 
   return (
     <>
-      <Button
-        size="sm"
-        variant="outline"
-        className="h-10"
-        onClick={() => (onOpen ? onOpen() : setOpen(true))}
-        data-testid={`btn-reabrir-${props.bookingId}`}
-      >
-        <RotateCcw className="mr-1.5 h-4 w-4" />
-        Reabrir atendimento
-      </Button>
-      <Ajuda id="reabrir-atendimento" />
+      {variant === "tile" ? (
+        <ActionTile icon={<RotateCcw />} label="Reabrir" onClick={onClick} data-testid={`btn-reabrir-${props.bookingId}`} />
+      ) : (
+        <Button size="sm" variant="outline" className="h-10" onClick={onClick} data-testid={`btn-reabrir-${props.bookingId}`}>
+          <RotateCcw className="mr-1.5 h-4 w-4" />
+          Reabrir atendimento
+        </Button>
+      )}
+      <Ajuda id="reabrir-atendimento" className={variant === "tile" ? "my-0 self-center" : undefined} />
       {!onOpen && <ReopenDialog open={open} onOpenChange={setOpen} {...props} />}
     </>
   );

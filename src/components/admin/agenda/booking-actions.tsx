@@ -8,7 +8,7 @@ import { useEffect, useState, useTransition } from "react";
 import { CalendarClock, Check, CheckCheck, Loader2, MessageCircle, Pencil, Repeat, Star, Wallet, X } from "lucide-react";
 import { toast } from "sonner";
 import { updateBookingStatus } from "@/app/admin/(painel)/agenda/actions";
-import { Button } from "@/components/ui/button";
+import { ActionRow, ActionTile } from "@/components/admin/agenda/action-tile";
 import { whatsappLink } from "@/lib/format";
 import { customerMessage } from "@/lib/messages";
 import type { ProOption } from "@/components/admin/agenda/reschedule-dialog";
@@ -82,101 +82,110 @@ export function BookingActions({
   const wa = whatsappLink(b.customer_phone, customerMessage(b, businessName, reviewUrl), b.customer_phone_country);
   const open = (kind: BookingDialogKind) => openBooking(kind, b, { businessName, slug, fullAccess, reschedule, onCancelling });
 
+  const active = b.status === "pending" || b.status === "confirmed";
+
   return (
-    <div className="flex flex-wrap gap-2">
-      {b.status === "pending" && (
-        <Button
-          size="sm"
-          className="h-10"
-          disabled={pending}
-          onClick={() =>
-            start(async () => {
-              const r = await updateBookingStatus(b.id, "confirmed");
-              if (!r) return; // demonstração: o servidor redirecionou
-              if (r.ok) toast.success("Agendamento confirmado");
-              else toast.error(r.error);
-            })
-          }
-          data-testid={`btn-confirmar-${b.id}`}
-        >
-          {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="mr-1.5 h-4 w-4" />}
-          Confirmar
-        </Button>
-      )}
+    <div className="space-y-2">
+      <ActionRow data-testid={`acoes-${b.id}`}>
+        {b.status === "pending" && (
+          <ActionTile
+            variant="primary"
+            icon={pending ? <Loader2 className="animate-spin" /> : <Check />}
+            label="Confirmar"
+            disabled={pending}
+            onClick={() =>
+              start(async () => {
+                const r = await updateBookingStatus(b.id, "confirmed");
+                if (!r) return; // demonstração: o servidor redirecionou
+                if (r.ok) toast.success("Agendamento confirmado");
+                else toast.error(r.error);
+              })
+            }
+            data-testid={`btn-confirmar-${b.id}`}
+          />
+        )}
 
-      {b.status === "confirmed" && (
-        <Button size="sm" className="h-10" disabled={pending} onClick={() => open("complete")} data-testid={`btn-concluir-${b.id}`}>
-          <CheckCheck className="mr-1.5 h-4 w-4" /> Concluir
-        </Button>
-      )}
+        {b.status === "confirmed" && (
+          <ActionTile
+            variant="primary"
+            icon={<CheckCheck />}
+            label="Concluir"
+            disabled={pending}
+            onClick={() => open("complete")}
+            data-testid={`btn-concluir-${b.id}`}
+          />
+        )}
 
-      {(b.status === "pending" || b.status === "confirmed") && (
-        <Button size="sm" variant="outline" className="h-10" disabled={pending} onClick={() => open("edit")} data-testid={`btn-editar-${b.id}`}>
-          <Pencil className="mr-1.5 h-4 w-4" /> Editar
-        </Button>
-      )}
+        {active && (
+          <ActionTile icon={<Pencil />} label="Editar" disabled={pending} onClick={() => open("edit")} data-testid={`btn-editar-${b.id}`} />
+        )}
 
-      {reschedule && (b.status === "pending" || b.status === "confirmed") && (
-        <Button
-          size="sm"
-          variant="outline"
-          className="h-10"
-          disabled={pending}
-          onClick={() => open("reschedule")}
-          data-testid={`btn-remarcar-${b.id}`}
-        >
-          <CalendarClock className="mr-1.5 h-4 w-4" /> Remarcar
-        </Button>
-      )}
+        {reschedule && active && (
+          <ActionTile
+            icon={<CalendarClock />}
+            label="Remarcar"
+            disabled={pending}
+            onClick={() => open("reschedule")}
+            data-testid={`btn-remarcar-${b.id}`}
+          />
+        )}
 
-      {wa && (
-        <Button asChild size="sm" className="h-10 bg-whatsapp text-white hover:bg-whatsapp-hover">
-          <a href={wa} target="_blank" rel="noopener noreferrer" data-testid={`btn-whatsapp-cliente-${b.id}`}>
-            {b.status === "completed" ? <Star className="mr-1.5 h-4 w-4" /> : <MessageCircle className="mr-1.5 h-4 w-4" />}
-            {b.status === "completed" ? "Pedir avaliação" : "WhatsApp"}
-          </a>
-        </Button>
-      )}
+        {wa && (
+          <ActionTile
+            asChild
+            variant="whatsapp"
+            // pendente/confirmado: 5 botões; no celular o WhatsApp fica só no ícone (cabe em 360 px)
+            iconOnlyOnMobile={active}
+            icon={b.status === "completed" ? <Star /> : <MessageCircle />}
+            label={b.status === "completed" ? "Avaliação" : "WhatsApp"}
+          >
+            <a href={wa} target="_blank" rel="noopener noreferrer" data-testid={`btn-whatsapp-cliente-${b.id}`} />
+          </ActionTile>
+        )}
 
-      {b.status === "completed" && b.payment_status === "pending" && (
-        <Button size="sm" className="h-10" onClick={() => open("payment")} data-testid={`btn-registrar-pagamento-${b.id}`}>
-          <Wallet className="mr-1.5 h-4 w-4" /> Registrar pagamento
-        </Button>
-      )}
+        {b.status === "completed" && b.payment_status === "pending" && (
+          <ActionTile
+            variant="primary"
+            icon={<Wallet />}
+            label="Pagamento"
+            onClick={() => open("payment")}
+            data-testid={`btn-registrar-pagamento-${b.id}`}
+          />
+        )}
 
-      {b.status === "completed" && reschedule?.canReopen && (
-        <ReopenBookingButton
-          bookingId={b.id}
-          customerName={b.customer_name}
-          packageSession={!!b.customer_package_id}
-          onOpen={() => open("reopen")}
-        />
-      )}
+        {b.status === "completed" && reschedule?.canReopen && (
+          <ReopenBookingButton
+            variant="tile"
+            bookingId={b.id}
+            customerName={b.customer_name}
+            packageSession={!!b.customer_package_id}
+            onOpen={() => open("reopen")}
+          />
+        )}
 
-      {(b.status === "pending" || b.status === "confirmed") && (
-        <Button
-          size="sm"
-          variant="ghost"
-          className="h-10 text-destructive hover:bg-red-50 hover:text-destructive"
-          disabled={pending}
-          onClick={() => open("cancel")}
-          data-testid={`btn-cancelar-${b.id}`}
-        >
-          <X className="mr-1.5 h-4 w-4" /> Cancelar
-        </Button>
-      )}
+        {active && (
+          <ActionTile
+            variant="danger"
+            icon={<X />}
+            label="Cancelar"
+            disabled={pending}
+            onClick={() => open("cancel")}
+            data-testid={`btn-cancelar-${b.id}`}
+          />
+        )}
+      </ActionRow>
 
-      {b.series_id && (b.status === "pending" || b.status === "confirmed") && (
-        <Button
-          size="sm"
-          variant="ghost"
-          className="h-10 text-muted-foreground hover:bg-red-50 hover:text-destructive"
+      {/* linha própria, só quando existir */}
+      {b.series_id && active && (
+        <button
+          type="button"
+          className="flex min-h-11 w-full items-center justify-center gap-1.5 rounded-lg text-sm text-destructive/80 hover:bg-red-50 hover:text-destructive disabled:opacity-50"
           disabled={pending}
           onClick={() => open("cancel-series")}
           data-testid={`btn-cancelar-serie-${b.id}`}
         >
-          <Repeat className="mr-1.5 h-4 w-4" /> Cancelar as próximas desta série
-        </Button>
+          <Repeat className="h-4 w-4" /> Cancelar as próximas desta série
+        </button>
       )}
     </div>
   );

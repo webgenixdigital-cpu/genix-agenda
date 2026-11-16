@@ -17,6 +17,7 @@ import { AutoReminderToggle } from "@/components/admin/clientes/auto-reminder-to
 import { EditBookingButton } from "@/components/admin/agenda/edit-booking-dialog";
 import { ReopenBookingButton } from "@/components/admin/agenda/reopen-booking-button";
 import { PaymentPendingBadge } from "@/components/admin/payment-pending-badge";
+import { ActionRow } from "@/components/admin/agenda/action-tile";
 import { RegisterPaymentButton } from "@/components/admin/register-payment-button";
 import { Button } from "@/components/ui/button";
 import { getPlanContext } from "@/lib/plan";
@@ -411,26 +412,6 @@ export default async function ClientePage({ params }: Props) {
                     {b.status === "completed" && b.payment_status === "pending" && (
                       <PaymentPendingBadge testId={`selo-pagamento-pendente-${b.id}`} />
                     )}
-                    {/* key pelo id: componente com diálogo dentro de lista desenhada no servidor (PR 43) */}
-                    {(b.status === "pending" || b.status === "confirmed") && (
-                      <EditBookingButton key={`e-${b.id}`} bookingId={b.id} customerName={c.name} />
-                    )}
-                    {b.status === "completed" && b.payment_status === "pending" && role !== "viewer" && plan.tier === "completo" && (
-                      <RegisterPaymentButton
-                        key={`p-${b.id}`}
-                        today={todayInZone(business.timezone)}
-                        target={{
-                          kind: "booking",
-                          id: b.id,
-                          customerName: c.name,
-                          description: `${b.service_name} · ${br(b.booking_date)}`,
-                          suggested: charged(b),
-                        }}
-                      />
-                    )}
-                    {b.status === "completed" && canSell && (
-                      <ReopenBookingButton key={`r-${b.id}`} bookingId={b.id} customerName={c.name} packageSession={linked(b).length > 0} />
-                    )}
                   </div>
                 </div>
                 {(byBooking.get(b.id) ?? []).length > 0 && (
@@ -458,6 +439,40 @@ export default async function ClientePage({ params }: Props) {
                     })}
                   </ol>
                 )}
+                {(() => {
+                  const canEdit = b.status === "pending" || b.status === "confirmed";
+                  const canPay = b.status === "completed" && b.payment_status === "pending" && role !== "viewer" && plan.tier === "completo";
+                  const canReopen = b.status === "completed" && canSell;
+                  if (!canEdit && !canPay && !canReopen) return null;
+                  return (
+                    <ActionRow className="mt-3 border-t pt-3" data-testid={`acoes-historico-${b.id}`}>
+                      {/* key pelo id: componente com diálogo dentro de lista desenhada no servidor (PR 43) */}
+                      {canEdit && <EditBookingButton key={`e-${b.id}`} bookingId={b.id} customerName={c.name} />}
+                      {canPay && (
+                        <RegisterPaymentButton
+                          key={`p-${b.id}`}
+                          today={todayInZone(business.timezone)}
+                          target={{
+                            kind: "booking",
+                            id: b.id,
+                            customerName: c.name,
+                            description: `${b.service_name} · ${br(b.booking_date)}`,
+                            suggested: charged(b),
+                          }}
+                        />
+                      )}
+                      {canReopen && (
+                        <ReopenBookingButton
+                          key={`r-${b.id}`}
+                          variant="tile"
+                          bookingId={b.id}
+                          customerName={c.name}
+                          packageSession={linked(b).length > 0}
+                        />
+                      )}
+                    </ActionRow>
+                  );
+                })()}
               </li>
             ))}
           </ul>

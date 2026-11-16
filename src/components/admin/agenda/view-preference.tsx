@@ -36,6 +36,13 @@ function todayIn(timeZone: string) {
   }
 }
 
+/** Algum diálogo, folha, popover ou lista de opções aberto na tela? */
+function somethingOpen() {
+  return !!document.querySelector(
+    '[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"], [data-radix-popper-content-wrapper]'
+  );
+}
+
 /**
  * today = "hoje" calculado no servidor no fuso do espaço.
  * Aba/app deixado aberto de um dia para o outro: ao voltar para a tela (ou a cada minuto),
@@ -54,6 +61,9 @@ export function ViewPreference({ view, today, timeZone }: { view: AgendaView; to
     if (pinned) return;
     const check = () => {
       if (document.visibilityState !== "visible") return;
+      // nunca recarrega com diálogo, folha ou lista aberta (dados digitados): tenta de novo
+      // no próximo foco ou no próximo minuto
+      if (somethingOpen()) return;
       const now = todayIn(timeZone);
       if (now !== today && refreshedFor.current !== now) {
         refreshedFor.current = now;

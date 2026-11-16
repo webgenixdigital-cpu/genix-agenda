@@ -5,6 +5,7 @@ import { CalendarOff, Globe, Package, Phone, Repeat, StickyNote } from "lucide-r
 import { StatusBadge } from "@/components/admin/status-badge";
 import { AutoConfirmBadge } from "@/components/admin/auto-confirm-badge";
 import { BookingActions, type RescheduleProps } from "@/components/admin/agenda/booking-actions";
+import { AgendaCardShell } from "@/components/admin/agenda/agenda-card-shell";
 import { brl } from "@/lib/format";
 import { formatPhone } from "@/lib/phone";
 import type { AgendaBlock, AgendaItem } from "@/lib/agenda";
@@ -28,14 +29,15 @@ export function BookingCard({
   reschedule: RescheduleProps;
 }) {
   return (
-    <li
+    // key pelo id: no servidor (lista do Dia) a key do BookingCard não chega ao navegador
+    <AgendaCardShell
+      key={b.id}
+      bookingId={b.id}
       className={cn(
         "rounded-2xl border bg-card p-4 md:p-5",
         b.status === "cancelled" && "opacity-60",
         b.status === "pending" && "border-amber-300"
       )}
-      data-testid={`agenda-item-${b.id}`}
-      data-agenda-card
     >
       <div className="flex gap-4">
         <div className="w-[4.5rem] shrink-0 border-r pr-3 text-center">
@@ -91,9 +93,10 @@ export function BookingCard({
       </div>
 
       <div className="mt-4 border-t pt-3">
-        <BookingActions booking={b} businessName={businessName} slug={slug} fullAccess={fullAccess} reschedule={reschedule} />
+        {/* key pelo id: no servidor (lista do Dia) a key do cartão não chega aqui, e sem ela o estado ficava preso à posição na lista */}
+        <BookingActions key={b.id} booking={b} businessName={businessName} slug={slug} fullAccess={fullAccess} reschedule={reschedule} />
       </div>
-    </li>
+    </AgendaCardShell>
   );
 }
 

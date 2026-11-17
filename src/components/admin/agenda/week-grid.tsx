@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Clock, Package, Repeat } from "lucide-react";
+import { Clock, Layers2, Package, Repeat } from "lucide-react";
 import { toast } from "sonner";
 import { rescheduleBooking } from "@/app/admin/(painel)/agenda/actions";
 import { BookingActions, type RescheduleProps } from "@/components/admin/agenda/booking-actions";
@@ -17,7 +17,7 @@ import { addDaysISO } from "@/lib/dates";
 import { brl } from "@/lib/format";
 import { formatPhone } from "@/lib/phone";
 import { blockAppliesOn, type AgendaBlock, type AgendaHour, type AgendaItem } from "@/lib/agenda";
-import { STATUS_STYLE } from "@/components/admin/agenda/status-colors";
+import { OVERLAY_STYLE, STATUS_STYLE } from "@/components/admin/agenda/status-colors";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------
@@ -398,7 +398,7 @@ export function WeekGrid(props: Props) {
                       height={heightOf(p.end - p.start)}
                       color={props.showProfessionalColors ? colorOf.get(p.b.professional_id) : undefined}
                       label={props.sessionLabel[p.b.id]}
-                      draggable={canDrag && ["pending", "confirmed"].includes(p.b.status)}
+                      draggable={canDrag && !p.b.overlay && ["pending", "confirmed"].includes(p.b.status)}
                       dragging={drag?.moved === true && drag.id === p.b.id}
                       onPointerDown={(e) => onPointerDown(e, p.b)}
                       onPointerMove={onPointerMove}
@@ -488,6 +488,7 @@ export function WeekGrid(props: Props) {
         professionals={professionals}
         fullAccess={props.fullAccess}
         canSellPackages={props.reschedule?.canChooseProfessional}
+        canOverlay={props.reschedule?.canOverlay}
         open={!!newSlot}
         onOpenChange={(o) => !o && setNewSlot(null)}
         initial={newSlot ?? undefined}
@@ -521,6 +522,7 @@ function BookingBlock(props: {
       className={cn(
         "absolute z-[2] overflow-hidden rounded-lg border px-1.5 py-1 text-left text-xs shadow-sm transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
         STATUS_STYLE[b.status],
+        b.overlay && OVERLAY_STYLE,
         props.draggable && "cursor-grab touch-none active:cursor-grabbing",
         props.dragging && "opacity-40"
       )}
@@ -536,10 +538,11 @@ function BookingBlock(props: {
       onPointerUp={props.onPointerUp}
       onPointerCancel={props.onPointerCancel}
       onClick={props.onClick}
-      aria-label={`${b.start_time.slice(0, 5)} a ${b.end_time.slice(0, 5)}, ${b.customer_name}, ${b.service_name}, ${b.professional_name}`}
+      aria-label={`${b.start_time.slice(0, 5)} a ${b.end_time.slice(0, 5)}, ${b.customer_name}, ${b.service_name}, ${b.professional_name}${b.overlay ? ", encaixe sobreposto" : ""}`}
       data-testid={`bloco-agendamento-${b.id}`}
     >
       <p className="truncate font-semibold">
+        {b.overlay && <Layers2 className="mr-0.5 inline h-3 w-3" aria-hidden />}
         {b.start_time.slice(0, 5)}–{b.end_time.slice(0, 5)} {compact && <span className="font-normal">{b.customer_name}</span>}
       </p>
       {!compact && (
@@ -547,6 +550,11 @@ function BookingBlock(props: {
           <p className="truncate font-medium">{b.customer_name}</p>
           <p className="truncate opacity-80">{b.service_name}</p>
           <div className="mt-0.5 flex flex-wrap gap-1">
+            {b.overlay && (
+              <Badge icon={<Layers2 className="h-3 w-3" />} testId={`selo-encaixe-${b.id}`}>
+                Encaixe
+              </Badge>
+            )}
             {b.customer_package_id && (
               <Badge icon={<Package className="h-3 w-3" />} testId={`selo-pacote-${b.id}`}>
                 {props.label ?? "Pacote"}

@@ -4,9 +4,10 @@ import { Ajuda } from "@/components/ajuda";
 import { useEffect, useState, useTransition } from "react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarDays, CheckCircle2, Loader2, MessageCircle } from "lucide-react";
+import { CalendarDays, CheckCircle2, Layers2, Loader2, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
-import { listRescheduleSlots, rescheduleBooking } from "@/app/admin/(painel)/agenda/actions";
+import { listRescheduleSlots, rescheduleBooking, rescheduleOverlay } from "@/app/admin/(painel)/agenda/actions";
+import { OverlayPreview } from "@/components/admin/agenda/overlay-preview";
 import type { AgendaBooking } from "@/components/admin/agenda/booking-actions";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -29,6 +30,7 @@ export function RescheduleDialog({
   businessName,
   professionals,
   canChooseProfessional,
+  canOverlay = false,
   today,
 }: {
   open: boolean;
@@ -38,6 +40,8 @@ export function RescheduleDialog({
   professionals: ProOption[];
   /** matriz e recepção: trocam o profissional e podem encaixar */
   canChooseProfessional: boolean;
+  /** 50: matriz e profissional remarcam como encaixe sobreposto */
+  canOverlay?: boolean;
   today: string;
 }) {
   const [pending, start] = useTransition();
@@ -47,6 +51,10 @@ export function RescheduleDialog({
   const [time, setTime] = useState("");
   const [fit, setFit] = useState(false);
   const [fitTime, setFitTime] = useState("");
+  // encaixe sobreposto (50): por cima de outro atendimento do mesmo profissional
+  const [overlay, setOverlay] = useState(false);
+  const [ovTime, setOvTime] = useState("");
+  const [ovOk, setOvOk] = useState(false);
   const [slots, setSlots] = useState<string[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<{ date: string; time: string; professional: string } | null>(null);
@@ -60,6 +68,10 @@ export function RescheduleDialog({
     setTime("");
     setFit(false);
     setFitTime("");
+    // sobreposto abre já no modo sobreposto (remarcar comum o tornaria normal)
+    setOverlay(!!b.overlay && canOverlay);
+    setOvTime("");
+    setOvOk(false);
     setError(null);
     setDone(null);
   }
@@ -87,13 +99,15 @@ export function RescheduleDialog({
     };
   }, [open, done, b.id, professionalId, date]);
 
-  const chosen = fit ? fitTime : time;
+  const chosen = overlay ? ovTime : fit ? fitTime : time;
 
   function save() {
     setError(null);
     if (!/^\d{2}:\d{2}$/.test(chosen)) return setError("Escolha o horário.");
     start(async () => {
-      const r = await rescheduleBooking({ bookingId: b.id, professionalId, date, time: chosen, fit });
+      const r = overlay
+        ? await rescheduleOverlay({ bookingId: b.id, professionalId, date, time: chosen })
+        : await rescheduleBooking({ bookingId: b.id, professionalId, date, time: chosen, fit });
       if (!r) return; // demonstração: o servidor redirecionou
       if (r.ok) {
         toast.success("Agendamento remarcado");
@@ -181,7 +195,7 @@ export function RescheduleDialog({
               </Popover>
             </div>
 
-            {!fit && (
+            {!fit && !overlay && (
               <div className="space-y-1.5">
                 <Label>Horários livres</Label>
                 {slots === null ? (
@@ -218,7 +232,10 @@ export function RescheduleDialog({
                     type="checkbox"
                     className="h-5 w-5 accent-primary"
                     checked={fit}
-                    onChange={(e) => setFit(e.target.checked)}
+                    onChange={(e) => {
+                      setFit(e.target.checked);
+                      if (e.target.checked) setOverlay(false);
+                    }}
                     data-testid="check-encaixar"
                   />
                   Encaixar outro horário
@@ -241,9 +258,51 @@ export function RescheduleDialog({
               </div>
             )}
 
+            {canOverlay && (
+              <div className={cn("space-y-3 rounded-xl border p-3", overlay && "border-dashed border-primary/60")}>
+                <div className="flex items-center gap-1">
+                  <label className="flex min-h-11 flex-1 cursor-pointer items-center gap-3 text-sm font-semibold">
+                    <input
+                      type="checkbox"
+                      className="h-5 w-5 shrink-0 accent-primary"
+                      checked={overlay}
+                      onChange={(e) => {
+                        setOverlay(e.target.checked);
+                        if (e.target.checked) setFit(false);
+                      }}
+                      data-testid="check-remarcar-sobreposto"
+                    />
+                    <Layers2 className="h-4 w-4 shrink-0 text-primary" />
+                    <span>
+                      Encaixe sobreposto <span className="font-normal text-muted-foreground">(por cima de outro atendimento)</span>
+                    </span>
+                  </label>
+                  <Ajuda id="encaixe-sobreposto" />
+                </div>
+                {overlay && (
+                  <>
+                    <Input
+                      type="time"
+                      aria-label="Horário do encaixe sobreposto"
+                      className="h-11 w-36"
+                      value={ovTime}
+                      onChange={(e) => setOvTime(e.target.value.slice(0, 5))}
+                      data-testid="input-sobreposto-horario"
+                    />
+                    <OverlayPreview bookingId={b.id} professionalId={professionalId} date={date} time={ovTime} onReady={setOvOk} />
+                  </>
+                )}
+              </div>
+            )}
+
             {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-destructive">{error}</p>}
 
-            <Button className="h-12 w-full text-base" disabled={pending || !chosen} onClick={save} data-testid="btn-salvar-remarcacao">
+            <Button
+              className="h-12 w-full text-base"
+              disabled={pending || !chosen || (overlay && !ovOk)}
+              onClick={save}
+              data-testid="btn-salvar-remarcacao"
+            >
               {pending ? <Loader2 className="h-5 w-5 animate-spin" /> : chosen ? `Remarcar para ${chosen}` : "Escolha o horário"}
             </Button>
           </div>

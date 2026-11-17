@@ -36,7 +36,7 @@ export async function loadAgenda(ctx: AdminContext, wholeTeam: boolean, o: Optio
   const page = (n: number) => {
     let q = supabase
       .from("bookings")
-      .select("id, booking_date, start_time, end_time, customer_name, customer_phone, customer_phone_country, customer_notes, customer_id, service_name, professional_name, professional_id, service_id, price, status, source, customer_package_id, series_id, auto_confirm_reason, items_count, payment_status")
+      .select("id, booking_date, start_time, end_time, customer_name, customer_phone, customer_phone_country, customer_notes, customer_id, service_name, professional_name, professional_id, service_id, price, status, source, customer_package_id, series_id, auto_confirm_reason, items_count, payment_status, overlay")
       .eq("business_id", business.id)
       .order("booking_date")
       .order("start_time")
@@ -114,6 +114,8 @@ export async function loadAgenda(ctx: AdminContext, wholeTeam: boolean, o: Optio
     canChooseProfessional: role === "owner" || role === "reception",
     // 46_reabrir_atendimento: matriz e recepção (prazo de 30 dias da recepção conferido no banco)
     canReopen: role === "owner" || role === "reception",
+    // 50_encaixe_sobreposto: matriz (qualquer agenda) e profissional (a própria); recepção não
+    canOverlay: role === "owner" || role === "staff",
     today: todayInZone(business.timezone),
   };
 

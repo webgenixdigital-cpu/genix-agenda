@@ -95,7 +95,7 @@ export default async function AgendaPage({ searchParams }: Props) {
               {activeCount} {activeCount === 1 ? "atendimento" : "atendimentos"} em {monthTitle(month).replace(/ de \d+$/, "")}
             </p>
           </div>
-          <NewBookingDialog defaultDate={month === today.slice(0, 7) ? today : `${month}-01`} services={data.services} professionals={data.pros} fullAccess={plan.tier === "completo"} canSellPackages={wholeTeam} />
+          <NewBookingDialog defaultDate={month === today.slice(0, 7) ? today : `${month}-01`} services={data.services} professionals={data.pros} fullAccess={plan.tier === "completo"} canSellPackages={wholeTeam} canOverlay={role === "owner" || role === "staff"} />
         </header>
 
         <AgendaToolbar
@@ -151,7 +151,7 @@ export default async function AgendaPage({ searchParams }: Props) {
               {activeCount} {activeCount === 1 ? "atendimento" : "atendimentos"} de {shortISO(weekStart)} a {shortISO(weekEnd)}
             </p>
           </div>
-          <NewBookingDialog defaultDate={date} services={data.services} professionals={data.pros} fullAccess={plan.tier === "completo"} canSellPackages={wholeTeam} />
+          <NewBookingDialog defaultDate={date} services={data.services} professionals={data.pros} fullAccess={plan.tier === "completo"} canSellPackages={wholeTeam} canOverlay={role === "owner" || role === "staff"} />
         </header>
 
         <AgendaToolbar
@@ -246,7 +246,7 @@ export default async function AgendaPage({ searchParams }: Props) {
           </p>
         </div>
         <div className="flex flex-wrap items-center justify-center gap-2">
-          <NewBookingDialog defaultDate={date} services={services} professionals={pros} fullAccess={plan.tier === "completo"} canSellPackages={wholeTeam} />
+          <NewBookingDialog defaultDate={date} services={services} professionals={pros} fullAccess={plan.tier === "completo"} canSellPackages={wholeTeam} canOverlay={role === "owner" || role === "staff"} />
           <Link
             href={calendarHref}
             className="inline-flex h-11 items-center gap-2 rounded-md border bg-card px-4 text-sm font-semibold hover:bg-secondary md:hidden"

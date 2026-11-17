@@ -7,6 +7,9 @@ export const STATUS_STYLE: Record<string, string> = {
   cancelled: "bg-red-50 border-red-200 text-red-900 opacity-60 line-through decoration-red-300",
 };
 
+/** Encaixe sobreposto (50): borda tracejada, por cima do status */
+export const OVERLAY_STYLE = "border-dashed border-2";
+
 /** Bolinha por status (calendário do celular) */
 export const STATUS_DOT: Record<string, string> = {
   pending: "bg-amber-500",

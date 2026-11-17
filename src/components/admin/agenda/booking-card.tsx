@@ -1,7 +1,7 @@
 // Cartão de um agendamento (lista do Dia e lista do dia no Mês) + aviso de bloqueio.
 // Sem "use client": serve na página (servidor) e no calendário (cliente).
 import Link from "next/link";
-import { CalendarOff, Globe, Package, Phone, Repeat, StickyNote } from "lucide-react";
+import { CalendarOff, Globe, Layers2, Package, Phone, Repeat, StickyNote } from "lucide-react";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { AutoConfirmBadge } from "@/components/admin/auto-confirm-badge";
 import { PaymentPendingBadge } from "@/components/admin/payment-pending-badge";
@@ -37,7 +37,8 @@ export function BookingCard({
       className={cn(
         "rounded-2xl border bg-card p-4 md:p-5",
         b.status === "cancelled" && "opacity-60",
-        b.status === "pending" && "border-amber-300"
+        b.status === "pending" && "border-amber-300",
+        b.overlay && "border-2 border-dashed border-primary/50"
       )}
     >
       <div className="flex gap-4">
@@ -58,6 +59,15 @@ export function BookingCard({
             <StatusBadge status={b.status} />
             <AutoConfirmBadge status={b.status} reason={b.auto_confirm_reason} testId={`selo-auto-confirmado-${b.id}`} />
             {b.status === "completed" && b.payment_status === "pending" && <PaymentPendingBadge testId={`selo-pagamento-pendente-${b.id}`} />}
+            {b.overlay && (
+              <span
+                className="inline-flex items-center gap-1 rounded-full border border-dashed border-primary/60 bg-secondary px-2 py-0.5 text-xs font-medium text-primary"
+                title="Encaixe sobreposto: por cima de outro atendimento"
+                data-testid={`selo-encaixe-${b.id}`}
+              >
+                <Layers2 className="h-3 w-3" /> Encaixe
+              </span>
+            )}
             {b.series_id && (
               <span
                 className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-primary"

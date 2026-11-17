@@ -257,6 +257,7 @@ export async function createManualBooking(input: {
   if (error) {
     return {
       ok: false,
+      // 23P01: trava no_overlap ou encaixe sobreposto no horário (50)
       error: error.code === OVERLAP
         ? `${pro.name} já tem atendimento nesse horário.`
         : packageError(error.message) ?? "Não foi possível salvar o agendamento.",
@@ -265,6 +266,140 @@ export async function createManualBooking(input: {
   refresh();
   if (input.packageId) revalidatePath("/admin/clientes");
   return { ok: true };
+}
+
+// ---------------------------------------------------------------------
+// PARTE 3b — Encaixe sobreposto (50_encaixe_sobreposto.sql)
+// Por cima de outro atendimento do mesmo profissional. Só a matriz (qualquer
+// agenda) e o profissional (a própria); 1 por trecho; o banco confere tudo.
+// ---------------------------------------------------------------------
+const OVERLAY_ERRORS: Record<string, string> = {
+  SEM_PERMISSAO: "Só a matriz e o próprio profissional marcam encaixe sobreposto.",
+  PROFISSIONAL_INDISPONIVEL: "Esse profissional não está ativo.",
+  PROFISSIONAL_NAO_FAZ: "Esse profissional não faz esse serviço.",
+  MEIA_NOITE: "O atendimento passaria da meia-noite.",
+  BLOQUEIO: "Esse horário está bloqueado na agenda desse profissional.",
+  JA_TEM_ENCAIXE: "Já existe um encaixe sobreposto nesse trecho. Só cabe um por vez.",
+  LIVRE: "Não há atendimento nesse horário para ficar por baixo. Use um horário livre ou o encaixe comum.",
+  PASSADO: "Escolha uma data e horário a partir de agora.",
+  STATUS_INVALIDO: "Só dá para remarcar agendamentos pendentes ou confirmados.",
+  NAO_ENCONTRADO: "Agendamento, serviço ou profissional não encontrado.",
+  DADOS_INVALIDOS: "Confira serviço, profissional, data, horário, nome e WhatsApp.",
+};
+const overlayError = (message?: string, fallback = "Não foi possível salvar o encaixe sobreposto.") =>
+  packageError(message) ??
+  OVERLAY_ERRORS[Object.keys(OVERLAY_ERRORS).find((k) => message?.includes(k)) ?? ""] ??
+  fallback;
+
+export type OverlayItem = { id: string; start: string; end: string; customer: string; service: string; overlay: boolean };
+export type OverlayCheck = {
+  /** null = pode marcar */
+  issue: string | null;
+  /** texto do motivo (quando issue não é null) */
+  message: string | null;
+  /** fim do encaixe (HH:MM) */
+  end: string | null;
+  /** atendimentos que ficam embaixo */
+  overlaps: OverlayItem[];
+};
+
+/** Prévia: pode marcar? quem fica embaixo? (bookingId = remarcar: duração e serviço do agendamento) */
+export async function checkOverlay(input: {
+  serviceId?: string | null;
+  bookingId?: string | null;
+  professionalId: string;
+  date: string;
+  time: string;
+}): Promise<{ ok: true; check: OverlayCheck } | { ok: false; error: string }> {
+  const { business } = await getAdminContext();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.date) || !/^\d{2}:\d{2}$/.test(input.time) || !input.professionalId) {
+    return { ok: false, error: "Escolha o profissional, a data e o horário." };
+  }
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("overlay_booking_check", {
+    p_business: business.id,
+    p_service: input.serviceId || null,
+    p_professional: input.professionalId,
+    p_date: input.date,
+    p_time: input.time,
+    p_booking: input.bookingId || null,
+  });
+  if (error || !data) return { ok: false, error: overlayError(error?.message, "Não foi possível conferir o horário.") };
+  const r = data as { issue: string | null; end: string | null; overlaps: OverlayItem[] | null };
+  return {
+    ok: true,
+    check: {
+      issue: r.issue,
+      message: r.issue ? overlayError(r.issue) : null,
+      end: r.end,
+      overlaps: r.overlaps ?? [],
+    },
+  };
+}
+
+export async function createOverlayBooking(input: {
+  serviceId: string;
+  professionalId: string;
+  date: string; // YYYY-MM-DD
+  time: string; // HH:MM
+  customerName: string;
+  customerPhone: string;
+  customerPhoneCountry?: string;
+  notes?: string;
+  packageId?: string | null;
+}): Promise<Result> {
+  const { business } = await getEditorContext();
+  const name = input.customerName.trim();
+  const parsedPhone = parseCustomerPhone(input.customerPhone, input.customerPhoneCountry);
+  if (name.length < 2) return { ok: false, error: "Informe o nome do cliente." };
+  if (!parsedPhone) return { ok: false, error: phoneError(input.customerPhoneCountry) };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.date) || !/^\d{2}:\d{2}$/.test(input.time)) {
+    return { ok: false, error: "Escolha data e horário." };
+  }
+
+  const supabase = createClient();
+  const { error } = await supabase.rpc("create_overlay_booking", {
+    p_business: business.id,
+    p_service: input.serviceId,
+    p_professional: input.professionalId,
+    p_date: input.date,
+    p_time: input.time,
+    p_customer_name: name,
+    p_customer_phone: parsedPhone.phone,
+    p_customer_country: parsedPhone.country,
+    p_notes: input.notes?.trim() || null,
+    p_package: input.packageId || null,
+  });
+  if (error) return { ok: false, error: overlayError(error.message) };
+  refresh();
+  if (input.packageId) revalidatePath("/admin/clientes");
+  return { ok: true };
+}
+
+export async function rescheduleOverlay(input: {
+  bookingId: string;
+  professionalId: string;
+  date: string; // YYYY-MM-DD
+  time: string; // HH:MM
+}): Promise<{ ok: true; date: string; time: string; professional: string } | { ok: false; error: string }> {
+  await getEditorContext();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.date) || !/^\d{2}:\d{2}$/.test(input.time)) {
+    return { ok: false, error: "Escolha a data e o horário." };
+  }
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("reschedule_overlay", {
+    p_booking: input.bookingId,
+    p_professional: input.professionalId,
+    p_date: input.date,
+    p_time: input.time,
+  });
+  if (error) return { ok: false, error: overlayError(error.message, "Não foi possível remarcar.") };
+
+  refresh();
+  revalidatePath("/admin/lembretes");
+  revalidatePath("/admin/clientes");
+  const r = data as { date: string; time: string; professional: string };
+  return { ok: true, date: r.date, time: r.time, professional: r.professional };
 }
 
 // ---------------------------------------------------------------------

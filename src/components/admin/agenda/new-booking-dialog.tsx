@@ -4,11 +4,12 @@ import { Ajuda } from "@/components/ajuda";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarDays, Check, Loader2, Lock, Package, Plus, Repeat, UserRound, X } from "lucide-react";
+import { CalendarDays, Check, Layers2, Loader2, Lock, Package, Plus, Repeat, UserRound, X } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
 import {
   createManualBooking,
+  createOverlayBooking,
   createSeries,
   listManualSlots,
   lookupCustomer,
@@ -24,6 +25,7 @@ import { SellPackageDialog } from "@/components/admin/clientes/packages-card";
 import type { SaleProfessional, SaleTemplate } from "@/lib/package-sale";
 import { FREQUENCY_LABEL, SKIP_REASON } from "@/lib/series";
 import { CustomerSearch } from "@/components/admin/agenda/customer-search";
+import { OverlayPreview } from "@/components/admin/agenda/overlay-preview";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -46,6 +48,8 @@ type Props = {
   fullAccess?: boolean;
   /** matriz e recepção: botão "Vender pacote" (no Grátis aparece com cadeado) */
   canSellPackages?: boolean;
+  /** matriz e profissional: "Encaixe sobreposto" (por cima de outro atendimento; 50) */
+  canOverlay?: boolean;
   /** modo controlado (grade semanal): abre por fora, sem o botão próprio */
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -72,6 +76,7 @@ export function NewBookingDialog({
   professionals,
   fullAccess = false,
   canSellPackages = false,
+  canOverlay = false,
   open: openProp,
   onOpenChange,
   initial,
@@ -193,6 +198,10 @@ export function NewBookingDialog({
   const [fit, setFit] = useState(false);
   const [fitTime, setFitTime] = useState("");
   const [fitSlot, setFitSlot] = useState<ManualSlot | null | undefined>(undefined); // undefined = carregando
+  // encaixe sobreposto (50): horário livre, por cima de outro atendimento do mesmo profissional
+  const [overlay, setOverlay] = useState(false);
+  const [ovTime, setOvTime] = useState("");
+  const [ovOk, setOvOk] = useState(false);
   // clique na grade semanal: aplica horário e profissional quando os horários chegam
   const pendingInitial = useRef<Props["initial"] | null>(null);
 
@@ -243,13 +252,15 @@ export function NewBookingDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slots]);
 
-  const chosenTime = fit ? fitTime : time;
+  const chosenTime = overlay ? ovTime : fit ? fitTime : time;
   const times = !fitTime || TIMES.includes(fitTime) ? TIMES : [...TIMES, fitTime].sort();
 
   // ------------------------------------------------------------------ 5. profissional
   const [professionalId, setProfessionalId] = useState("");
+  const onlyOne = professionals.length === 1;
+  const service = services.find((s) => s.id === serviceId);
   /** profissionais livres no horário escolhido (null = ainda carregando / sem horário) */
-  const freeIds: string[] | null = !chosenTime
+  const freeIds: string[] | null = !chosenTime || overlay
     ? null
     : fit
       ? fitSlot === undefined ? null : (fitSlot?.professionalIds ?? [])
@@ -258,6 +269,11 @@ export function NewBookingDialog({
   const freeKey = freeIds?.join(",") ?? "";
 
   useEffect(() => {
+    if (overlay) {
+      // sobreposto: escolhe entre todos (o banco confere se faz o serviço)
+      if (!professionalId && onlyOne) setProfessionalId(professionals[0].id);
+      return;
+    }
     if (freeIds === null) {
       if (!chosenTime) setProfessionalId("");
       return;
@@ -270,7 +286,7 @@ export function NewBookingDialog({
     if (freeIds.length === 1) setProfessionalId(freeIds[0]);
     else if (professionalId && !freeIds.includes(professionalId)) setProfessionalId("");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [freeKey, chosenTime]);
+  }, [freeKey, chosenTime, overlay]);
 
   // pacote que vence antes da data escolhida sai
   useEffect(() => {
@@ -308,6 +324,9 @@ export function NewBookingDialog({
     setTime("");
     setFit(false);
     setFitTime("");
+    setOverlay(false);
+    setOvTime("");
+    setOvOk(false);
     setProfessionalId("");
     pendingInitial.current = init?.time ? init : null;
     setNotes("");
@@ -370,16 +389,16 @@ export function NewBookingDialog({
 
   function submit() {
     setError(null);
-    if (repeat) return submitSeries();
+    if (repeat && !overlay) return submitSeries();
     if (!validCustomer()) return;
     start(async () => {
-      const r = await createManualBooking({
+      const r = await (overlay ? createOverlayBooking : createManualBooking)({
         serviceId, professionalId, date, time: chosenTime, customerName: name, customerPhone: phone,
         customerPhoneCountry: phoneCountry, notes, packageId,
       });
       if (!r) return; // demonstração: o servidor redirecionou
       if (r.ok) {
-        toast.success("Agendamento criado");
+        toast.success(overlay ? "Encaixe sobreposto criado" : "Agendamento criado");
         setOpen(false);
       } else {
         setError(r.error);
@@ -387,8 +406,6 @@ export function NewBookingDialog({
     });
   }
 
-  const onlyOne = professionals.length === 1;
-  const service = services.find((s) => s.id === serviceId);
 
   return (
     <>
@@ -616,6 +633,7 @@ export function NewBookingDialog({
                       checked={fit}
                       onChange={(e) => {
                         setFit(e.target.checked);
+                        if (e.target.checked) setOverlay(false);
                         if (e.target.checked && !fitTime && time) setFitTime(time);
                       }}
                       data-testid="check-encaixe-manual"
@@ -628,7 +646,7 @@ export function NewBookingDialog({
 
               {!serviceId ? (
                 <p className="rounded-lg bg-secondary/40 p-3 text-sm text-muted-foreground">Escolha o serviço para ver os horários livres.</p>
-              ) : fit ? (
+              ) : overlay ? null : fit ? (
                 <div className="space-y-1.5">
                   <Label>Horário do encaixe</Label>
                   <Select value={fitTime} onValueChange={setFitTime}>
@@ -690,8 +708,79 @@ export function NewBookingDialog({
               )}
             </section>
 
+            {/* 4b. Encaixe sobreposto (50): matriz e profissional */}
+            {canOverlay && serviceId && (
+              <div className={cn("space-y-3 rounded-xl border p-3", overlay && "border-dashed border-primary/60")}>
+                <div className="flex items-center gap-1">
+                  <label className="flex min-h-11 flex-1 cursor-pointer items-center gap-3 text-sm font-semibold">
+                    <input
+                      type="checkbox"
+                      className="h-5 w-5 shrink-0 accent-primary"
+                      checked={overlay}
+                      onChange={(e) => {
+                        setOverlay(e.target.checked);
+                        if (e.target.checked) {
+                          setFit(false);
+                          setRepeat(false);
+                          if (!ovTime) setOvTime(fitTime || time);
+                        }
+                      }}
+                      data-testid="check-encaixe-sobreposto"
+                    />
+                    <Layers2 className="h-4 w-4 shrink-0 text-primary" />
+                    <span>
+                      Encaixe sobreposto <span className="font-normal text-muted-foreground">(por cima de outro atendimento)</span>
+                    </span>
+                  </label>
+                  <Ajuda id="encaixe-sobreposto" />
+                </div>
+
+                {overlay && (
+                  <>
+                    <div className="flex flex-wrap items-end gap-3">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="nb-ov-time">Horário</Label>
+                        <Input
+                          id="nb-ov-time"
+                          type="time"
+                          className="h-11 w-36"
+                          value={ovTime}
+                          onChange={(e) => setOvTime(e.target.value.slice(0, 5))}
+                          data-testid="input-sobreposto-horario"
+                        />
+                      </div>
+                      <div className="min-w-0 flex-1 basis-40 space-y-1.5">
+                        <Label>Profissional</Label>
+                        {onlyOne ? (
+                          <p className="flex min-h-11 items-center rounded-lg border bg-secondary/30 px-3 text-sm" data-testid="profissional-fixo-sobreposto">
+                            {professionals[0].name}
+                          </p>
+                        ) : (
+                          <Select value={professionalId} onValueChange={setProfessionalId}>
+                            <SelectTrigger className="h-11" data-testid="select-profissional-sobreposto"><SelectValue placeholder="Escolha" /></SelectTrigger>
+                            <SelectContent>
+                              {professionals.map((p) => (
+                                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      </div>
+                    </div>
+                    <OverlayPreview
+                      serviceId={serviceId}
+                      professionalId={professionalId}
+                      date={date}
+                      time={ovTime}
+                      onReady={setOvOk}
+                    />
+                  </>
+                )}
+              </div>
+            )}
+
             {/* 5. Profissional: só os livres no horário */}
-            {chosenTime && serviceId && (
+            {chosenTime && serviceId && !overlay && (
               <div className="space-y-1.5">
                 <Label>Profissional</Label>
                 {freeIds === null ? (
@@ -726,7 +815,7 @@ export function NewBookingDialog({
             </div>
 
             {/* Repetir (recorrência) — recurso dos planos pagos */}
-            {fullAccess ? (
+            {overlay ? null : fullAccess ? (
               <div className="space-y-3 rounded-xl border p-3">
                 <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm font-semibold">
                   <input
@@ -819,13 +908,18 @@ export function NewBookingDialog({
               type="submit"
               className="h-12 w-full text-base"
               disabled={
-                pending || !serviceId || !professionalId || !chosenTime || !freeIds?.includes(professionalId) ||
-                (repeat && !!preview && (okDates.length === 0 || packageShort !== null))
+                pending || !serviceId || !professionalId || !chosenTime ||
+                (overlay
+                  ? !ovOk
+                  : !freeIds?.includes(professionalId) ||
+                    (repeat && !!preview && (okDates.length === 0 || packageShort !== null)))
               }
               data-testid="btn-salvar-agendamento-manual"
             >
               {pending ? (
                 <Loader2 className="h-5 w-5 animate-spin" />
+              ) : overlay ? (
+                "Salvar encaixe sobreposto"
               ) : !repeat ? (
                 "Salvar agendamento"
               ) : !preview ? (

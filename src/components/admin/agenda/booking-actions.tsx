@@ -43,6 +43,8 @@ export type AgendaBooking = {
   items_count?: number;
   /** 49: 'pending' = concluído com "Escolher depois"; 'paid' = pago depois */
   payment_status?: "pending" | "paid" | null;
+  /** 50: encaixe sobreposto (por cima de outro atendimento do mesmo profissional) */
+  overlay?: boolean;
 };
 
 /** Dados para o botão "Remarcar" (opcional: sem ele, o botão não aparece) */
@@ -52,6 +54,8 @@ export type RescheduleProps = {
   canChooseProfessional: boolean;
   /** "Reabrir atendimento" nos concluídos (matriz e recepção) */
   canReopen?: boolean;
+  /** 50: "Encaixe sobreposto" no Novo agendamento e no Remarcar (matriz e profissional) */
+  canOverlay?: boolean;
   today: string;
 };
 

@@ -135,7 +135,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "retry" }, { status: 500 });
     }
   }
-
+  // Mensalidade da Cantina Bom Sabor: repassa o aviso ao sistema do restaurante
+  if (!subscriptionId && body.payment?.externalReference?.startsWith("bomsabor:")) {
+    const url = process.env.BOMSABOR_WEBHOOK_URL;
+    if (!url) return finish("ignorado: BOMSABOR_WEBHOOK_URL não configurada");
+    try {
+      const r = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "asaas-access-token": process.env.ASAAS_WEBHOOK_TOKEN ?? "" },
+        body: JSON.stringify(body),
+      });
+      if (!r.ok) throw new Error(`Bom Sabor respondeu ${r.status}`);
+      return finish("repassado ao Bom Sabor");
+    } catch (e) {
+      await admin.from("asaas_webhook_events").delete().eq("id", eventId); // Asaas tenta de novo
+      console.error("Repasse Bom Sabor falhou", e);
+      return NextResponse.json({ error: "retry" }, { status: 500 });
+    }
+  }
   if (!subscriptionId) return finish("ignorado: sem assinatura vinculada");
 
   // Assinatura do Genix Agenda correspondente

@@ -14,11 +14,16 @@ const AJUDA_TEXTOS = {
   // ------------------------------------------------------------------ telas e seções
   inicio: {
     titulo: "Início",
-    serve: "É o resumo do seu dia: atendimentos de hoje, pedidos esperando confirmação e como está o mês.",
+    serve:
+      "É o resumo do seu dia em quadros: atendimentos de hoje, pagamentos a registrar, aniversários, retornos, próximo feriado e o que ainda falta configurar. Cada pessoa da equipe vê só os quadros que pode abrir.",
     passos: [
-      "Confira a agenda de hoje logo no topo.",
-      "Toque em “Abrir agenda” para ver os horários com detalhes.",
-      "Se aparecer pedido pendente, toque nele para confirmar.",
+      "Toque em qualquer quadro para ir direto à tela dele (Agenda, Clientes, Lembretes, Bloqueios, Configurações...).",
+      "Quadro em amarelo pede atenção: pedido a confirmar, pagamento pendente, WhatsApp desconectado ou informação faltando.",
+      "Quadro apagado, com “Tudo em dia”, quer dizer que não há nada a fazer ali.",
+      "Mais abaixo fica a agenda de hoje e o link da sua vitrine.",
+    ],
+    atencao: [
+      "O quadro de feriados mostra só os nacionais. Feriados da sua cidade ou do seu estado você cadastra em Bloqueios.",
     ],
   },
   agenda: {

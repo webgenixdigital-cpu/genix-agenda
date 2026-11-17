@@ -1,87 +1,311 @@
 import { Ajuda } from "@/components/ajuda";
 import { cookies } from "next/headers";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import {
+  BadgeCheck,
+  Cake,
+  CalendarCheck,
+  CalendarOff,
+  HandCoins,
+  ListChecks,
+  MessageCircle,
+  RotateCcw,
+  TrendingUp,
+  Wallet,
+} from "lucide-react";
 import { getAdminContext } from "@/lib/admin";
-import { getPlanContext } from "@/lib/plan";
-import { getOnboarding } from "@/lib/onboarding";
+import { getPlanContext, PLAN_NAMES, type PlanContext } from "@/lib/plan";
+import { loadHome, type HomeData } from "@/lib/dashboard-data";
 import { OnboardingCard } from "@/components/admin/onboarding-card";
 import { ONBOARDING_COOKIE, readOnboardingPref } from "@/lib/ui-prefs";
-import { todayInZone } from "@/lib/dates";
+import { addDaysISO } from "@/lib/dates";
 import { brl, longDate } from "@/lib/format";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { VitrineLinkCard } from "@/components/admin/vitrine-link-card";
 import { ConfirmIntroCard } from "@/components/admin/confirm-intro-card";
+import { HomeTile, type HomeTileTone } from "@/components/admin/inicio/home-tile";
 import { Button } from "@/components/ui/button";
+import type { AdminContext } from "@/lib/admin";
 import type { BookingStatus } from "@/lib/types";
+import type { LucideIcon } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
 // ---------------------------------------------------------------------
-// PARTE 1 — Dados
+// PARTE 1 — Quadros (cada um só para quem tem permissão)
 // ---------------------------------------------------------------------
-async function loadDashboard(businessId: string, timeZone: string) {
-  const supabase = createClient();
-  const today = todayInZone(timeZone); // fuso do espaço
-  const monthStart = today.slice(0, 8) + "01";
+type Tile = {
+  id: string;
+  href: string;
+  icon: LucideIcon;
+  title: string;
+  value: string;
+  hint: string;
+  tone?: HomeTileTone;
+  textValue?: boolean;
+};
 
-  const [bookingsToday, cashMonth, pendingCount, doneMonth] = await Promise.all([
-    supabase
-      .from("bookings")
-      .select("id, start_time, end_time, customer_name, service_name, professional_name, price, status, source")
-      .eq("business_id", businessId)
-      .eq("booking_date", today)
-      .order("start_time"),
-    supabase
-      .from("cash_entries")
-      .select("kind, amount, entry_date")
-      .eq("business_id", businessId)
-      .gte("entry_date", monthStart)
-      .lte("entry_date", today),
-    supabase
-      .from("bookings")
-      .select("id", { count: "exact", head: true })
-      .eq("business_id", businessId)
-      .eq("status", "pending")
-      .gte("booking_date", today),
-    // atendimentos concluídos no mês (o banco já limita ao que cada papel pode ver)
-    supabase
-      .from("bookings")
-      .select("price")
-      .eq("business_id", businessId)
-      .eq("status", "completed")
-      .gte("booking_date", monthStart)
-      .lte("booking_date", today),
-  ]);
+/** "sex., 20/11" */
+const dayLabel = (iso: string) =>
+  new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC", weekday: "short", day: "2-digit", month: "2-digit" }).format(
+    new Date(`${iso}T12:00:00Z`)
+  );
+const ddmm = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+const firstName = (name: string) => name.trim().split(/\s+/)[0] ?? name;
+const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+/** "Ana, Bia e +2" */
+const shortList = (names: string[], max = 2) =>
+  names.length <= max
+    ? names.join(names.length === 2 ? " e " : "")
+    : `${names.slice(0, max).join(", ")} e +${names.length - max}`;
 
-  const cash = cashMonth.data ?? [];
-  const incomes = cash.filter((c) => c.kind === "income");
-  const sum = (list: { amount: number }[]) => list.reduce((acc, c) => acc + Number(c.amount), 0);
+function buildTiles(role: AdminContext["role"], plan: PlanContext, d: HomeData): Tile[] {
+  const ownerLike = role === "owner" || role === "viewer";
+  const tiles: Tile[] = [];
 
-  const revenueMonth = sum(incomes);
-  const revenueToday = sum(incomes.filter((c) => c.entry_date === today));
-  const expensesMonth = sum(cash.filter((c) => c.kind === "expense"));
-  const avgTicket = incomes.length ? revenueMonth / incomes.length : 0;
+  // Hoje
+  const t = d.todayTile;
+  tiles.push(
+    t.pendingConfirm > 0
+      ? {
+          id: "hoje",
+          href: "/admin/agenda?status=pending",
+          icon: CalendarCheck,
+          title: "Hoje",
+          value: String(t.count),
+          hint: `${plural(t.count, "atendimento", "atendimentos")} · ${t.pendingConfirm} a confirmar`,
+          tone: "alerta",
+        }
+      : {
+          id: "hoje",
+          href: "/admin/agenda",
+          icon: CalendarCheck,
+          title: "Hoje",
+          value: String(t.count),
+          hint: t.count === 0 ? "nenhum atendimento hoje" : `${plural(t.count, "atendimento", "atendimentos")} · ${t.done} concluído${t.done === 1 ? "" : "s"}`,
+          tone: t.count === 0 ? "calmo" : "normal",
+        }
+  );
 
-  const list = bookingsToday.data ?? [];
-  const activeToday = list.filter((b) => b.status !== "cancelled");
+  // Pagamentos pendentes
+  if (d.payments) {
+    tiles.push(
+      d.payments.count > 0
+        ? {
+            id: "pagamentos",
+            href: "/admin/agenda?pagamentos=1",
+            icon: Wallet,
+            title: "Pagamentos pendentes",
+            value: String(d.payments.count),
+            hint: `${brl(d.payments.total)} a receber`,
+            tone: "alerta",
+          }
+        : {
+            id: "pagamentos",
+            href: "/admin/agenda?pagamentos=1",
+            icon: Wallet,
+            title: "Pagamentos pendentes",
+            value: "Tudo em dia",
+            hint: "nenhum pagamento a registrar",
+            tone: "calmo",
+            textValue: true,
+          }
+    );
+  }
 
-  return {
-    today,
-    bookings: list,
-    stats: {
-      revenueToday,
-      revenueMonth,
-      expensesMonth,
-      avgTicket,
-      bookingsToday: activeToday.length,
-      expectedToday: sum(activeToday.map((b) => ({ amount: b.price }))),
-      pending: pendingCount.count ?? 0,
-      doneMonthCount: (doneMonth.data ?? []).length,
-      doneMonthValue: sum((doneMonth.data ?? []).map((b) => ({ amount: b.price }))),
-      doneToday: list.filter((b) => b.status === "completed").length,
-    },
-  };
+  // Caixa do mês (dono)
+  if (d.cash) {
+    tiles.push({
+      id: "caixa",
+      href: "/admin/financeiro",
+      icon: TrendingUp,
+      title: "Caixa do mês",
+      value: brl(d.cash.income),
+      hint: d.cash.income || d.cash.expense ? `Saldo ${brl(d.cash.income - d.cash.expense)}` : "nenhuma entrada ainda",
+      tone: d.cash.income || d.cash.expense ? "normal" : "calmo",
+      textValue: true,
+    });
+  }
+
+  // Meus ganhos (profissional)
+  if (d.earnings) {
+    const pct = String(d.earnings.commission).replace(".", ",");
+    tiles.push({
+      id: "ganhos",
+      href: "/admin/ganhos",
+      icon: HandCoins,
+      title: "Meus ganhos",
+      value: brl(d.earnings.value),
+      hint: d.earnings.commission
+        ? `${plural(d.earnings.count, "concluído", "concluídos")} no mês · ${pct}%`
+        : "percentual não definido",
+      tone: d.earnings.count ? "normal" : "calmo",
+      textValue: true,
+    });
+  }
+
+  // WhatsApp automático (dono)
+  if (d.whatsapp) {
+    const w = d.whatsapp;
+    tiles.push(
+      w.status === "disconnected"
+        ? {
+            id: "whatsapp",
+            href: "/admin/configuracoes#whatsapp",
+            icon: MessageCircle,
+            title: "WhatsApp",
+            value: "Desconectado",
+            hint: "toque para conectar de novo",
+            tone: "alerta",
+            textValue: true,
+          }
+        : w.status === "connected"
+          ? {
+              id: "whatsapp",
+              href: "/admin/configuracoes#whatsapp",
+              icon: MessageCircle,
+              title: "WhatsApp",
+              value: "Conectado",
+              hint: w.autoEnabled ? `${plural(w.sentToday, "mensagem enviada", "mensagens enviadas")} hoje` : "envio automático desligado",
+              textValue: true,
+            }
+          : {
+              id: "whatsapp",
+              href: "/admin/configuracoes#whatsapp",
+              icon: MessageCircle,
+              title: "WhatsApp",
+              value: "Não conectado",
+              hint: "conecte pelo QR code",
+              textValue: true,
+            }
+    );
+  }
+
+  // Aniversários (dono e recepção)
+  if (d.birthdays) {
+    const list = d.birthdays;
+    const names = list.map((c) => `${firstName(c.name)}${c.inDays === 0 ? " (hoje)" : ""}`);
+    tiles.push(
+      list.length > 0
+        ? {
+            id: "aniversarios",
+            href: list.length === 1 ? `/admin/clientes/${list[0].id}` : "/admin/clientes",
+            icon: Cake,
+            title: "Aniversários",
+            value: String(list.length),
+            hint: shortList(names),
+          }
+        : {
+            id: "aniversarios",
+            href: "/admin/clientes",
+            icon: Cake,
+            title: "Aniversários",
+            value: "Nenhum",
+            hint: "nos próximos 7 dias",
+            tone: "calmo",
+            textValue: true,
+          }
+    );
+  }
+
+  // Retornos (dono e recepção, planos pagos)
+  if (d.returns) {
+    const { due, soon } = d.returns;
+    tiles.push(
+      due > 0
+        ? {
+            id: "retornos",
+            href: "/admin/lembretes?dia=retornos",
+            icon: RotateCcw,
+            title: "Retornos",
+            value: String(due),
+            hint: `na hora de voltar${soon ? ` · +${soon} em 7 dias` : ""}`,
+          }
+        : {
+            id: "retornos",
+            href: "/admin/lembretes?dia=retornos",
+            icon: RotateCcw,
+            title: "Retornos",
+            value: "Tudo em dia",
+            hint: soon ? `${soon} nos próximos 7 dias` : "ninguém na fila",
+            tone: "calmo",
+            textValue: true,
+          }
+    );
+  }
+
+  // Próximo bloqueio ou feriado (o que vier antes)
+  const blockDay = d.block ? (d.block.date_start > d.today ? d.block.date_start : d.today) : null;
+  const useBlock = !!d.block && (!d.holiday || (blockDay as string) <= d.holiday.date);
+  const soon = addDaysISO(d.today, 7);
+  if (useBlock && d.block && blockDay) {
+    const ongoing = d.block.date_start <= d.today;
+    tiles.push({
+      id: "bloqueio",
+      href: "/admin/bloqueios",
+      icon: CalendarOff,
+      title: "Próximo bloqueio",
+      value: ongoing ? (d.block.date_end > d.today ? `Até ${ddmm(d.block.date_end)}` : "Hoje") : dayLabel(blockDay),
+      hint: d.block.reason?.trim() || (d.block.time_start ? `a partir das ${d.block.time_start.slice(0, 5)}` : "agenda fechada"),
+      tone: blockDay <= soon ? "normal" : "calmo",
+      textValue: true,
+    });
+  } else if (d.holiday) {
+    tiles.push({
+      id: "bloqueio",
+      href: "/admin/bloqueios",
+      icon: CalendarOff,
+      title: "Próximo feriado",
+      value: d.holiday.date === d.today ? "Hoje" : dayLabel(d.holiday.date),
+      hint: `${d.holiday.name}${d.holiday.optional ? " · ponto facultativo" : ""}`,
+      tone: d.holiday.date <= soon ? "normal" : "calmo",
+      textValue: true,
+    });
+  }
+
+  // Plano (dono)
+  if (ownerLike) {
+    const name = PLAN_NAMES[plan.kind];
+    const tile = (value: string, hint: string, tone: HomeTileTone = "normal"): Tile => ({
+      id: "plano",
+      href: "/admin/assinatura",
+      icon: BadgeCheck,
+      title: "Plano",
+      value,
+      hint,
+      tone,
+      textValue: true,
+    });
+    if (plan.grant) {
+      tiles.push(tile(PLAN_NAMES[plan.grant.kind], plan.grant.expiresAt ? `cortesia até ${ddmm(plan.grant.expiresAt.slice(0, 10))}` : "cortesia", "calmo"));
+    } else if (plan.trialDaysLeft !== null) {
+      tiles.push(tile(plural(plan.trialDaysLeft, "dia", "dias"), "de teste do plano Equipe", plan.trialDaysLeft <= 3 ? "alerta" : "normal"));
+    } else if (plan.status === "past_due") {
+      tiles.push(tile(name, "pagamento da assinatura em atraso", "alerta"));
+    } else if (plan.tier === "gratis") {
+      tiles.push(tile("Grátis", "conheça os planos pagos"));
+    } else if (plan.status === "active") {
+      tiles.push(tile(name, plan.currentPeriodEnd ? `próxima cobrança ${ddmm(plan.currentPeriodEnd.slice(0, 10))}` : "assinatura em dia", "calmo"));
+    } else {
+      tiles.push(tile(name, "sem cobrança", "calmo"));
+    }
+  }
+
+  // Falta configurar (dono): some quando está tudo preenchido
+  if (d.gaps && d.gaps.length > 0) {
+    tiles.push({
+      id: "falta-configurar",
+      href: d.gaps[0].href,
+      icon: ListChecks,
+      title: "Falta configurar",
+      value: String(d.gaps.length),
+      hint: capitalize(shortList(d.gaps.map((g) => g.label))),
+      tone: "alerta",
+    });
+  }
+
+  return tiles;
 }
 
 // ---------------------------------------------------------------------
@@ -91,69 +315,28 @@ type Props = { searchParams: { "bem-vindo"?: string } };
 
 export default async function Dashboard({ searchParams }: Props) {
   const { business, role, professionalId } = await getAdminContext();
-  const plan = await getPlanContext(business.id);
   const isOwner = role === "owner";
-  const supabase = createClient();
-  const { data: me } = professionalId
-    ? await supabase.from("professionals").select("name, commission_pct").eq("id", professionalId).maybeSingle()
-    : { data: null };
+  // plano (cache do layout) e consultas do Início na mesma rodada
+  const d = await loadHome({ role, professionalId }, business as never, getPlanContext(business.id));
+  const plan = d.plan;
+
   // Configuração inicial: matriz (e a demo, só para ver); "Ocultar" fica no cookie deste navegador
   const onboardingPref = readOnboardingPref(cookies().get(ONBOARDING_COOKIE)?.value);
   const showsOnboarding = (role === "viewer" || (isOwner && !plan.internal)) && onboardingPref !== "hidden";
-  const [{ today, bookings, stats }, onboarding] = await Promise.all([
-    loadDashboard(business.id, business.timezone),
-    showsOnboarding ? getOnboarding(business as never, plan) : Promise.resolve(null),
-  ]);
+  const onboarding = showsOnboarding ? d.onboarding : null;
   const welcome = searchParams["bem-vindo"] === "1";
 
-  // Confirmação automática: aviso para contas antigas e novos confirmados nas últimas 24 h
+  // Confirmação automática: aviso para contas antigas
   const biz = business as unknown as { online_confirm_mode?: string; online_confirm_reviewed_at?: string | null };
   const showConfirmIntro = isOwner && biz.online_confirm_mode === "manual" && !biz.online_confirm_reviewed_at;
-  const { count: autoConfirmed } =
-    isOwner || role === "reception"
-      ? await supabase
-          .from("bookings")
-          .select("id", { count: "exact", head: true })
-          .eq("business_id", business.id)
-          .eq("source", "online")
-          .eq("status", "confirmed")
-          .not("auto_confirm_reason", "is", null)
-          .gte("created_at", new Date(Date.now() - 86_400_000).toISOString())
-      : { count: 0 };
 
-  // Indicadores por papel
-  const commission = Number(me?.commission_pct ?? 0);
-  const cards =
-    role === "staff"
-      ? [
-          { label: "Meus atendimentos hoje", value: String(stats.bookingsToday), hint: `${brl(stats.expectedToday)} previstos` },
-          { label: "Concluídos hoje", value: String(stats.doneToday), hint: "atendimentos finalizados" },
-          { label: "Concluídos no mês", value: String(stats.doneMonthCount), hint: `${brl(stats.doneMonthValue)} em serviços` },
-          {
-            label: "Comissão estimada",
-            value: brl((stats.doneMonthValue * commission) / 100),
-            hint: commission ? `${String(commission).replace(".", ",")}% no mês` : "percentual não definido",
-          },
-        ]
-      : role === "reception"
-        ? [
-            { label: "Atendimentos hoje", value: String(stats.bookingsToday), hint: "toda a equipe" },
-            { label: "Previsto hoje", value: brl(stats.expectedToday), hint: "na agenda" },
-            { label: "Concluídos hoje", value: String(stats.doneToday), hint: "atendimentos finalizados" },
-            { label: "Pedidos pendentes", value: String(stats.pending), hint: "aguardando confirmação" },
-          ]
-        : [
-            { label: "Faturamento hoje", value: brl(stats.revenueToday), hint: `${brl(stats.expectedToday)} previstos na agenda` },
-            { label: "Faturamento do mês", value: brl(stats.revenueMonth), hint: `Saldo ${brl(stats.revenueMonth - stats.expensesMonth)}` },
-            { label: "Atendimentos hoje", value: String(stats.bookingsToday), hint: "sem contar cancelados" },
-            { label: "Ticket médio", value: brl(stats.avgTicket), hint: "no mês" },
-          ];
-  const greeting = role === "staff" && me?.name ? me.name.split(" ")[0] : business.name;
+  const tiles = buildTiles(role, plan, d);
+  const greeting = role === "staff" && d.meName ? firstName(d.meName) : business.name;
 
   return (
-    <main className="mx-auto max-w-6xl space-y-10 p-4 md:p-8">
+    <main className="mx-auto max-w-6xl space-y-8 p-4 md:space-y-10 md:p-8">
       <header className="text-center">
-        <p className="text-sm text-muted-foreground first-letter:uppercase">{longDate(today)}</p>
+        <p className="text-sm text-muted-foreground first-letter:uppercase">{longDate(d.today)}</p>
         <h1 className="mt-1 text-3xl md:text-4xl">Olá, {greeting} <Ajuda id="inicio" className="-ml-2" /></h1>
       </header>
 
@@ -171,15 +354,15 @@ export default async function Dashboard({ searchParams }: Props) {
 
       {showConfirmIntro && <ConfirmIntroCard />}
 
-      {(autoConfirmed ?? 0) > 0 && (
+      {d.autoConfirmed > 0 && (
         <Link
           href="/admin/agenda"
           className="flex items-center justify-between gap-4 rounded-2xl border border-green-200 bg-green-50 p-4 text-green-900 transition-colors hover:bg-green-100"
           data-testid="linha-confirmados-automaticamente"
         >
           <span>
-            <strong>{autoConfirmed}</strong>{" "}
-            {autoConfirmed === 1
+            <strong>{d.autoConfirmed}</strong>{" "}
+            {d.autoConfirmed === 1
               ? "novo agendamento online confirmado automaticamente (24 h)"
               : "novos agendamentos online confirmados automaticamente (24 h)"}
           </span>
@@ -187,28 +370,10 @@ export default async function Dashboard({ searchParams }: Props) {
         </Link>
       )}
 
-      {stats.pending > 0 && (
-        <Link
-          href="/admin/agenda?status=pending"
-          className="flex items-center justify-between gap-4 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-amber-900 transition-colors hover:bg-amber-100"
-          data-testid="alerta-pendentes"
-        >
-          <span>
-            <strong>{stats.pending}</strong>{" "}
-            {stats.pending === 1 ? "pedido aguardando sua confirmação" : "pedidos aguardando sua confirmação"}
-          </span>
-          <span className="text-sm font-semibold underline">Confirmar agora</span>
-        </Link>
-      )}
-
-      {/* Indicadores */}
-      <section className="grid grid-cols-2 gap-4 md:gap-6 lg:grid-cols-4">
-        {cards.map((c) => (
-          <div key={c.label} className="rounded-2xl border bg-card p-4 md:p-5">
-            <p className="text-sm text-muted-foreground">{c.label}</p>
-            <p className="mt-2 font-heading text-2xl md:text-3xl">{c.value}</p>
-            <p className="mt-1 text-xs text-muted-foreground">{c.hint}</p>
-          </div>
+      {/* Quadros */}
+      <section aria-label="Resumo" className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4 xl:grid-cols-4" data-testid="quadros-inicio">
+        {tiles.map((t) => (
+          <HomeTile key={t.id} {...t} />
         ))}
       </section>
 
@@ -222,13 +387,13 @@ export default async function Dashboard({ searchParams }: Props) {
             </Button>
           </div>
 
-          {bookings.length === 0 ? (
+          {d.bookings.length === 0 ? (
             <p className="p-8 text-center text-muted-foreground">
               Nenhum atendimento hoje. Compartilhe o link da vitrine para receber agendamentos.
             </p>
           ) : (
             <ul className="divide-y">
-              {bookings.map((b) => (
+              {d.bookings.map((b) => (
                 <li key={b.id} className="flex items-center gap-4 p-4 md:px-5" data-testid={`agenda-hoje-${b.id}`}>
                   <div className="w-14 shrink-0 text-center">
                     <p className="font-semibold">{b.start_time.slice(0, 5)}</p>

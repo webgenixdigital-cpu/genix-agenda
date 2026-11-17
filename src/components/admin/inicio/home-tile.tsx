@@ -46,7 +46,7 @@ export function HomeTile({ id, href, icon: Icon, title, value, hint, tone = "nor
       href={href}
       data-testid={`quadro-${id}`}
       className={cn(
-        "flex min-h-[9.5rem] min-w-0 flex-col rounded-2xl border p-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:aspect-square sm:min-h-0 md:p-5",
+        "flex min-h-[9.5rem] min-w-0 flex-col rounded-2xl border p-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:aspect-square sm:min-h-0 md:aspect-auto md:min-h-[140px] md:p-4",
         t.box
       )}
     >
@@ -56,11 +56,11 @@ export function HomeTile({ id, href, icon: Icon, title, value, hint, tone = "nor
         </span>
         <span className="min-w-0 break-words text-[13px] font-semibold leading-tight sm:text-sm">{title}</span>
       </span>
-      <span className="mt-auto pt-3">
+      <span className="mt-auto pt-3 md:pt-2">
         <span
           className={cn(
             "block break-words font-heading leading-tight",
-            textValue ? "text-xl md:text-2xl" : "text-3xl md:text-4xl",
+            textValue ? "text-xl md:text-2xl" : "text-3xl",
             t.value
           )}
         >

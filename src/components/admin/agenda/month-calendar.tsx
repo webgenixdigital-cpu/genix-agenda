@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { CalendarPlus, ChevronLeft, ChevronRight, Clock, Layers, Package, Repeat, X } from "lucide-react";
+import { CalendarPlus, ChevronLeft, ChevronRight, Clock, Layers, Layers2, Package, Repeat, X } from "lucide-react";
 import { BlockNotice, BookingCard } from "@/components/admin/agenda/booking-card";
 import { NewBookingDialog } from "@/components/admin/agenda/new-booking-dialog";
 import { CancelledToggle, ProfessionalFilter, useAgendaNav } from "@/components/admin/agenda/agenda-toolbar";
@@ -20,7 +20,7 @@ import {
   type AgendaBlock,
   type AgendaItem,
 } from "@/lib/agenda";
-import { STATUS_DOT, STATUS_STYLE } from "@/components/admin/agenda/status-colors";
+import { OVERLAY_STYLE, STATUS_DOT, STATUS_STYLE } from "@/components/admin/agenda/status-colors";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------
@@ -131,6 +131,7 @@ function useNewBooking(props: Props) {
       professionals={props.professionals}
       fullAccess={props.fullAccess}
       canSellPackages={props.reschedule?.canChooseProfessional}
+      canOverlay={props.reschedule?.canOverlay}
       open={!!slot}
       onOpenChange={(o) => !o && setSlot(null)}
       initial={slot ?? undefined}
@@ -199,7 +200,7 @@ export function MonthCalendar(props: Props) {
                 {d.items.slice(0, MAX_ITEMS).map((b) => (
                   <span
                     key={b.id}
-                    className={cn("flex items-center gap-1 truncate rounded border px-1 py-0.5 text-[11px] leading-tight", STATUS_STYLE[b.status])}
+                    className={cn("flex items-center gap-1 truncate rounded border px-1 py-0.5 text-[11px] leading-tight", STATUS_STYLE[b.status], b.overlay && OVERLAY_STYLE)}
                     data-testid={`item-mes-${b.id}`}
                   >
                     <span className="font-semibold">{b.start_time.slice(0, 5)}</span>
@@ -208,6 +209,7 @@ export function MonthCalendar(props: Props) {
                       {b.service_id && comboIds.has(b.service_id) && <Layers className="h-3 w-3" aria-label="Combo" />}
                       {b.customer_package_id && <Package className="h-3 w-3" aria-label="Pacote" />}
                       {b.series_id && <Repeat className="h-3 w-3" aria-label="Recorrente" />}
+                      {b.overlay && <Layers2 className="h-3 w-3 shrink-0" aria-label="Encaixe sobreposto" data-testid={`selo-encaixe-${b.id}`} />}
                       {b.status === "completed" && b.payment_status === "pending" && (
                         <Clock className="h-3 w-3 text-amber-700" aria-label="Pagamento pendente" />
                       )}

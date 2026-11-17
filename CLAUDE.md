@@ -140,6 +140,14 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
   passo, `professional_does_service`, `slot_conflicts_block` — almoço e folga fixa são bloqueios recorrentes —, ocupados),
   sem as regras só da vitrine (antecedência, limite do Grátis, `bookable_online`). Com horário = **encaixe** (sem expediente
   nem “passado”, como o manual sempre foi). Staff só vê a própria agenda; a gravação continua em `createManualBooking`.
+- **Encaixe sobreposto (50):** atendimento por cima de outro do mesmo profissional (tempo de produto agindo). `bookings.overlay`
+  (só muda por `create_overlay_booking` / `reschedule_overlay`, sinal `genix.overlay_edit`; gatilho `guard_booking_overlay`);
+  `no_overlap` ganhou `and not overlay`. Matriz em qualquer agenda, staff só na própria; recepção/viewer não; todos os planos.
+  Precisa de atendimento embaixo (`LIVRE`), 1 por trecho (`JA_TEM_ENCAIXE`); bloqueio, meia-noite e “faz o serviço” valem.
+  Para o resto ele é **ocupado**: vitrine, horários do manual, remarcar, recorrência e pacote já contam todo pending/confirmed,
+  e o gatilho barra normal que ganhe sobreposição **nova** com um sobreposto (erro 23P01, igual à trava). Remarcar comum
+  (ou mover na mão) um sobreposto o torna normal; na grade ele não se arrasta. Prévia `overlay_booking_check`
+  (`OverlayPreview`); selo “Encaixe” (Layers2, borda tracejada). Cópia de segurança em `backup.bookings_50`.
 - **Pacote com datas fixas, serviços por data (48):** as regras geram as datas e a tela sugere a distribuição
   (`suggestVisits`, `lib/package-plan.ts`); cada data tem caixinhas por serviço, contador “X de N restantes”, aviso do que
   sobra sem data e troca de dia/horário só daquela data. Banco: `preview_package_sale_visits` / `sell_package_fixed_visits`

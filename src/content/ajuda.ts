@@ -316,7 +316,26 @@ const AJUDA_TEXTOS = {
     passos: ["Marque “Encaixe”.", "Escolha o horário.", "Escolha um profissional livre e salve."],
     atencao: [
       "O encaixe ignora o horário de funcionamento, mas não passa por cima de bloqueios nem de outro atendimento.",
+      "Para marcar por cima de outro atendimento (enquanto o produto age), use o “Encaixe sobreposto”.",
       "No Remarcar, só a matriz e a recepção podem usar.",
+    ],
+  },
+  "encaixe-sobreposto": {
+    titulo: "Encaixe sobreposto",
+    serve:
+      "Marca um atendimento por cima de outro do mesmo profissional, no mesmo horário. Serve para aproveitar o tempo parado de um procedimento longo, como a pausa da progressiva ou da coloração.",
+    passos: [
+      "Marque “Encaixe sobreposto”.",
+      "Digite o horário e escolha o profissional.",
+      "Confira em “Vai ficar por cima de” qual atendimento fica embaixo e salve.",
+    ],
+    atencao: [
+      "Use só quando der para atender os dois clientes ao mesmo tempo.",
+      "Só cabe um encaixe sobreposto por vez no mesmo trecho.",
+      "Precisa ter um atendimento embaixo. Se o horário estiver livre, marque normal.",
+      "Bloqueios continuam valendo, e a vitrine continua vendo esse horário como ocupado.",
+      "Só a matriz e o próprio profissional usam. A recepção, não.",
+      "Na agenda ele aparece com o selo “Encaixe”, ao lado do outro atendimento. Para mudar o horário, use o Remarcar.",
     ],
   },
   remarcar: {

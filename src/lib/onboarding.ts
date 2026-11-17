@@ -24,18 +24,30 @@ type BusinessLike = {
   slug: string;
   description?: string | null;
   hero_image?: string | null;
+  whatsapp?: string | null;
   onboarding?: Record<string, boolean> | null;
 };
 
-export async function getOnboarding(business: BusinessLike, plan: PlanContext) {
-  const supabase = createClient();
-  const flags = business.onboarding ?? {};
+export type OnboardingCounts = { services: number; pros: number; online: number };
 
+/** Contagens usadas pela configuração inicial e pelo quadro "Falta configurar" (uma rodada) */
+export async function loadOnboardingCounts(businessId: string): Promise<OnboardingCounts> {
+  const supabase = createClient();
   const [{ count: services }, { count: pros }, { count: online }] = await Promise.all([
-    supabase.from("services").select("id", { count: "exact", head: true }).eq("business_id", business.id).eq("active", true),
-    supabase.from("professionals").select("id", { count: "exact", head: true }).eq("business_id", business.id).eq("active", true),
-    supabase.from("bookings").select("id", { count: "exact", head: true }).eq("business_id", business.id).eq("source", "online"),
+    supabase.from("services").select("id", { count: "exact", head: true }).eq("business_id", businessId).eq("active", true),
+    supabase.from("professionals").select("id", { count: "exact", head: true }).eq("business_id", businessId).eq("active", true),
+    supabase.from("bookings").select("id", { count: "exact", head: true }).eq("business_id", businessId).eq("source", "online"),
   ]);
+  return { services: services ?? 0, pros: pros ?? 0, online: online ?? 0 };
+}
+
+export async function getOnboarding(business: BusinessLike, plan: PlanContext) {
+  return buildOnboarding(business, plan, await loadOnboardingCounts(business.id));
+}
+
+export function buildOnboarding(business: BusinessLike, plan: PlanContext, counts: OnboardingCounts) {
+  const flags = business.onboarding ?? {};
+  const { services, pros, online } = counts;
 
   const items: OnboardingItem[] = [
     {
@@ -50,7 +62,7 @@ export async function getOnboarding(business: BusinessLike, plan: PlanContext) {
       key: "services",
       title: "Cadastre seus serviços",
       why: "É o que o cliente escolhe na hora de agendar. Comece pelos sugeridos e ajuste os preços.",
-      done: (services ?? 0) > 0,
+      done: services > 0,
       href: "/admin/servicos",
       hrefLabel: "Cadastrar",
       action: "suggest",
@@ -71,7 +83,7 @@ export async function getOnboarding(business: BusinessLike, plan: PlanContext) {
       key: "team",
       title: "Monte sua equipe",
       why: "Cada profissional tem a própria agenda. Se você atende sozinho(a), é só confirmar.",
-      done: (pros ?? 0) > 1 || !!flags.solo,
+      done: pros > 1 || !!flags.solo,
       href: "/admin/profissionais",
       hrefLabel: "Abrir equipe",
       action: "solo",
@@ -93,7 +105,7 @@ export async function getOnboarding(business: BusinessLike, plan: PlanContext) {
       key: "test",
       title: "Faça um agendamento de teste",
       why: "Veja pelos olhos do cliente como é agendar. Depois é só cancelar na Agenda.",
-      done: (online ?? 0) > 0,
+      done: online > 0,
       href: `/v/${business.slug}`,
       hrefLabel: "Abrir minha vitrine",
     },
@@ -126,4 +138,24 @@ export async function getOnboarding(business: BusinessLike, plan: PlanContext) {
     doneCount: required.filter((i) => i.done).length,
     total: required.length,
   };
+}
+
+export type SetupGap = { key: string; label: string; href: string };
+
+/**
+ * Quadro "Falta configurar" do Início: o que ainda está sem informação, na ordem em que
+ * aparece em Configurações, com as mesmas regras da configuração inicial.
+ * `fiscalRegime` undefined = não conferir o enquadramento (Grátis não tem caixa).
+ */
+export function setupGaps(business: BusinessLike, counts: OnboardingCounts, fiscalRegime?: string | null): SetupGap[] {
+  const flags = business.onboarding ?? {};
+  const gaps: (SetupGap | false)[] = [
+    !business.hero_image && { key: "capa", label: "foto de capa", href: "/admin/configuracoes#perfil" },
+    !business.description && { key: "descricao", label: "descrição", href: "/admin/configuracoes#perfil" },
+    !business.whatsapp && { key: "whatsapp", label: "WhatsApp do espaço", href: "/admin/configuracoes#perfil" },
+    !flags.hours && { key: "horarios", label: "horários", href: "/admin/configuracoes#horarios" },
+    counts.services === 0 && { key: "servicos", label: "serviços", href: "/admin/servicos" },
+    fiscalRegime === null && { key: "enquadramento", label: "enquadramento", href: "/admin/configuracoes#enquadramento" },
+  ];
+  return gaps.filter((g): g is SetupGap => !!g);
 }

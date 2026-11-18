@@ -59,9 +59,12 @@ const sameValue = (a: number, b: number) => Math.round(a * 100) === Math.round(b
 /** assinou mas ainda não pagou a 1ª fatura (ex.: assinou durante o teste) */
 const firstInvoicePending = (s: Sub) => s.status !== "active" && s.status !== "past_due";
 
-function daysLeftOf(periodEnd: string | null) {
+/** dias restantes do período anual, no máximo 365: quem assina durante o teste grátis
+ * tem o 1º período a partir do fim do teste (mais de 365 dias contados de hoje), e a
+ * proporcional nunca passa do valor cheio de 1 ano */
+export function daysLeftOf(periodEnd: string | null) {
   const ms = periodEnd ? new Date(periodEnd).getTime() - Date.now() : 0;
-  return Math.max(0, Math.ceil(ms / 86_400_000));
+  return Math.min(365, Math.max(0, Math.ceil(ms / 86_400_000)));
 }
 
 /** avulsa do anual: extras novos × preço anual do extra × dias restantes ÷ 365 */

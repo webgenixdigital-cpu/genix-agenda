@@ -10,6 +10,7 @@ import { cycleOfPlanId, isPaidPlanId, isSoloKind, kindOfPlanId, paidRank, type P
 import { PLAN_NAMES } from "@/lib/plan-features";
 import { availablePaidPlans } from "@/lib/plans-server";
 import { getPlanContext } from "@/lib/plan";
+import { daysLeftOf } from "@/lib/billing";
 
 type Result = { ok: true; invoiceUrl?: string; message?: string } | { ok: false; error: string };
 type Quote = { total: number; extra_professionals: number; professionals: number };
@@ -252,9 +253,8 @@ export async function changePlan(target: PaidPlanId): Promise<Result> {
         body: { value: Number(q.total), description: description(target, biz.name), updatePendingPayments: true },
       });
 
-    // diferença proporcional aos dias que faltam (só no anual)
-    const msLeft = sub.current_period_end ? new Date(sub.current_period_end).getTime() - Date.now() : 0;
-    const daysLeft = Math.max(0, Math.ceil(msLeft / 86_400_000));
+    // diferença proporcional aos dias que faltam (só no anual; no máximo 365 dias = diferença cheia)
+    const daysLeft = daysLeftOf(sub.current_period_end);
     const diff = Math.round(Math.max(0, Number(q.total) - Number(sub.amount ?? 0)) * (daysLeft / 365) * 100) / 100;
 
     if (cycleOfPlanId(target) === "mensal" || diff < MIN_CHARGE) {

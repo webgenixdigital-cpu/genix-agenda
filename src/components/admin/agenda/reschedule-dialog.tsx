@@ -40,7 +40,7 @@ export function RescheduleDialog({
   professionals: ProOption[];
   /** matriz e recepção: trocam o profissional e podem encaixar */
   canChooseProfessional: boolean;
-  /** 50: matriz e profissional remarcam como encaixe sobreposto */
+  /** 50/51: matriz, recepção e profissional (na própria agenda) remarcam como encaixe sobreposto */
   canOverlay?: boolean;
   today: string;
 }) {

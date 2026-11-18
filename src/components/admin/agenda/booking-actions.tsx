@@ -54,7 +54,7 @@ export type RescheduleProps = {
   canChooseProfessional: boolean;
   /** "Reabrir atendimento" nos concluídos (matriz e recepção) */
   canReopen?: boolean;
-  /** 50: "Encaixe sobreposto" no Novo agendamento e no Remarcar (matriz e profissional) */
+  /** 50: "Encaixe sobreposto" no Novo agendamento e no Remarcar (matriz e recepção em qualquer agenda; profissional na própria) */
   canOverlay?: boolean;
   today: string;
 };

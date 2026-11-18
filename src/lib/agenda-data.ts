@@ -114,8 +114,8 @@ export async function loadAgenda(ctx: AdminContext, wholeTeam: boolean, o: Optio
     canChooseProfessional: role === "owner" || role === "reception",
     // 46_reabrir_atendimento: matriz e recepção (prazo de 30 dias da recepção conferido no banco)
     canReopen: role === "owner" || role === "reception",
-    // 50_encaixe_sobreposto: matriz (qualquer agenda) e profissional (a própria); recepção não
-    canOverlay: role === "owner" || role === "staff",
+    // 50/51 encaixe sobreposto: matriz e recepção (qualquer agenda) e profissional (a própria); demonstração não
+    canOverlay: role === "owner" || role === "reception" || role === "staff",
     today: todayInZone(business.timezone),
   };
 

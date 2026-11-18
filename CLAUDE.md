@@ -142,7 +142,7 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
   nem “passado”, como o manual sempre foi). Staff só vê a própria agenda; a gravação continua em `createManualBooking`.
 - **Encaixe sobreposto (50):** atendimento por cima de outro do mesmo profissional (tempo de produto agindo). `bookings.overlay`
   (só muda por `create_overlay_booking` / `reschedule_overlay`, sinal `genix.overlay_edit`; gatilho `guard_booking_overlay`);
-  `no_overlap` ganhou `and not overlay`. Matriz em qualquer agenda, staff só na própria; recepção/viewer não; todos os planos.
+  `no_overlap` ganhou `and not overlay`. Dono e recepção em qualquer agenda; profissional na própria; viewer não (papel só em `overlay_slot_issue`, 51); todos os planos.
   Precisa de atendimento embaixo (`LIVRE`), 1 por trecho (`JA_TEM_ENCAIXE`); bloqueio, meia-noite e “faz o serviço” valem.
   Para o resto ele é **ocupado**: vitrine, horários do manual, remarcar, recorrência e pacote já contam todo pending/confirmed,
   e o gatilho barra normal que ganhe sobreposição **nova** com um sobreposto (erro 23P01, igual à trava). Remarcar comum

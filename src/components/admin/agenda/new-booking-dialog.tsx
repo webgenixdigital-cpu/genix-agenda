@@ -50,7 +50,7 @@ type Props = {
   packagesAccess?: boolean;
   /** matriz e recepção: botão "Vender pacote" (no Grátis aparece com cadeado) */
   canSellPackages?: boolean;
-  /** matriz e profissional: "Encaixe sobreposto" (por cima de outro atendimento; 50) */
+  /** matriz, recepção e profissional: "Encaixe sobreposto" (por cima de outro atendimento; 50/51) */
   canOverlay?: boolean;
   /** modo controlado (grade semanal): abre por fora, sem o botão próprio */
   open?: boolean;
@@ -721,7 +721,7 @@ export function NewBookingDialog({
               )}
             </section>
 
-            {/* 4b. Encaixe sobreposto (50): matriz e profissional */}
+            {/* 4b. Encaixe sobreposto (50/51): matriz, recepção e profissional (na própria agenda) */}
             {canOverlay && serviceId && !fullAccess && (
               <Link
                 href="/admin/assinatura"

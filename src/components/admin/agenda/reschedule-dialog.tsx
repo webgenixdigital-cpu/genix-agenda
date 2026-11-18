@@ -42,9 +42,9 @@ export function RescheduleDialog({
   professionals: ProOption[];
   /** matriz e recepção: trocam o profissional e podem encaixar */
   canChooseProfessional: boolean;
-  /** 51: encaixe a partir do Básico (Grátis: cadeado com link para Assinatura) */
+  /** 52: encaixe a partir do Básico (Grátis: cadeado com link para Assinatura) */
   canFit?: boolean;
-  /** 50: matriz e profissional remarcam como encaixe sobreposto */
+  /** 50/51: matriz, recepção e profissional (na própria agenda) remarcam como encaixe sobreposto */
   canOverlay?: boolean;
   today: string;
 }) {

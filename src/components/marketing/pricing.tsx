@@ -9,7 +9,7 @@ import { brl } from "@/lib/format";
 import type { Plan } from "@/lib/plans-public";
 import { cn } from "@/lib/utils";
 
-// Valores vêm da tabela plans (migrations 28a/51); textos em src/content/planos.ts.
+// Valores vêm da tabela plans (migrations 28a/52); textos em src/content/planos.ts.
 
 function Item({ children, strong }: { children: React.ReactNode; strong?: boolean }) {
   return (

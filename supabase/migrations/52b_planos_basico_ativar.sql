@@ -1,6 +1,6 @@
 -- =====================================================================
--- GENIX AGENDA — 51: Plano Básico + Grátis de 6 meses (PARTE B)
--- ⚠️ Rodar DEPOIS do deploy do código novo (e depois da 51a).
+-- GENIX AGENDA — 52: Plano Básico + Grátis de 6 meses (PARTE B)
+-- ⚠️ Rodar DEPOIS do deploy do código novo (e depois da 52a).
 -- Ela tira do Grátis recursos que o código antigo ainda oferece
 -- (encaixe, encaixe sobreposto, fila manual de véspera): por isso vem
 -- depois do deploy. Pode rodar de novo sem erro. Tudo em begin/commit.
@@ -70,7 +70,9 @@ create trigger trg_guard_manual_booking_plan
 before insert on bookings
 for each row execute function guard_manual_booking_plan();
 
--- 3.2 Encaixe sobreposto (corpos da 50 + checagem do plano)
+-- 3.2 Encaixe sobreposto (corpos atuais + checagem do plano). A checagem de
+--     papel (matriz e recepção em qualquer agenda; profissional na própria)
+--     mora em overlay_slot_issue (51) e não muda aqui.
 create or replace function create_overlay_booking(
   p_business uuid, p_service uuid, p_professional uuid, p_date date, p_time text,
   p_customer_name text, p_customer_phone text, p_customer_country text default '55',
@@ -90,7 +92,7 @@ declare
   v_id    uuid;
 begin
   if member_role_of(p_business) is null then raise exception 'SEM_PERMISSAO'; end if;
-  if not plan_allows(p_business, 'basico') then raise exception 'PLANO_BASICO'; end if;   -- 51
+  if not plan_allows(p_business, 'basico') then raise exception 'PLANO_BASICO'; end if;   -- 52
   if p_date is null or p_time is null or p_time !~ '^\d{2}:\d{2}$'
      or char_length(v_name) < 2 or not phone_is_valid(v_ctry, p_customer_phone) then
     raise exception 'DADOS_INVALIDOS';
@@ -150,7 +152,7 @@ begin
   select * into bk from bookings where id = p_booking for update;
   if not found then raise exception 'NAO_ENCONTRADO'; end if;
   if bk.status not in ('pending', 'confirmed') then raise exception 'STATUS_INVALIDO'; end if;
-  if not plan_allows(bk.business_id, 'basico') then raise exception 'PLANO_BASICO'; end if;   -- 51
+  if not plan_allows(bk.business_id, 'basico') then raise exception 'PLANO_BASICO'; end if;   -- 52
 
   -- o agendamento atual: matriz, ou o profissional dono dele
   if overlay_slot_issue(bk.business_id, null, bk.professional_id, bk.booking_date, bk.start_time, 1, bk.id)
@@ -233,7 +235,7 @@ begin
   if p_fit and coalesce(member_role_of(bk.business_id) in ('owner', 'reception'), false) = false then
     raise exception 'SEM_PERMISSAO';
   end if;
-  if p_fit and not plan_allows(bk.business_id, 'basico') then raise exception 'PLANO_BASICO'; end if;   -- 51
+  if p_fit and not plan_allows(bk.business_id, 'basico') then raise exception 'PLANO_BASICO'; end if;   -- 52
 
   select * into p from professionals where id = p_professional and business_id = bk.business_id;
   if not found then raise exception 'PROFISSIONAL_INDISPONIVEL'; end if;
@@ -305,7 +307,7 @@ begin
   if coalesce(member_role_of(p_business) in ('owner', 'reception'), false) = false then
     raise exception 'SEM_PERMISSAO';
   end if;
-  if not plan_allows(p_business, 'basico') then raise exception 'PLANO_BASICO'; end if;   -- 51
+  if not plan_allows(p_business, 'basico') then raise exception 'PLANO_BASICO'; end if;   -- 52
   if char_length(coalesce(v_tomorrow, '')) > 1000 or char_length(coalesce(v_today, '')) > 1000 then
     raise exception 'DADOS_INVALIDOS';
   end if;

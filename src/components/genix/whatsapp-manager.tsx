@@ -36,7 +36,7 @@ export type WhatsappOverview = {
   stats_7d?: Partial<Record<MessageKind, { sent: number; failed: number; expired: number; skipped: number; queued: number }>> | null;
 };
 
-// 51: a coluna tier traz o plano (gratis | basico | profissional | equipe); antes, completo | gratis
+// 52: a coluna tier traz o plano (gratis | basico | profissional | equipe); antes, completo | gratis
 const TIER_LABEL: Record<string, string> = {
   completo: "pago",
   gratis: "Grátis",

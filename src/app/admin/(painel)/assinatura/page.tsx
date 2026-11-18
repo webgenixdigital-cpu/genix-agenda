@@ -65,7 +65,7 @@ export default async function AssinaturaPage() {
     : { data: null };
   const rq = renewalQuote as (Quote & { included: number }) | null;
   const q = Object.fromEntries(ids.map((id, i) => [id, quoteRows[i].data as Quote | null])) as Record<PaidPlanId, Quote | null>;
-  // o Básico só aparece ativo depois da 51b (ou no modo de prévia local)
+  // o Básico só aparece ativo depois da 52b (ou no modo de prévia local)
   const quotesOk = ids.every((id) => q[id] && available.has(id));
   const preview = plansPreview();
   const quotes: Quotes | null = quotesOk

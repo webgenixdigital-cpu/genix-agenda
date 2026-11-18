@@ -343,7 +343,7 @@ const AJUDA_TEXTOS = {
       "Só cabe um encaixe sobreposto por vez no mesmo trecho.",
       "Precisa ter um atendimento embaixo. Se o horário estiver livre, marque normal.",
       "Bloqueios continuam valendo, e a vitrine continua vendo esse horário como ocupado.",
-      "Só a matriz e o próprio profissional usam. A recepção, não.",
+      "A matriz e a recepção usam em qualquer agenda; o profissional, só na própria.",
       "Na agenda ele aparece com o selo “Encaixe”, ao lado do outro atendimento. Para mudar o horário, use o Remarcar.",
       "Recurso dos planos pagos, a partir do Básico.",
     ],

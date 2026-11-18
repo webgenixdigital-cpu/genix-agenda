@@ -8,7 +8,7 @@ import type { Plan } from "@/lib/plans-public";
 import { cn } from "@/lib/utils";
 import { lpBtnGold, lpBtnOutline, lpCard } from "./styles";
 
-// Valores sempre da tabela plans (migrations 28a/28b/51), lidos no servidor por getPublicPlans().
+// Valores sempre da tabela plans (migrations 28a/28b/52), lidos no servidor por getPublicPlans().
 
 function Features({ items, dark }: { items: string[]; dark?: boolean }) {
   return (

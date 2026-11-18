@@ -1,5 +1,5 @@
 // Planos para as páginas públicas ("/" e /para/[nicho]): leitura, tipos e FAQ.
-// Valores sempre da tabela plans (migrations 28a/28b/51); nada de preço fixo no código.
+// Valores sempre da tabela plans (migrations 28a/28b/52); nada de preço fixo no código.
 import { brl } from "@/lib/format";
 import { FREE_MONTHS } from "@/content/planos";
 

@@ -20,7 +20,7 @@ export type PlanContext = {
   internal: boolean;
   /** cortesia concedida pela Genix (plan_grants, migration 38); expiresAt null = vitalícia */
   grant: { kind: "profissional" | "equipe"; expiresAt: string | null } | null;
-  /** fim dos 6 meses do Grátis (subscriptions.free_ends_at, migration 51); null = sem data */
+  /** fim dos 6 meses do Grátis (subscriptions.free_ends_at, migration 52); null = sem data */
   freeEndsAt: string | null;
   /** dias restantes do Grátis (só no Grátis, enquanto vale) */
   freeDaysLeft: number | null;
@@ -52,7 +52,7 @@ export const getPlanContext = cache(async (businessId: string): Promise<PlanCont
     supabase.from("plan_grants").select("kind, expires_at").eq("business_id", businessId).maybeSingle(),
   ]);
 
-  // sem a coluna free_ends_at (migration 51a ainda não aplicada): lê sem ela
+  // sem a coluna free_ends_at (migration 52a ainda não aplicada): lê sem ela
   let sub = subRes.data as {
     status: string; plan_id: string | null; trial_ends_at: string | null;
     current_period_end: string | null; free_ends_at?: string | null;

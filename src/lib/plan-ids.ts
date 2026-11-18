@@ -1,4 +1,4 @@
-// Ids dos planos pagos (tabela plans, migrations 28a e 51). Usado no servidor e no navegador.
+// Ids dos planos pagos (tabela plans, migrations 28a e 52). Usado no servidor e no navegador.
 // Planos antigos 'mensal'/'anual' (Completo) contam como Equipe, com o valor contratado.
 
 export type PaidKind = "basico" | "profissional" | "equipe";

@@ -1,5 +1,5 @@
 // Planos e recursos (usado no servidor e no navegador).
-// Ordem: Grátis < Básico < Profissional < Equipe (igual a plan_rank/plan_allows no banco, migration 51).
+// Ordem: Grátis < Básico < Profissional < Equipe (igual a plan_rank/plan_allows no banco, migration 52).
 // minPlan: plano mínimo que libera o recurso (aparece no cadeado).
 
 export type PlanKind = "gratis" | "basico" | "profissional" | "equipe";

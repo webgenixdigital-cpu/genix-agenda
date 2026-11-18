@@ -44,7 +44,7 @@ export default async function LembretesPage({ searchParams }: Props) {
   const supabase = createClient();
 
   const isReturns = searchParams.dia === "retornos";
-  // 51: fila manual de véspera a partir do Básico; Retornos a partir do Profissional
+  // 52: fila manual de véspera a partir do Básico; Retornos a partir do Profissional
   if (isReturns && !allows(plan, "profissional")) return <LockedFeature feature="retornos" />;
   if (!isReturns && !allows(plan, "basico")) return <LockedFeature feature="lembretes" />;
   const isToday = searchParams.dia === "hoje";

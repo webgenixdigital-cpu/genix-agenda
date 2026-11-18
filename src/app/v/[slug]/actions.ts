@@ -44,7 +44,7 @@ const ERRORS: Record<string, string> = {
   DADOS_INVALIDOS: "Confira seu nome e o número de WhatsApp (com DDD ou código de área).",
   SERVICO_INVALIDO: "Este serviço não está disponível para agendamento online.",
   ESTABELECIMENTO_NAO_ENCONTRADO: "Este espaço não está recebendo agendamentos online.",
-  // 51: mensagem neutra (sem dizer o motivo ao cliente final)
+  // 52: mensagem neutra (sem dizer o motivo ao cliente final)
   AGENDA_INDISPONIVEL: "No momento, este espaço não está recebendo agendamentos online. Fale com o espaço pelo WhatsApp.",
   LIMITE_ESPACO: LIMIT_MESSAGE,
   LIMITE_DIARIO: LIMIT_MESSAGE,

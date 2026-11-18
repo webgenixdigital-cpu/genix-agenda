@@ -52,11 +52,11 @@ export type RescheduleProps = {
   professionals: ProOption[];
   /** matriz e recepção: trocam o profissional e podem encaixar */
   canChooseProfessional: boolean;
-  /** 51: encaixe no Remarcar só a partir do Básico (Grátis: cadeado) */
+  /** 52: encaixe no Remarcar só a partir do Básico (Grátis: cadeado) */
   canFit?: boolean;
   /** "Reabrir atendimento" nos concluídos (matriz e recepção) */
   canReopen?: boolean;
-  /** 50: "Encaixe sobreposto" no Novo agendamento e no Remarcar (matriz e profissional) */
+  /** 50: "Encaixe sobreposto" no Novo agendamento e no Remarcar (matriz e recepção em qualquer agenda; profissional na própria) */
   canOverlay?: boolean;
   today: string;
 };

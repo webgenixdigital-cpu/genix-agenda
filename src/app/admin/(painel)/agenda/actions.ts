@@ -22,7 +22,7 @@ const PACKAGE_ERRORS: Record<string, string> = {
   PLANO_PROFISSIONAL: "Combos são um recurso dos planos Profissional e Equipe.",
   PLANO_GRATIS: "Combos são um recurso dos planos Profissional e Equipe.",
   COMBO_INCOMPLETO: "Esse combo está incompleto. Edite o combo em Serviços.",
-  // 51: encaixe (fora da lista) e encaixe sobreposto, a partir do Básico
+  // 52: encaixe (fora da lista) e encaixe sobreposto, a partir do Básico
   PLANO_BASICO: "Encaixe é um recurso dos planos pagos, a partir do Básico. No Grátis, escolha um horário da lista.",
 };
 const packageError = (message?: string) =>
@@ -277,7 +277,7 @@ export async function createManualBooking(input: {
 // agenda) e o profissional (a própria); 1 por trecho; o banco confere tudo.
 // ---------------------------------------------------------------------
 const OVERLAY_ERRORS: Record<string, string> = {
-  SEM_PERMISSAO: "Só a matriz e o próprio profissional marcam encaixe sobreposto.",
+  SEM_PERMISSAO: "Encaixe sobreposto: a matriz e a recepção marcam em qualquer agenda; o profissional, só na própria.",
   PROFISSIONAL_INDISPONIVEL: "Esse profissional não está ativo.",
   PROFISSIONAL_NAO_FAZ: "Esse profissional não faz esse serviço.",
   MEIA_NOITE: "O atendimento passaria da meia-noite.",

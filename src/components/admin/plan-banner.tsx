@@ -43,7 +43,7 @@ export function PlanBanner({
     );
   }
 
-  // Grátis vencido (51): a vitrine não recebe agendamento online
+  // Grátis vencido (52): a vitrine não recebe agendamento online
   if (plan.tier === "gratis" && plan.freeOver) {
     return (
       <div

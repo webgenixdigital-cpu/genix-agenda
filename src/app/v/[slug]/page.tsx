@@ -52,7 +52,7 @@ async function loadVitrine(slug: string) {
   const rows = (services.data ?? []) as Service[];
   const priceOf = new Map(rows.map((s) => [s.id, Number(s.price)]));
   const list = rows
-    // 51: combos só do Profissional em diante (sem "kind", migration 51a ainda não aplicada: plano pago)
+    // 52: combos só do Profissional em diante (sem "kind", migration 52a ainda não aplicada: plano pago)
     .filter((s) => s.kind !== "combo" || (plan?.kind ? plan.kind === "profissional" || plan.kind === "equipe" : plan?.tier === "completo"))
     .map((s) => {
       if (s.kind !== "combo") return s;

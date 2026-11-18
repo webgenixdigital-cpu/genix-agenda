@@ -62,7 +62,7 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
 | `EVOLUTION_API_URL` / `EVOLUTION_API_KEY` | **só servidor** | Evolution API v2 self-hosted (`https://wa.genixagenda.com.br`); a chave global só cria/apaga instâncias, o resto usa o token da instância (coluna `token`, sem grant para `authenticated`) |
 | `WHATSAPP_SEND_ENABLED` | só servidor | `1` liga os envios automáticos; sem ela nada sai (local fica desligado: o banco é o mesmo da produção) |
 | `WHATSAPP_QUEUE_V2` | só servidor | `1` = fila nova da 42 (confirmação, antes do horário, véspera, aniversário); sem ela ou `0` = caminho antigo, só véspera. É a chave de volta: desligar na Vercel + redeploy, sem SQL. Lógica em `lib/whatsapp/queue.ts` |
-| `PLANS_PREVIEW` | só servidor, **só local** | `1` no `.env.local` + `npm run dev`: tabela de preços, Assinatura e actions tratam os planos novos (`gratis`, `basico_*`, `profissional_*`, `equipe_*`) como ativos mesmo com `active = false`, para testar no sandbox do Asaas antes da parte B (28b, 51b). Nunca liga com `NODE_ENV=production` (`next build`/`start`, Vercel); **não cadastrar na Vercel**. Lógica em `lib/plans-server.ts` |
+| `PLANS_PREVIEW` | só servidor, **só local** | `1` no `.env.local` + `npm run dev`: tabela de preços, Assinatura e actions tratam os planos novos (`gratis`, `basico_*`, `profissional_*`, `equipe_*`) como ativos mesmo com `active = false`, para testar no sandbox do Asaas antes da parte B (28b, 52b). Nunca liga com `NODE_ENV=production` (`next build`/`start`, Vercel); **não cadastrar na Vercel**. Lógica em `lib/plans-server.ts` |
 
 - Nunca prefixar segredos com `NEXT_PUBLIC_`. Nunca importar `lib/supabase/admin.ts` em componente `"use client"`.
 - No `.env.local`, a chave do Asaas começa com `$`: escrever `ASAAS_API_KEY=\$aact_...` (na Vercel, sem a barra).
@@ -70,11 +70,11 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
 
 ## 4. Decisões de produto (respeitar sempre)
 
-- **Freemium — 4 planos** (migrations 28a/28b e **51a/51b**): toda conta nova ganha **15 dias do Equipe**; no fim do teste
+- **Freemium — 4 planos** (migrations 28a/28b e **52a/52b**): toda conta nova ganha **15 dias do Equipe**; no fim do teste
   a oferta segue a equipe ativa (1 profissional → Profissional; 2+ → Equipe); sem pagamento, cai no **Grátis** (nada é apagado).
   Ordem: Grátis < Básico < Profissional < Equipe (`plan_rank`/`plan_allows` no banco; `planAllows`/`allows` no código).
   - **Grátis** (**6 meses**, `subscriptions.free_ends_at`): contas novas = cadastro + 6 meses (o teste fica dentro);
-    contas que existiam antes da 51b = publicação + 6 meses. Inclui vitrine, agenda online com **6 agendamentos
+    contas que existiam antes da 52b = publicação + 6 meses. Inclui vitrine, agenda online com **6 agendamentos
     online/dia** (`plans.online_daily_limit` da linha `gratis`), **1 profissional**, selo "Feito com Genix Agenda",
     avaliações, clientes/ficha, confirmação automática, remarcar e editar agendamento. **Fim dos 6 meses**
     (`free_period_over`): painel, dados e agendamento manual continuam; a **vitrine para de aceitar agendamento online**
@@ -155,7 +155,7 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
   nem “passado”, como o manual sempre foi). Staff só vê a própria agenda; a gravação continua em `createManualBooking`.
 - **Encaixe sobreposto (50):** atendimento por cima de outro do mesmo profissional (tempo de produto agindo). `bookings.overlay`
   (só muda por `create_overlay_booking` / `reschedule_overlay`, sinal `genix.overlay_edit`; gatilho `guard_booking_overlay`);
-  `no_overlap` ganhou `and not overlay`. Matriz em qualquer agenda, staff só na própria; recepção/viewer não; todos os planos.
+  `no_overlap` ganhou `and not overlay`. Dono e recepção em qualquer agenda; profissional na própria; viewer não (papel só em `overlay_slot_issue`, 51); a partir do **Básico** (52b, `PLANO_BASICO`).
   Precisa de atendimento embaixo (`LIVRE`), 1 por trecho (`JA_TEM_ENCAIXE`); bloqueio, meia-noite e “faz o serviço” valem.
   Para o resto ele é **ocupado**: vitrine, horários do manual, remarcar, recorrência e pacote já contam todo pending/confirmed,
   e o gatilho barra normal que ganhe sobreposição **nova** com um sobreposto (erro 23P01, igual à trava). Remarcar comum

@@ -2,7 +2,7 @@
 // COPY DA LANDING PAGE ("/") — protótipo aprovado: docs/landing/prototipo-v5.html
 // Todo texto da página mora aqui; os componentes em src/components/landing só desenham.
 // Sem classes do Tailwind neste arquivo (a pasta não entra no `content` do Tailwind).
-// Preços NÃO ficam aqui: vêm da tabela plans (getPublicPlans, migrations 28a/28b/51).
+// Preços NÃO ficam aqui: vêm da tabela plans (getPublicPlans, migrations 28a/28b/52).
 // =====================================================================
 
 /** Trecho de título com palavra grifada em dourado: [antes, grifo, depois] */

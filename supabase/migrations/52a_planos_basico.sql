@@ -1,9 +1,9 @@
 -- =====================================================================
--- GENIX AGENDA — 51: Plano Básico + Grátis de 6 meses (PARTE A)
+-- GENIX AGENDA — 52: Plano Básico + Grátis de 6 meses (PARTE A)
 -- Rode o arquivo inteiro no SQL Editor, ANTES do merge. Só acrescenta:
 -- o código atual continua funcionando com ela. Tudo dentro de
 -- begin/commit: se qualquer comando falhar, nada fica aplicado.
--- A PARTE B (51b_planos_basico_ativar.sql) roda DEPOIS do deploy.
+-- A PARTE B (52b_planos_basico_ativar.sql) roda DEPOIS do deploy.
 --
 -- Regras:
 --   • Ordem dos planos: gratis < basico < profissional < equipe.
@@ -124,7 +124,7 @@ begin
 
   if v_count >= 1 and exists (
     select 1 from subscriptions s join plans p on p.id = s.scheduled_plan_id
-     where s.business_id = new.business_id and p.kind in ('basico', 'profissional')   -- 51
+     where s.business_id = new.business_id and p.kind in ('basico', 'profissional')   -- 52
   ) then
     raise exception 'TROCA_AGENDADA';
   end if;
@@ -136,7 +136,7 @@ begin
     if plan_kind(new.business_id) = 'gratis' then
       raise exception 'LIMITE_PLANO_GRATIS';
     elsif plan_kind(new.business_id) = 'basico' then
-      raise exception 'LIMITE_PLANO_BASICO';   -- 51
+      raise exception 'LIMITE_PLANO_BASICO';   -- 52
     else
       raise exception 'LIMITE_PLANO_PROFISSIONAL';
     end if;
@@ -176,7 +176,7 @@ begin
   select * into b from businesses where slug = p_slug and is_published;
   if not found then return; end if;
 
-  -- 51: Grátis depois dos 6 meses não recebe agendamento online
+  -- 52: Grátis depois dos 6 meses não recebe agendamento online
   if free_period_over(b.id) then return; end if;
 
   if access_tier(b.id) = 'gratis' then
@@ -277,8 +277,8 @@ begin
     'only_professional_id',     v_only,
     'day_full',                 v_full,
     'blocked_professional_ids', billing_blocked_professionals(v_id),
-    'kind',                     v_kind,                    -- 51: qual plano (combos só no Profissional+)
-    'online_closed',            free_period_over(v_id)     -- 51: vitrine sem agendamento online
+    'kind',                     v_kind,                    -- 52: qual plano (combos só no Profissional+)
+    'online_closed',            free_period_over(v_id)     -- 52: vitrine sem agendamento online
   );
 end;
 $$;
@@ -1113,7 +1113,7 @@ as $$
 begin
   if not is_platform_admin() then raise exception 'SEM_PERMISSAO'; end if;
   return query
-  select b.id, b.name, b.slug::text, plan_kind(b.id),   -- 51: qual plano
+  select b.id, b.name, b.slug::text, plan_kind(b.id),   -- 52: qual plano
          coalesce(whatsapp_has_credentials(i), false),
          case when i.instance_id is null then null else right(i.instance_id, 4) end,
          coalesce(i.genix_enabled, false),

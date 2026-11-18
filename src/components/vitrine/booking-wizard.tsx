@@ -31,7 +31,7 @@ type Props = {
   services: Service[];
   professionals: Professional[];
   hours: BusinessHour[];
-  /** 51: o espaço não está recebendo agendamento online (mensagem neutra, sem dizer o motivo) */
+  /** 52: o espaço não está recebendo agendamento online (mensagem neutra, sem dizer o motivo) */
   onlineClosed?: boolean;
 };
 
@@ -222,7 +222,7 @@ export function BookingWizard({ slug, businessName, whatsapp, services, professi
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="max-h-[92svh] w-[calc(100%-1rem)] max-w-xl overflow-y-auto rounded-2xl p-4 sm:p-6 md:p-8">
         {onlineClosed ? (
-          /* ---------- SEM AGENDAMENTO ONLINE (51) ---------- */
+          /* ---------- SEM AGENDAMENTO ONLINE (52) ---------- */
           <div className="text-center" data-testid="agendamento-online-indisponivel">
             <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-secondary text-primary">
               <CalendarDays className="h-7 w-7" />

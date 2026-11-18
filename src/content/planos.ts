@@ -1,8 +1,8 @@
 // =====================================================================
 // O QUE CADA PLANO INCLUI — fonte única dos textos (Assinatura, landing, /para).
-// Preços NÃO ficam aqui: vêm da tabela plans (migrations 28a/51).
+// Preços NÃO ficam aqui: vêm da tabela plans (migrations 28a/52).
 // Sem classes do Tailwind neste arquivo.
-// A regra de verdade (o que o banco libera) está em plan_allows (migration 51)
+// A regra de verdade (o que o banco libera) está em plan_allows (migration 52)
 // e em src/lib/plan-features.ts. Mudou um recurso de plano? Mude aqui também.
 // =====================================================================
 import type { PlanKind } from "@/lib/plan-features";

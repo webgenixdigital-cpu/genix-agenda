@@ -40,6 +40,20 @@ export default function TermosPage() {
           <li>Os pagamentos são processados por empresa parceira de meios de pagamento. A renovação é automática ao fim de cada período, até o cancelamento.</li>
           <li>Em caso de falta de pagamento, poderemos, após aviso, retornar a conta ao plano Grátis.</li>
           <li>Alterações de preço serão comunicadas com antecedência e só valem para o período seguinte.</li>
+          <li>
+            <strong>Indique e ganhe:</strong> cada conta tem um link de indicação. Quando um espaço novo, cadastrado por esse link,
+            paga a primeira cobrança de um plano pago, quem indicou ganha 1 mês grátis da própria assinatura: a próxima
+            cobrança é adiada em 1 mês (no plano anual, a renovação fica 1 mês depois). Regras:
+            <ul>
+              <li>a indicação só vale no cadastro da conta nova e não pode ser feita depois;</li>
+              <li>cada espaço indicado gera no máximo 1 prêmio, mesmo que cancele e assine de novo;</li>
+              <li>não há limite de indicações. Vários prêmios se acumulam e são usados em sequência;</li>
+              <li>para quem ainda não tem assinatura paga, os prêmios ficam guardados e são usados após o pagamento da primeira assinatura;</li>
+              <li>não vale indicar a si mesmo (mesmo dono, e-mail, WhatsApp ou CPF/CNPJ);</li>
+              <li>se a primeira cobrança do espaço indicado for estornada ou cancelada antes do uso, o prêmio é cancelado;</li>
+              <li>o prêmio é em meses de assinatura, não pode ser trocado por dinheiro e não muda a data final de descontos promocionais em vigor.</li>
+            </ul>
+          </li>
         </ul>
       </section>
 

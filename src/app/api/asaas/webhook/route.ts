@@ -6,6 +6,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { asaas, type AsaasSubscription } from "@/lib/asaas";
 import { applySubscriptionValues, billingQuote, syncSubscriptionBilling } from "@/lib/billing";
+import { applyReferralRewards, cancelReferralByPayment, onReferredPaid } from "@/lib/referral";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +22,7 @@ type AsaasEvent = {
     billingType?: string;
     value?: number;
     externalReference?: string;
+    customer?: string;
   };
   subscription?: { id: string; status?: string };
 };
@@ -37,6 +39,8 @@ function tokenOk(received: string | null) {
 }
 
 const PAID = ["PAYMENT_CONFIRMED", "PAYMENT_RECEIVED", "PAYMENT_RECEIVED_IN_CASH"];
+// estorno ou remoção de uma cobrança paga (indicação, 56)
+const REVERSED = ["PAYMENT_REFUNDED", "PAYMENT_DELETED", "PAYMENT_CHARGEBACK_REQUESTED", "PAYMENT_REFUND_IN_PROGRESS"];
 
 // ---------------------------------------------------------------------
 // PARTE 2 — Recebimento
@@ -207,6 +211,15 @@ export async function POST(request: NextRequest) {
       if (sub.billing_sync_status === "pendente" || (nextDiffers && sub.billing_auto)) {
         await syncSubscriptionBilling(sub.business_id, { reason: "sincronia" });
       }
+
+      // Indique e ganhe (56): 1ª cobrança paga de um espaço indicado → prêmio de quem indicou;
+      // quem pagou tem prêmios guardados → usa todos agora (próxima cobrança N meses para frente)
+      const { data: paid } = await admin.from("subscriptions").select("plan_id").eq("business_id", sub.business_id).maybeSingle();
+      if (body.payment?.id) await onReferredPaid(sub.business_id, body.payment.id, paid?.plan_id ?? null, body.payment.customer);
+      const used = await applyReferralRewards(sub.business_id, "cobrança paga");
+      if (used.applied > 0) {
+        return finish(`ativada; ${used.applied} ${used.applied === 1 ? "mês grátis" : "meses grátis"} por indicação`, sub.business_id);
+      }
       return finish(`ativada até ${s.nextDueDate}`, sub.business_id);
     }
 
@@ -257,6 +270,12 @@ export async function POST(request: NextRequest) {
         return finish("cancelada", sub.business_id);
       }
       return finish("ignorado: não estava ativa", sub.business_id);
+    }
+
+    // Indique e ganhe (56): 1ª cobrança do indicado estornada/removida → cancela o prêmio não usado
+    if (REVERSED.includes(body.event) && body.payment?.id) {
+      const n = await cancelReferralByPayment(body.payment.id);
+      if (n > 0) return finish(`prêmio de indicação cancelado (${body.event})`, sub.business_id);
     }
 
     // qualquer outro aviso da assinatura: nova tentativa se estiver "a sincronizar"

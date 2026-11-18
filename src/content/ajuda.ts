@@ -208,6 +208,22 @@ const AJUDA_TEXTOS = {
       "Se o teste grátis acabar sem assinatura, a conta passa para o Grátis e nada é apagado.",
     ],
   },
+  indicacao: {
+    titulo: "Indique e ganhe",
+    serve: "Indique o Genix Agenda para outros espaços e ganhe 1 mês grátis da sua assinatura para cada um que assinar e pagar.",
+    passos: [
+      "Copie o seu link ou toque em “Compartilhar no WhatsApp”. A mensagem já vai pronta.",
+      "A pessoa cria a conta pelo seu link. O link fica guardado no aparelho dela por 30 dias, então ela pode olhar o site antes.",
+      "Quando ela pagar a 1ª mensalidade ou anuidade de qualquer plano pago, o seu mês grátis é liberado. Se você assina, a sua próxima cobrança vai 1 mês para frente. No anual, a renovação fica 1 mês depois.",
+    ],
+    atencao: [
+      "Vale só para contas novas, criadas pelo seu link. Não dá para vincular depois do cadastro.",
+      "Cada espaço indicado gera 1 mês grátis, uma única vez, mesmo se cancelar e assinar de novo.",
+      "Se você ainda não assina, os meses ficam guardados e entram logo depois do pagamento da sua 1ª assinatura. Vários meses saem em sequência.",
+      "Não vale indicar a si mesmo (mesmo e-mail, WhatsApp ou CPF/CNPJ). Se o pagamento do indicado for estornado antes de você usar, o prêmio é cancelado.",
+      "O prêmio é em meses de assinatura, não em dinheiro. O preço de lançamento continua até a mesma data.",
+    ],
+  },
   "preco-lancamento": {
     titulo: "Preço de lançamento",
     serve: "Desconto automático nos planos Profissional e Equipe para quem assinar até 31/12/2026, durante 12 meses.",

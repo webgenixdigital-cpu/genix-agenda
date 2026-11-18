@@ -1,0 +1,211 @@
+// Indique e ganhe (migration 56) — SOMENTE NO SERVIDOR (usa a chave de serviço).
+// Nunca importe este arquivo num componente "use client".
+//
+// Prêmio = 1 mês grátis para quem indicou, quando o indicado PAGA a 1ª cobrança de
+// um plano pago. O Asaas não aceita cobrança zerada e o campo `discount` é desconto
+// por pagamento antecipado (#50), então o mês grátis é um ADIAMENTO:
+//   • cada cobrança PENDING da assinatura de quem indicou vai N meses para frente;
+//   • a assinatura também (nextDueDate), para as cobranças ainda não geradas;
+//   • o valor de cada cobrança é recalculado pelo NOVO vencimento (applySubscriptionValues,
+//     cupom de lançamento: a data final do desconto não muda);
+//   • current_period_end vai N meses para frente (o acesso continua).
+// N = prêmios guardados (saem todos juntos, em sequência).
+import { createAdminClient } from "@/lib/supabase/admin";
+import { asaas, type AsaasPayment, type AsaasSubscription } from "@/lib/asaas";
+import { applySubscriptionValues } from "@/lib/billing";
+
+type Customer = { id: string; cpfCnpj?: string | null };
+
+/** "2026-12-25" + n meses (dia preservado; 31 → último dia do mês, como o Postgres) */
+export function addMonthsISO(ymd: string, n: number) {
+  const [y, m, d] = ymd.slice(0, 10).split("-").map(Number);
+  const target = new Date(Date.UTC(y, m - 1 + n, 1));
+  const last = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)).getUTCDate();
+  target.setUTCDate(Math.min(d, last));
+  return target.toISOString().slice(0, 10);
+}
+
+const onlyDigits = (v: string | null | undefined) => (v ?? "").replace(/\D/g, "");
+
+async function customerDoc(customerId: string | null | undefined) {
+  if (!customerId) return "";
+  const c = await asaas<Customer>(`/customers/${customerId}`).catch(() => null);
+  return onlyDigits(c?.cpfCnpj);
+}
+
+// ---------------------------------------------------------------------
+// PARTE 1 — O indicado pagou uma cobrança da assinatura
+// Na 1ª vez gera o prêmio de quem indicou (mesmo CPF/CNPJ = bloqueado) e,
+// se quem indicou já tem assinatura paga ativa, aplica na hora.
+// ---------------------------------------------------------------------
+export async function onReferredPaid(businessId: string, paymentId: string, planId: string | null, customerId?: string | null) {
+  if (!planId) return null;
+  const admin = createAdminClient();
+  const { data: ref } = await admin
+    .from("referrals")
+    .select("id, referrer_business_id, status")
+    .eq("referred_business_id", businessId)
+    .maybeSingle();
+  if (!ref || ref.status === "bloqueado") return null;
+  const { data: existing } = await admin.from("referral_rewards").select("id, status").eq("referral_id", ref.id).maybeSingle();
+  if (existing) {
+    // aviso repetido (o Asaas tenta de novo quando a 1ª tentativa falhou): termina o que faltou
+    if (existing.status === "guardado") await applyReferralRewards(ref.referrer_business_id, "indicado pagou");
+    return null;
+  }
+
+  // autoindicação pelo documento (o CPF/CNPJ só existe no Asaas)
+  const { data: referrerSub } = await admin
+    .from("subscriptions")
+    .select("asaas_customer_id")
+    .eq("business_id", ref.referrer_business_id)
+    .maybeSingle();
+  const [mine, theirs] = await Promise.all([customerDoc(customerId), customerDoc(referrerSub?.asaas_customer_id)]);
+  const blockReason = mine && theirs && mine === theirs ? "mesmo CPF/CNPJ" : null;
+
+  const { data } = await admin.rpc("referral_on_first_payment", {
+    bid: businessId,
+    p_payment_id: paymentId,
+    p_plan: planId,
+    p_block_reason: blockReason,
+  });
+  const r = data as { reward_id: string; referrer_business_id: string; status: string } | null;
+  if (r?.status === "guardado") await applyReferralRewards(r.referrer_business_id, "indicado pagou");
+  return r;
+}
+
+// ---------------------------------------------------------------------
+// PARTE 2 — Usar os prêmios guardados de quem indicou
+// Só com assinatura paga ATIVA (a 1ª cobrança precisa ser paga: é ela que ativa
+// o plano). Sem isso, os prêmios continuam guardados e são usados no webhook,
+// quando a cobrança dele for paga.
+// ---------------------------------------------------------------------
+export async function applyReferralRewards(businessId: string, reason: string): Promise<{ applied: number }> {
+  const admin = createAdminClient();
+  const { data: sub } = await admin
+    .from("subscriptions")
+    .select("status, plan_id, asaas_subscription_id, asaas_customer_id, current_period_end, upgrade_payment_id")
+    .eq("business_id", businessId)
+    .maybeSingle();
+  // troca anual aguardando pagamento: espera (a renovação ainda vai mudar)
+  if (!sub?.asaas_subscription_id || sub.status !== "active" || sub.upgrade_payment_id) return { applied: 0 };
+
+  // reserva os prêmios (atômico: dois avisos ao mesmo tempo não aplicam duas vezes)
+  const { data: claimedRaw } = await admin.rpc("referral_rewards_claim", { bid: businessId });
+  let ids = (claimedRaw as string[] | null) ?? [];
+  if (ids.length === 0) return { applied: 0 };
+
+  let touched = false; // já mexeu em alguma coisa no Asaas?
+  try {
+    // autoindicação pelo documento: o indicado pagou antes de quem indicou ter CPF no Asaas
+    const myDoc = await customerDoc(sub.asaas_customer_id);
+    if (myDoc) {
+      const { data: rows } = await admin
+        .from("referral_rewards")
+        .select("id, referrals!inner(referred_business_id)")
+        .in("id", ids);
+      const referred = (rows ?? []).map((r) => ({
+        id: r.id as string,
+        bid: (r.referrals as unknown as { referred_business_id: string }).referred_business_id,
+      }));
+      const { data: subs } = await admin
+        .from("subscriptions")
+        .select("business_id, asaas_customer_id")
+        .in("business_id", referred.map((r) => r.bid));
+      const blocked: string[] = [];
+      for (const r of referred) {
+        const cid = subs?.find((s) => s.business_id === r.bid)?.asaas_customer_id;
+        if (cid && (await customerDoc(cid)) === myDoc) blocked.push(r.id);
+      }
+      if (blocked.length) {
+        await admin
+          .from("referral_rewards")
+          .update({ status: "bloqueado", applied_at: null, note: "Autoindicação: mesmo CPF/CNPJ" })
+          .in("id", blocked);
+        ids = ids.filter((id) => !blocked.includes(id));
+        if (ids.length === 0) return { applied: 0 };
+      }
+    }
+
+    const n = ids.length;
+    const subId = sub.asaas_subscription_id as string;
+    const s = await asaas<AsaasSubscription>(`/subscriptions/${subId}`);
+    const list = await asaas<{ data: AsaasPayment[] }>(`/subscriptions/${subId}/payments?status=PENDING&limit=50`);
+    const pending = (list.data ?? []).filter((p) => p.status === "PENDING").sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+
+    // a cobrança "pulada" é a próxima: a pendente mais antiga, ou a próxima a ser gerada
+    const first = pending[0] ?? null;
+    const dueBefore = first?.dueDate ?? s.nextDueDate;
+
+    // da mais nova para a mais antiga (nunca duas cobranças no mesmo vencimento no meio do caminho)
+    for (const p of [...pending].reverse()) {
+      touched = true;
+      await asaas(`/payments/${p.id}`, { method: "POST", body: { dueDate: addMonthsISO(p.dueDate, n) } });
+    }
+    touched = true;
+    await asaas(`/subscriptions/${subId}`, { method: "POST", body: { nextDueDate: addMonthsISO(s.nextDueDate, n) } });
+
+    // acesso continua pelos meses grátis
+    if (sub.current_period_end) {
+      const end = new Date(sub.current_period_end);
+      const shifted = addMonthsISO(end.toISOString().slice(0, 10), n);
+      await admin
+        .from("subscriptions")
+        .update({ current_period_end: `${shifted}T${end.toISOString().slice(11)}` })
+        .eq("business_id", businessId);
+    }
+
+    // registro de cada prêmio: o k-ésimo leva o vencimento de +(k-1) para +k meses
+    const { data: plan } = await admin.from("plans").select("billing_cycle").eq("id", sub.plan_id).maybeSingle();
+    for (let k = 0; k < n; k++) {
+      await admin
+        .from("referral_rewards")
+        .update({
+          plan_id: sub.plan_id,
+          cycle: plan?.billing_cycle ?? null,
+          applied_payment_id: first?.id ?? null,
+          due_before: addMonthsISO(dueBefore, k),
+          due_after: addMonthsISO(dueBefore, k + 1),
+          note: `Mês grátis por indicação (${reason})`,
+        })
+        .eq("id", ids[k]);
+    }
+  } catch (e) {
+    if (!touched) {
+      // nada mudou no Asaas: os prêmios voltam a "guardado" e o próximo aviso tenta de novo
+      await admin.rpc("referral_rewards_unclaim", { p_ids: ids });
+      throw e;
+    }
+    // falhou no meio do adiamento: NÃO devolve (aplicar de novo adiaria duas vezes).
+    // Fica registrado para a Genix conferir no Asaas (/genix → Indicações).
+    console.error("Mês grátis por indicação falhou no meio do adiamento", businessId, e);
+    await admin
+      .from("referral_rewards")
+      .update({ note: "Falha no meio do adiamento: conferir no Asaas" })
+      .in("id", ids);
+    await admin
+      .from("subscriptions")
+      .update({ billing_sync_status: "pendente", billing_sync_error: "Mês grátis por indicação: conferir o adiamento no Asaas." })
+      .eq("business_id", businessId);
+    return { applied: 0 };
+  }
+
+  // valores pelo novo vencimento (cupom de lançamento: o preço segue a data).
+  // Falha aqui não desfaz o adiamento: fica "pendente" para o webhook ou o /genix.
+  await applySubscriptionValues(businessId, { reason: "indicacao" }).catch(async (e) => {
+    console.error("Ajuste de valor depois do mês grátis falhou", businessId, e);
+    await admin
+      .from("subscriptions")
+      .update({ billing_sync_status: "pendente", billing_sync_error: "Ajustar o valor depois do mês grátis (indicação)." })
+      .eq("business_id", businessId);
+  });
+  return { applied: ids.length };
+}
+
+// ---------------------------------------------------------------------
+// PARTE 3 — Estorno/remoção da 1ª cobrança do indicado: cancela o prêmio não usado
+// ---------------------------------------------------------------------
+export async function cancelReferralByPayment(paymentId: string) {
+  const { data } = await createAdminClient().rpc("referral_cancel_by_payment", { p_payment_id: paymentId });
+  return Number(data ?? 0);
+}

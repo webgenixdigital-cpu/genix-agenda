@@ -15,8 +15,12 @@ import { cn } from "@/lib/utils";
 /** valores calculados no banco (subscription_quote) para cada plano e ciclo */
 export type Quotes = Record<PaidKind, Record<Cycle, number>>;
 
+/** cupom de lançamento (53): preço cheio e aviso ("Preço de lançamento até 31/12/2026 · por 12 meses"); null = sem desconto */
+export type Discounts = Record<PaidKind, Record<Cycle, { full: number; note: string } | null>>;
+
 type Props = {
   quotes: Quotes;
+  discounts?: Discounts | null;
   /** profissionais ativos (Básico e Profissional são para 1) */
   activePros: number;
   /** extras cobrados no Equipe (além dos 3 inclusos) */
@@ -37,7 +41,7 @@ const KINDS: { id: PaidKind; title: string; text: string }[] = [
   { id: "equipe", title: "Equipe", text: "Para salões e equipes: até 3 profissionais, acessos da equipe e comissões." },
 ];
 
-export function SubscribeForm({ quotes, activePros, equipeExtras, recommended, firstDueLabel }: Props) {
+export function SubscribeForm({ quotes, discounts, activePros, equipeExtras, recommended, firstDueLabel }: Props) {
   const [pending, start] = useTransition();
   const soloBlocked = activePros > 1;
   const [kind, setKind] = useState<PaidKind>(soloBlocked ? "equipe" : recommended);
@@ -50,6 +54,8 @@ export function SubscribeForm({ quotes, activePros, equipeExtras, recommended, f
   const docOk = isValidCpfCnpj(doc);
   const valid = name.trim().length >= 3 && docOk && !(isSoloKind(kind) && soloBlocked);
   const total = quotes[kind][cycle];
+  const discount = discounts?.[kind][cycle] ?? null;
+  const per = cycle === "anual" ? "/ano" : "/mês";
 
   function submit() {
     setError(null);
@@ -78,6 +84,7 @@ export function SubscribeForm({ quotes, activePros, equipeExtras, recommended, f
         <div className="grid gap-3 md:grid-cols-3">
           {KINDS.map((k) => {
             const disabled = isSoloKind(k.id) && soloBlocked;
+            const d = discounts?.[k.id][cycle] ?? null;
             return (
               <button
                 key={k.id}
@@ -98,12 +105,27 @@ export function SubscribeForm({ quotes, activePros, equipeExtras, recommended, f
                   </span>
                 )}
                 <p className="text-sm font-semibold">{k.title}</p>
-                <p className="mt-1 font-heading text-3xl md:text-2xl">
+                {d && (
+                  <p className="mt-1 text-sm text-muted-foreground line-through" data-testid={`preco-cheio-${k.id}`}>
+                    <span className="sr-only">Preço normal: </span>
+                    {brl(d.full)}
+                    {cycle === "anual" ? "/ano" : "/mês"}
+                  </p>
+                )}
+                <p className={cn("font-heading text-3xl md:text-2xl", d ? "mt-0" : "mt-1")}>
                   {brl(quotes[k.id][cycle])}
                   <span className="text-base text-muted-foreground"> {cycle === "anual" ? "/ano" : "/mês"}</span>
                 </p>
                 {cycle === "anual" && (
                   <p className="text-xs text-muted-foreground">equivale a {brl(quotes[k.id].anual / 12)}/mês</p>
+                )}
+                {d && (
+                  <p
+                    className="mt-1.5 w-fit rounded-full bg-[#F2C078]/40 px-2 py-0.5 text-[11px] font-semibold leading-snug text-[#7a4520]"
+                    data-testid={`selo-desconto-${k.id}`}
+                  >
+                    {d.note}
+                  </p>
                 )}
                 <p className="mt-1 text-sm text-muted-foreground">
                   {disabled ? `Você tem ${activePros} profissionais ativos. O ${k.title} é para 1.` : k.text}
@@ -192,6 +214,13 @@ export function SubscribeForm({ quotes, activePros, equipeExtras, recommended, f
           </strong>{" "}
           {cycle === "anual" ? `por ano (equivale a ${brl(total / 12)}/mês)` : "por mês"}. Primeira cobrança com vencimento {firstDueLabel}.
         </p>
+        {discount && (
+          <p className="mt-1" data-testid="resumo-desconto">
+            {discount.note.includes("depois")
+              ? `${discount.note}, sem precisar fazer nada.`
+              : `${discount.note}. Depois, ${brl(discount.full)}${per}, sem precisar fazer nada.`}
+          </p>
+        )}
       </div>
 
       {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-destructive" data-testid="erro-assinatura">{error}</p>}

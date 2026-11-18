@@ -4,12 +4,14 @@ import { useState } from "react";
 import Link from "next/link";
 import { Check, Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { FREE_MONTHS, PLAN_SUMMARY } from "@/content/planos";
+import { FREE_MONTHS, LAUNCH_TEXT, PLAN_SUMMARY } from "@/content/planos";
+import { useOfferOpen } from "@/components/use-offer-open";
 import { brl } from "@/lib/format";
-import type { Plan } from "@/lib/plans-public";
+import { offerEndLabel, offerPrice, type LaunchOffer, type Plan } from "@/lib/plans-public";
 import { cn } from "@/lib/utils";
 
 // Valores vêm da tabela plans (migrations 28a/52); textos em src/content/planos.ts.
+// Preço de lançamento (53): launch_offer() no servidor, escondido no navegador quando o prazo acaba.
 
 function Item({ children, strong }: { children: React.ReactNode; strong?: boolean }) {
   return (
@@ -19,20 +21,38 @@ function Item({ children, strong }: { children: React.ReactNode; strong?: boolea
   );
 }
 
-function PriceLine({ value, per, testid }: { value: string; per: string; testid?: string }) {
+function PriceLine({ value, per, testid, was }: { value: string; per: string; testid?: string; was?: string }) {
   return (
-    <div className="mt-3 flex flex-wrap items-end justify-center gap-x-2 gap-y-1">
-      <p className="font-heading text-4xl leading-none md:text-5xl" data-testid={testid}>{value}</p>
-      <p className="pb-1 text-muted-foreground">{per}</p>
-    </div>
+    <>
+      {was && (
+        <p className="mt-3 text-sm text-muted-foreground line-through">
+          <span className="sr-only">{LAUNCH_TEXT.wasLabel(was)}</span>
+          <span aria-hidden>{was}{per}</span>
+        </p>
+      )}
+      <div className={cn("flex flex-wrap items-end justify-center gap-x-2 gap-y-1", was ? "mt-1" : "mt-3")}>
+        <p className="font-heading text-4xl leading-none md:text-5xl" data-testid={testid}>{value}</p>
+        <p className="pb-1 text-muted-foreground">{per}</p>
+      </div>
+    </>
+  );
+}
+
+/** selo "Preço de lançamento até 31/12/2026 · por 12 meses" */
+function LaunchBadge({ offer }: { offer: LaunchOffer }) {
+  return (
+    <p className="mx-auto mt-3 w-fit rounded-full bg-[#F2C078]/40 px-3 py-1 text-xs font-bold text-[#7a4520]" data-testid="selo-preco-lancamento">
+      {LAUNCH_TEXT.until(offer.label, offerEndLabel(offer))} · {LAUNCH_TEXT.forMonths(offer.duration_months)}
+    </p>
   );
 }
 
 // ---------------------------------------------------------------------
 // Componente: Grátis, Básico, Profissional (destaque) e Equipe (com calculadora)
 // ---------------------------------------------------------------------
-export function Pricing({ plans }: { plans: Plan[] }) {
+export function Pricing({ plans, offer: serverOffer = null }: { plans: Plan[]; offer?: LaunchOffer | null }) {
   const [cycle, setCycle] = useState<"MONTHLY" | "YEARLY">("YEARLY");
+  const offer = useOfferOpen(serverOffer);
   const [pros, setPros] = useState(3);
 
   const find = (kind: Plan["kind"], c: Plan["billing_cycle"]) => plans.find((p) => p.kind === kind && p.billing_cycle === c);
@@ -50,6 +70,12 @@ export function Pricing({ plans }: { plans: Plan[] }) {
   const extras = Math.max(pros - included, 0);
   const teamTotal = team.base_price + extras * team.extra_professional_price;
   const equiv = (v: number) => (yearly ? `Equivale a ${brl(v / 12)}/mês.` : "Sem fidelidade. Cancele quando quiser.");
+  // cupom de lançamento: extra do Equipe sem desconto
+  const proPromo = offerPrice(offer, pro);
+  const teamPromo = offerPrice(offer, team);
+  const teamPromoTotal = teamPromo != null ? teamPromo + extras * team.extra_professional_price : null;
+  const promoNote = (full: number, promo: number) =>
+    `${yearly ? `Equivale a ${brl(promo / 12)}/mês; ` : ""}${LAUNCH_TEXT.then(brl(full), per)}.`;
 
   return (
     <div className="mx-auto max-w-5xl text-center">
@@ -120,8 +146,16 @@ export function Pricing({ plans }: { plans: Plan[] }) {
             Para quem atende sozinho
           </span>
           <p className="text-sm font-semibold text-primary">Profissional</p>
-          <PriceLine value={brl(pro.base_price)} per={per} testid="preco-profissional" />
-          <p className="mt-2 text-sm text-muted-foreground">{equiv(pro.base_price)}</p>
+          {offer && proPromo != null && <LaunchBadge offer={offer} />}
+          <PriceLine
+            value={brl(proPromo ?? pro.base_price)}
+            per={per}
+            testid="preco-profissional"
+            was={proPromo != null ? brl(pro.base_price) : undefined}
+          />
+          <p className="mt-2 text-sm text-muted-foreground">
+            {proPromo != null ? promoNote(pro.base_price, proPromo) : equiv(pro.base_price)}
+          </p>
           <ul className="mx-auto mt-8 w-fit space-y-3">
             {PLAN_SUMMARY.profissional.items(limit, included).map((f, i) => (
               <Item key={f} strong={i === 0}>{f}</Item>
@@ -139,8 +173,16 @@ export function Pricing({ plans }: { plans: Plan[] }) {
             Para salões e equipes
           </span>
           <p className="text-sm font-semibold text-[#99582A]">Equipe</p>
-          <PriceLine value={brl(teamTotal)} per={per} testid="preco-total" />
-          <p className="mt-2 text-sm text-muted-foreground">{equiv(teamTotal)}</p>
+          {offer && teamPromoTotal != null && <LaunchBadge offer={offer} />}
+          <PriceLine
+            value={brl(teamPromoTotal ?? teamTotal)}
+            per={per}
+            testid="preco-total"
+            was={teamPromoTotal != null ? brl(teamTotal) : undefined}
+          />
+          <p className="mt-2 text-sm text-muted-foreground">
+            {teamPromoTotal != null ? promoNote(teamTotal, teamPromoTotal) : equiv(teamTotal)}
+          </p>
           <ul className="mx-auto mt-8 w-fit space-y-3">
             {PLAN_SUMMARY.equipe.items(limit, included).map((f, i) => (
               <Item key={f} strong={i === 0}>{f}</Item>

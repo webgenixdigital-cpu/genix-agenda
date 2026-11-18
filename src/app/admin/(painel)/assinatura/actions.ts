@@ -10,10 +10,11 @@ import { cycleOfPlanId, isPaidPlanId, isSoloKind, kindOfPlanId, paidRank, type P
 import { PLAN_NAMES } from "@/lib/plan-features";
 import { availablePaidPlans } from "@/lib/plans-server";
 import { getPlanContext } from "@/lib/plan";
-import { daysLeftOf } from "@/lib/billing";
+import {
+  applySubscriptionValues, billingQuote, claimDiscount, daysLeftOf, logPlanChangeDiscount, voidDiscount, type BillingQuote,
+} from "@/lib/billing";
 
 type Result = { ok: true; invoiceUrl?: string; message?: string } | { ok: false; error: string };
-type Quote = { total: number; extra_professionals: number; professionals: number };
 
 // Boleto desativado por enquanto (expõe o documento do recebedor)
 const BILLING: AsaasBillingType[] = ["PIX", "CREDIT_CARD"];
@@ -25,6 +26,7 @@ const UNAVAILABLE = "Este plano ainda não está disponível. Tente de novo em i
 const GRANTED = "Este espaço tem cortesia da Genix: não há assinatura para contratar ou trocar.";
 
 const todayISO = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+const dateSP = (iso: string) => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date(iso));
 const kindLabel = (id: string) => PLAN_NAMES[kindOfPlanId(id)];
 const cycleLabel = (id: string) => (cycleOfPlanId(id) === "anual" ? "anual" : "mensal");
 const description = (planId: string, businessName: string) =>
@@ -35,10 +37,17 @@ function friendly(e: unknown) {
   return "Não foi possível falar com o sistema de pagamentos. Tente de novo em instantes.";
 }
 
-/** valor calculado no banco (inclui profissionais extras do Equipe) */
-async function quoteFor(businessId: string, planId: PaidPlanId) {
-  const { data } = await createClient().rpc("subscription_quote", { bid: businessId, p_plan: planId });
-  return data as Quote | null;
+/** valor calculado no banco para um vencimento (extras do Equipe + cupom de lançamento, 53) */
+async function quoteFor(businessId: string, planId: PaidPlanId, ref?: string | null): Promise<BillingQuote | null> {
+  // confere que quem pede é membro do espaço (a action já exige a matriz)
+  const { data: member } = await createClient().rpc("is_business_member", { bid: businessId });
+  if (!member) return null;
+  return billingQuote(businessId, { plan: planId, ref });
+}
+
+/** cupom automático no prazo e ainda sem registro: grava o desconto (1 por espaço) */
+async function claimIfNew(businessId: string, q: BillingQuote, firstDue: string, actor: string) {
+  if (q.discounted && !q.discount_ends_on) await claimDiscount(businessId, q.plan, firstDue, actor);
 }
 
 function refresh() {
@@ -69,10 +78,6 @@ export async function startSubscription(input: {
   const admin = createAdminClient();
   const biz = ctx.business;
 
-  const q = await quoteFor(biz.id, input.planId);
-  if (!q) return { ok: false, error: "Não foi possível calcular o valor do plano." };
-  if (isSoloKind(kindOfPlanId(input.planId)) && q.professionals > 1) return { ok: false, error: soloOnly(input.planId) };
-
   const { data: sub } = await admin
     .from("subscriptions")
     .select("status, trial_ends_at, asaas_customer_id, asaas_subscription_id")
@@ -83,6 +88,14 @@ export async function startSubscription(input: {
   if (sub.asaas_subscription_id) {
     return { ok: false, error: "Já existe um pagamento pendente. Abra a fatura ou cancele para trocar de plano." };
   }
+
+  // 1ª cobrança vence no fim do teste (ou hoje, se já acabou); o preço depende desse vencimento (cupom)
+  const trialEnd = sub.trial_ends_at ? dateSP(sub.trial_ends_at) : todayISO();
+  const nextDueDate = trialEnd > todayISO() ? trialEnd : todayISO();
+
+  const q = await quoteFor(biz.id, input.planId, nextDueDate);
+  if (!q) return { ok: false, error: "Não foi possível calcular o valor do plano." };
+  if (isSoloKind(kindOfPlanId(input.planId)) && q.professionals > 1) return { ok: false, error: soloOnly(input.planId) };
 
   try {
     // 1) cliente no Asaas (reaproveita se já existir)
@@ -101,12 +114,7 @@ export async function startSubscription(input: {
       customerId = c.id;
     }
 
-    // 2) assinatura: 1ª cobrança vence no fim do teste (ou hoje, se já acabou)
-    const trialEnd = sub.trial_ends_at
-      ? new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date(sub.trial_ends_at))
-      : todayISO();
-    const nextDueDate = trialEnd > todayISO() ? trialEnd : todayISO();
-
+    // 2) assinatura (valor do 1º vencimento; o webhook ajusta os seguintes pelo vencimento)
     const s = await asaas<AsaasSubscription>("/subscriptions", {
       method: "POST",
       body: {
@@ -144,6 +152,22 @@ export async function startSubscription(input: {
       })
       .eq("business_id", biz.id);
 
+    // 4) cupom de lançamento: registra o desconto (início = 1º vencimento). Quem já tinha mantém a data
+    // final, e o histórico ganha "reaproveitado" (assim desistir desta fatura não anula o desconto já usado)
+    if (q.discounted) await claimDiscount(biz.id, q.plan, nextDueDate, ctx.userId);
+
+    // 5) próximas cobranças pelo vencimento (ex.: o desconto acaba antes da 2ª cobrança).
+    // Falha aqui não desfaz a assinatura: fica "pendente" para o webhook ou o /genix.
+    if (q.discounted) {
+      await applySubscriptionValues(biz.id, { reason: "assinatura", actor: ctx.userId }).catch(async (e) => {
+        console.error("Ajuste do valor depois de assinar falhou", biz.id, e);
+        await admin
+          .from("subscriptions")
+          .update({ billing_sync_status: "pendente", billing_sync_error: "Ajustar o valor das próximas cobranças (cupom)." })
+          .eq("business_id", biz.id);
+      });
+    }
+
     revalidatePath("/admin/assinatura");
     return { ok: true, invoiceUrl: first?.invoiceUrl };
   } catch (e) {
@@ -177,6 +201,8 @@ export async function cancelSubscription(): Promise<Result> {
   }
 
   const wasPaid = sub.status === "active" || sub.status === "past_due";
+  // nunca pagou: o cupom não foi usado (pode assinar de novo com data nova)
+  if (!wasPaid) await voidDiscount(ctx.business.id, ctx.userId);
   const clearChanges = {
     scheduled_plan_id: null, scheduled_at: null,
     upgrade_plan_id: null, upgrade_payment_id: null, upgrade_amount: null, upgrade_invoice_url: null,
@@ -227,32 +253,33 @@ export async function changePlan(target: PaidPlanId): Promise<Result> {
   const to = kindOfPlanId(target);
   if (from === to) return { ok: false, error: "Você já está neste plano." };
 
-  const q = await quoteFor(biz.id, target);
+  // próxima cobrança: o desconto do plano novo vale até a mesma data final (cupom, 53)
+  const nextDue = sub.current_period_end ? dateSP(sub.current_period_end) : todayISO();
+  const q = await quoteFor(biz.id, target, nextDue);
   if (!q) return { ok: false, error: "Não foi possível calcular o valor do plano." };
+  if (paidRank(to) < paidRank(from) && isSoloKind(to) && q.professionals > 1) return { ok: false, error: soloOnly(target) };
+
+  // valor da assinatura e de cada cobrança em aberto, pelo vencimento
+  const updateRenewal = () =>
+    applySubscriptionValues(biz.id, { reason: "troca_plano", plan: target, description: description(target, biz.name), actor: ctx.userId });
 
   try {
+    // passar para Profissional/Equipe com o cupom no prazo registra o desconto (quem já tem mantém a data)
+    await claimIfNew(biz.id, q, nextDue, ctx.userId);
+
     // ---------- Downgrade (para um plano menor), no próximo ciclo ----------
     if (paidRank(to) < paidRank(from)) {
-      if (isSoloKind(to) && q.professionals > 1) return { ok: false, error: soloOnly(target) };
-      await asaas(`/subscriptions/${sub.asaas_subscription_id}`, {
-        method: "POST",
-        body: { value: Number(q.total), description: description(target, biz.name), updatePendingPayments: true },
-      });
+      await updateRenewal();
       await admin
         .from("subscriptions")
         .update({ scheduled_plan_id: target, scheduled_at: new Date().toISOString() })
         .eq("business_id", biz.id);
+      await logPlanChangeDiscount(biz.id, target, sub.amount, q.total, ctx.userId);
       refresh();
       return { ok: true, message: `Troca agendada: o plano ${kindLabel(target)} começa na próxima renovação.` };
     }
 
     // ---------- Upgrade (para um plano maior) ----------
-    const updateRenewal = () =>
-      asaas(`/subscriptions/${sub.asaas_subscription_id}`, {
-        method: "POST",
-        body: { value: Number(q.total), description: description(target, biz.name), updatePendingPayments: true },
-      });
-
     // diferença proporcional aos dias que faltam (só no anual; no máximo 365 dias = diferença cheia)
     const daysLeft = daysLeftOf(sub.current_period_end);
     const diff = Math.round(Math.max(0, Number(q.total) - Number(sub.amount ?? 0)) * (daysLeft / 365) * 100) / 100;
@@ -263,6 +290,7 @@ export async function changePlan(target: PaidPlanId): Promise<Result> {
         .from("subscriptions")
         .update({ plan_id: target, amount: q.total, extra_professionals: q.extra_professionals, scheduled_plan_id: null, scheduled_at: null })
         .eq("business_id", biz.id);
+      await logPlanChangeDiscount(biz.id, target, sub.amount, q.total, ctx.userId);
       refresh();
       return { ok: true, message: `Pronto! Você já está no plano ${kindLabel(target)}. O novo valor vale a partir da próxima cobrança.` };
     }
@@ -289,6 +317,7 @@ export async function changePlan(target: PaidPlanId): Promise<Result> {
         scheduled_at: null,
       })
       .eq("business_id", biz.id);
+    await logPlanChangeDiscount(biz.id, target, sub.amount, q.total, ctx.userId);
     refresh();
     return { ok: true, invoiceUrl: payment.invoiceUrl };
   } catch (e) {
@@ -318,11 +347,13 @@ export async function cancelPlanChange(): Promise<Result> {
         if (!(e instanceof AsaasError && e.status === 404)) throw e;
       });
     }
-    // downgrade agendado: a renovação volta ao valor atual
+    // downgrade agendado: a renovação volta ao plano atual (pelo vencimento, com o cupom se houver)
     if (sub.scheduled_plan_id && sub.asaas_subscription_id && sub.plan_id) {
-      await asaas(`/subscriptions/${sub.asaas_subscription_id}`, {
-        method: "POST",
-        body: { value: Number(sub.amount), description: description(sub.plan_id, biz.name), updatePendingPayments: true },
+      await applySubscriptionValues(biz.id, {
+        reason: "troca_plano",
+        plan: sub.plan_id,
+        description: description(sub.plan_id, biz.name),
+        actor: ctx.userId,
       });
     }
   } catch (e) {

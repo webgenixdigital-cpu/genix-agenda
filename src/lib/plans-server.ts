@@ -10,7 +10,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createPublicClient } from "@/lib/supabase/public";
 import { createClient } from "@/lib/supabase/server";
 import { PAID_PLAN_IDS, type PaidPlanId } from "@/lib/plan-ids";
-import { normalizePlans, PLAN_COLUMNS, type Plan } from "@/lib/plans-public";
+import { normalizeOffer, normalizePlans, PLAN_COLUMNS, type LaunchOffer, type Plan } from "@/lib/plans-public";
 
 const NEW_PLAN_IDS = ["gratis", ...PAID_PLAN_IDS];
 
@@ -27,6 +27,13 @@ export async function getPublicPlans(): Promise<Plan[]> {
   }
   const { data } = await createPublicClient().from("plans").select(PLAN_COLUMNS).eq("active", true);
   return normalizePlans(data);
+}
+
+/** Cupom de lançamento no prazo (migration 53); null fora do prazo ou antes da migration */
+export async function getLaunchOffer(): Promise<LaunchOffer | null> {
+  const { data, error } = await createPublicClient().rpc("launch_offer");
+  if (error) return null;
+  return normalizeOffer(data);
 }
 
 /** Planos pagos que podem ser assinados agora (ativos no banco, ou todos na prévia) */

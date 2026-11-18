@@ -99,7 +99,16 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
   - Troca de plano (entre os 3 pagos, mesmo ciclo): upgrade mensal na hora (novo valor na próxima cobrança); upgrade
     anual com cobrança avulsa proporcional; downgrade só no próximo ciclo (`subscriptions.scheduled_plan_id`);
     Básico e Profissional exigem 1 profissional ativo.
-  - Cupom de desconto e indicação: PRs seguintes (espaço reservado na Assinatura).
+  - **Cupom de lançamento (53):** `LANCAMENTO2026`, **automático** (sem digitar), para Profissional e Equipe assinados
+    até 31/12/2026 23:59 (SP), inclusive contas que já existem (a partir da próxima cobrança). Por **12 meses** a partir do
+    1º vencimento: Pro 48,70/mês ou 487/ano; Equipe 98,70/mês ou 987/ano (1ª anuidade); depois volta sozinho ao cheio.
+    Extra do Equipe e Básico sem desconto. **1 por espaço**: trocar Pro ↔ Equipe mantém a data final; ir para o Básico
+    perde; cancelar e assinar de novo mantém a data final; 1ª fatura nunca paga = desconto `anulado` (pode usar de novo;
+    nunca anula um desconto já reaproveitado, 54). **Anual** (54): só com desconto se o ano inteiro couber até a data
+    final (vencimento + 12 meses ≤ `ends_on`); mensal → anual no meio do desconto = anual cheio.
+    Selo “Preço de lançamento até 31/12/2026 · por 12 meses” na Assinatura, `/` e `/para`; quem assinou vê
+    “Desconto até dd/mm/aaaa; depois R$ X”. O código fica no banco para campanhas futuras (digitadas).
+  - Indicação: PR seguinte (espaço reservado na Assinatura).
 - **Sem área da saúde nesta fase:** nada de prontuário, anamnese, alergias, medicamentos, gestação, dados clínicos.
   O segmento `psicologia_terapias` existe no banco mas **não é oferecido**. Campos de ficha técnica nunca de saúde.
   Os Termos/Privacidade publicados afirmam isso.
@@ -205,6 +214,17 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
   marca a assinatura `billing_sync_status = 'pendente'`. Mensal: muda o valor; anual: avulsa proporcional
   (`externalReference: extra:`) + renovação. Falha do Asaas nunca bloqueia: fica pendente (/genix → Assinaturas).
   Avulsa vencida: bloqueia ativações; após 15 dias os extras não pagos saem do agendamento online.
+- **Cupom de lançamento (53):** `coupons` + `coupon_prices` (preço por plano), `subscription_discounts` (1 por espaço,
+  `ativo`|`encerrado`|`anulado`, `starts_on` = 1º vencimento com desconto, `ends_on` = 1º SEM desconto) e
+  `subscription_discount_log` (auditoria: aplicado, reaproveitado, troca_plano, valor, virada, anulado); `encerrado` só
+  registra a virada, o preço segue a data (54). Escrita só pelo
+  servidor: `subscription_discount_claim` / `subscription_discount_void` (service role). O preço depende do
+  **VENCIMENTO**: `billing_quote(bid, plano, profissionais, p_ref)` (sem `p_ref` = próxima cobrança). O Asaas gera cada
+  cobrança **40 dias antes**, então **nunca usar `updatePendingPayments`**: `applySubscriptionValues` (`lib/billing.ts`)
+  põe na assinatura o valor do `nextDueDate` e ajusta cada cobrança PENDING pelo próprio `dueDate`. O `discount` do Asaas
+  é desconto por pagamento antecipado (não serve). A virada para o cheio acontece no webhook (`PAYMENT_CREATED` compara
+  com o vencimento da cobrança; `PAYMENT_CONFIRMED` confere o próximo vencimento) ou no “Sincronizar agora” do /genix;
+  sem cron. Público: `launch_offer()` (anon) → `getLaunchOffer()`; `useOfferOpen` esconde a oferta quando o prazo passa.
 - Migrations em `supabase/migrations` (01→17, já aplicadas). Novas: `18_...` em diante, **aditivas e reversíveis**.
   Nada destrutivo sem autorização. **Nunca rodar `supabase/seed` em produção.**
 

@@ -28,7 +28,11 @@ export type BillingOverview = {
   overdue_extras: number;
   blocked_professionals: number;
   open_invoice_url: string | null;
+  /** cupom de lançamento (53): desconto do espaço (ativo ou encerrado) */
+  discount: { coupon_code: string; status: string; starts_on: string; ends_on: string } | null;
 };
+
+const br = (ymd: string) => ymd.split("-").reverse().join("/");
 
 const same = (a: number | null, b: number | null) => a !== null && b !== null && Math.round(a * 100) === Math.round(b * 100);
 
@@ -95,6 +99,12 @@ export function BillingManager({ rows }: { rows: BillingOverview[] }) {
                   <dd className="font-medium">{r.asaas_value !== null ? brl(r.asaas_value) : "—"}</dd>
                 </div>
               </dl>
+              {r.discount && (
+                <p className="text-xs" data-testid={`desconto-genix-${r.slug}`}>
+                  Cupom {r.discount.coupon_code}: {r.discount.status === "ativo" ? "com desconto" : "encerrado"} · vencimentos de{" "}
+                  {br(r.discount.starts_on)} até antes de {br(r.discount.ends_on)}
+                </p>
+              )}
               {r.sync_error && <p className="text-xs text-amber-900">Último erro: {r.sync_error}</p>}
               {r.open_extras > 0 && (
                 <p className="text-xs">

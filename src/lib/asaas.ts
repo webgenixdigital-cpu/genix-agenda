@@ -58,4 +58,5 @@ export type AsaasPayment = {
   dueDate: string;
   invoiceUrl: string;
   subscription?: string;
+  value?: number;
 };

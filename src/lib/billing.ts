@@ -4,15 +4,20 @@
 //
 // Regras (migration 29):
 //   • valor = billing_quote no banco (plano da próxima renovação + extras além do incluso);
-//   • mensal: só muda o valor da assinatura (updatePendingPayments), sem proporcional;
+//   • mensal: só muda o valor da assinatura e das cobranças em aberto, sem proporcional;
 //   • anual: cada extra novo no período gera avulsa proporcional (dias restantes ÷ 365),
 //     abaixo de R$ 5 não cobra; desativar só reduz a renovação (sem reembolso);
 //   • 1ª fatura ainda não paga (assinou no teste): só muda o valor dela, sem avulsa;
 //   • falha do Asaas nunca bloqueia a ativação: a assinatura fica "pendente" e
 //     a próxima ação, o webhook ou o /genix tentam de novo.
+//
+// Cupom de lançamento (53): o preço depende do VENCIMENTO da cobrança
+// (billing_quote com p_ref). O Asaas gera cada cobrança 40 dias antes, então a
+// assinatura (próximas cobranças) e cada cobrança pendente são ajustadas uma a
+// uma (applySubscriptionValues); nunca updatePendingPayments.
 // Nunca importe este arquivo num componente "use client".
 import { createAdminClient } from "@/lib/supabase/admin";
-import { asaas, AsaasError, type AsaasPayment } from "@/lib/asaas";
+import { asaas, AsaasError, type AsaasPayment, type AsaasSubscription } from "@/lib/asaas";
 import { todayISO } from "@/lib/dates";
 import { brl } from "@/lib/format";
 import { isSoloKind, kindOfPlanId } from "@/lib/plan-ids";
@@ -34,7 +39,18 @@ export type BillingQuote = {
   professionals: number;
   extra_professionals: number;
   extra_price: number;
+  /** valor cobrado (com o desconto do cupom, se houver) */
   total: number;
+  /** preço cheio do plano e total sem desconto */
+  full_base_price: number;
+  full_total: number;
+  discounted: boolean;
+  coupon_label: string | null;
+  discount_months: number | null;
+  /** 1º vencimento sem desconto (null = ainda não assinou) */
+  discount_ends_on: string | null;
+  /** vencimento usado na conta */
+  ref_date: string;
 };
 
 type Sub = {
@@ -49,10 +65,11 @@ type Sub = {
   asaas_subscription_id: string | null;
   upgrade_payment_id: string | null;
   billed_extra_professionals: number | null;
+  extra_professionals: number | null;
 };
 
 const SUB_COLUMNS =
-  "status, trial_ends_at, plan_id, scheduled_plan_id, amount, billing_type, current_period_end, asaas_customer_id, asaas_subscription_id, upgrade_payment_id, billed_extra_professionals";
+  "status, trial_ends_at, plan_id, scheduled_plan_id, amount, billing_type, current_period_end, asaas_customer_id, asaas_subscription_id, upgrade_payment_id, billed_extra_professionals, extra_professionals";
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 const sameValue = (a: number, b: number) => Math.round(a * 100) === Math.round(b * 100);
@@ -81,12 +98,13 @@ const teamLabel = (q: BillingQuote) =>
 // ---------------------------------------------------------------------
 export async function billingQuote(
   businessId: string,
-  opts: { plan?: string; professionals?: number } = {}
+  opts: { plan?: string | null; professionals?: number; ref?: string | null } = {}
 ): Promise<BillingQuote | null> {
   const { data, error } = await createAdminClient().rpc("billing_quote", {
     bid: businessId,
     p_plan: opts.plan ?? null,
     p_professionals: opts.professionals ?? null,
+    p_ref: opts.ref ?? null,
   });
   if (error || !data) return null;
   const q = data as Record<string, unknown>;
@@ -100,7 +118,164 @@ export async function billingQuote(
     extra_professionals: Number(q.extra_professionals),
     extra_price: Number(q.extra_price),
     total: Number(q.total),
+    full_base_price: Number(q.full_base_price ?? q.base_price),
+    full_total: Number(q.full_total ?? q.total),
+    discounted: q.discounted === true,
+    coupon_label: (q.coupon_label as string | null) ?? null,
+    discount_months: q.discount_months == null ? null : Number(q.discount_months),
+    discount_ends_on: (q.discount_ends_on as string | null) ?? null,
+    ref_date: String(q.ref_date ?? ""),
   };
+}
+
+// ---------------------------------------------------------------------
+// PARTE 1b — Valor no Asaas pelo vencimento (cupom, 53)
+// A assinatura recebe o valor do próximo vencimento a ser gerado (nextDueDate);
+// cada cobrança já gerada e em aberto recebe o valor do seu próprio vencimento.
+// plan: plano a usar na conta (troca de plano antes de gravar aqui).
+// Lança erro se o Asaas falhar (quem chama decide se bloqueia ou fica pendente).
+// ---------------------------------------------------------------------
+export type AppliedValues = { next: BillingQuote; previous: number; changedPayments: number };
+
+export async function applySubscriptionValues(
+  businessId: string,
+  opts: { reason: string; plan?: string | null; description?: string; actor?: string | null }
+): Promise<AppliedValues | null> {
+  const admin = createAdminClient();
+  const { data: sub } = await admin
+    .from("subscriptions")
+    .select("asaas_subscription_id")
+    .eq("business_id", businessId)
+    .maybeSingle();
+  const id = sub?.asaas_subscription_id as string | undefined;
+  if (!id) return null;
+
+  const s = await asaas<AsaasSubscription>(`/subscriptions/${id}`);
+  const next = await billingQuote(businessId, { plan: opts.plan, ref: s.nextDueDate });
+  if (!next) throw new Error("Não foi possível calcular o valor da assinatura.");
+  const previous = Number(s.value);
+
+  if (!sameValue(previous, next.total) || opts.description) {
+    await asaas(`/subscriptions/${id}`, {
+      method: "POST",
+      body: { value: next.total, ...(opts.description ? { description: opts.description } : {}) },
+    });
+  }
+
+  // cobranças já geradas (o Asaas gera 40 dias antes): cada uma pelo seu vencimento
+  const list = await asaas<{ data: AsaasPayment[] }>(`/subscriptions/${id}/payments?status=PENDING&limit=50`);
+  let changedPayments = 0;
+  for (const p of list.data ?? []) {
+    if (p.status !== "PENDING") continue;
+    const qp = await billingQuote(businessId, { plan: opts.plan, ref: p.dueDate });
+    if (!qp) throw new Error("Não foi possível calcular o valor da cobrança.");
+    const old = Number(p.value ?? 0);
+    if (sameValue(old, qp.total) && !opts.description) continue;
+    await asaas(`/payments/${p.id}`, {
+      method: "POST",
+      body: { value: qp.total, ...(opts.description ? { description: opts.description } : {}) },
+    });
+    if (!sameValue(old, qp.total)) {
+      changedPayments++;
+      await logDiscount(businessId, {
+        event: "valor",
+        plan: qp.plan,
+        old,
+        value: qp.total,
+        due: p.dueDate,
+        actor: opts.actor,
+        note: `${opts.reason}: cobrança ${qp.discounted ? "com desconto" : "com preço cheio"}`,
+      });
+    }
+  }
+
+  // virada: o próximo vencimento já é depois do fim do desconto
+  if (!next.discounted) await closeDiscountIfOver(businessId, next, previous, opts.actor);
+  return { next, previous, changedPayments };
+}
+
+type DiscountEvent = {
+  event: "valor" | "troca_plano";
+  plan?: string;
+  old?: number;
+  value?: number;
+  due?: string;
+  actor?: string | null;
+  note?: string;
+};
+
+/** histórico do desconto (só se o espaço tem um desconto registrado) */
+async function logDiscount(businessId: string, e: DiscountEvent) {
+  const admin = createAdminClient();
+  const { data: d } = await admin
+    .from("subscription_discounts")
+    .select("id")
+    .eq("business_id", businessId)
+    .neq("status", "anulado")
+    .maybeSingle();
+  if (!d) return;
+  await admin.from("subscription_discount_log").insert({
+    discount_id: d.id,
+    business_id: businessId,
+    event: e.event,
+    plan_id: e.plan ?? null,
+    old_amount: e.old ?? null,
+    new_amount: e.value ?? null,
+    due_date: e.due ?? null,
+    actor: e.actor ?? null,
+    note: e.note ?? null,
+  });
+}
+
+/** desconto ativo cujo fim já chegou para o próximo vencimento → encerrado */
+async function closeDiscountIfOver(businessId: string, next: BillingQuote, previous: number, actor?: string | null) {
+  const admin = createAdminClient();
+  const { data: d } = await admin
+    .from("subscription_discounts")
+    .select("id, ends_on")
+    .eq("business_id", businessId)
+    .eq("status", "ativo")
+    .maybeSingle();
+  if (!d || !next.ref_date || next.ref_date < String(d.ends_on)) return;
+  const { data: closed } = await admin
+    .from("subscription_discounts")
+    .update({ status: "encerrado", ended_at: new Date().toISOString() })
+    .eq("id", d.id)
+    .eq("status", "ativo")
+    .select("id");
+  if (!closed?.length) return;
+  await admin.from("subscription_discount_log").insert({
+    discount_id: d.id,
+    business_id: businessId,
+    event: "virada",
+    plan_id: next.plan,
+    old_amount: previous,
+    new_amount: next.total,
+    due_date: next.ref_date,
+    actor: actor ?? null,
+    note: "Fim do preço de lançamento: volta ao preço cheio",
+  });
+}
+
+/** registra o desconto de quem assina ou passa para Profissional/Equipe (cupom automático no prazo) */
+export async function claimDiscount(businessId: string, plan: string, firstDue: string, actor: string | null) {
+  const { data } = await createAdminClient().rpc("subscription_discount_claim", {
+    bid: businessId,
+    p_plan: plan,
+    p_first_due: firstDue,
+    p_actor: actor,
+  });
+  return (data as string | null) ?? null;
+}
+
+/** 1ª fatura nunca paga e a assinatura foi desfeita: o cupom não foi usado */
+export async function voidDiscount(businessId: string, actor: string | null) {
+  await createAdminClient().rpc("subscription_discount_void", { bid: businessId, p_actor: actor });
+}
+
+/** troca de plano: registra no histórico do desconto (se houver) */
+export async function logPlanChangeDiscount(businessId: string, plan: string, old: number | null, value: number, actor: string | null) {
+  await logDiscount(businessId, { event: "troca_plano", plan, old: old ?? undefined, value, actor });
 }
 
 // ---------------------------------------------------------------------
@@ -149,7 +324,8 @@ export async function previewTeamChange(businessId: string, delta: 1 | -1): Prom
   }
 
   // cancelada (acesso até o fim do período) ou troca anual aguardando pagamento: sem aviso
-  if (sub.status === "canceled" || sub.status === "expired" || sub.upgrade_payment_id) return NONE;
+  // ("expired" com assinatura no Asaas = 1ª fatura em aberto depois do teste: avisa como no teste)
+  if (sub.status === "canceled" || sub.upgrade_payment_id) return NONE;
 
   const [q0, q1] = await Promise.all([billingQuote(businessId), billingQuote(businessId, { professionals: next })]);
   if (!q0 || !q1 || sameValue(q0.total, q1.total)) return NONE; // dentro do incluso (ou Profissional)
@@ -179,15 +355,14 @@ export async function previewTeamChange(businessId: string, delta: 1 | -1): Prom
 
 // ---------------------------------------------------------------------
 // PARTE 3 — Sincronizar com o Asaas
-// observedValue: valor visto no Asaas (webhook "cobrança criada" ou /genix);
-// se for diferente do esperado, a assinatura é corrigida mesmo que o valor
-// gravado aqui esteja certo.
+// Sempre lê o valor real no Asaas (assinatura e cobranças em aberto) e corrige
+// o que estiver diferente do esperado para cada vencimento.
 // ---------------------------------------------------------------------
 export type SyncResult = { status: "ok" | "pendente" | "sem-assinatura"; error?: string };
 
 export async function syncSubscriptionBilling(
   businessId: string,
-  opts: { reason: string; professionalIds?: string[]; observedValue?: number }
+  opts: { reason: string; professionalIds?: string[] }
 ): Promise<SyncResult> {
   const admin = createAdminClient();
   const subscriptions = () => admin.from("subscriptions");
@@ -203,13 +378,13 @@ export async function syncSubscriptionBilling(
     return { status: "pendente" };
   }
 
-  let observed = opts.observedValue;
   try {
     let stable = false;
     for (let round = 0; round < 3 && !stable; round++) {
       const { data: sub } = await subscriptions().select(SUB_COLUMNS).eq("business_id", businessId).maybeSingle<Sub>();
-      // sem renovação (cancelada) ou troca anual aguardando pagamento: nada a ajustar agora
-      if (!sub?.asaas_subscription_id || sub.status === "canceled" || sub.status === "expired" || sub.upgrade_payment_id) {
+      // sem renovação (cancelada) ou troca anual aguardando pagamento: nada a ajustar agora.
+      // "expired" COM assinatura no Asaas = assinou depois do teste e a 1ª fatura está em aberto: ajusta normalmente
+      if (!sub?.asaas_subscription_id || sub.status === "canceled" || sub.upgrade_payment_id) {
         stable = true;
         break;
       }
@@ -265,27 +440,24 @@ export async function syncSubscriptionBilling(
         }
       }
 
-      // valor da renovação (e da fatura pendente)
-      const current = observed ?? Number(sub.amount ?? 0);
-      if (!sameValue(current, q.total)) {
-        await asaas(`/subscriptions/${sub.asaas_subscription_id}`, {
-          method: "POST",
-          body: { value: q.total, updatePendingPayments: true },
-        });
-        await subscriptions()
-          .update({ amount: q.total, extra_professionals: q.extra_professionals })
-          .eq("business_id", businessId);
+      // valor da renovação e de cada cobrança em aberto, pelo vencimento (cupom, 53)
+      const applied = await applySubscriptionValues(businessId, { reason: opts.reason });
+      if (applied && !sameValue(applied.previous, applied.next.total)) {
         await admin.from("subscription_billing_changes").insert({
           business_id: businessId,
           kind: "valor",
           reason: opts.reason,
-          professionals: q.professionals,
-          extra_professionals: q.extra_professionals,
-          old_amount: current,
-          new_amount: q.total,
+          professionals: applied.next.professionals,
+          extra_professionals: applied.next.extra_professionals,
+          old_amount: applied.previous,
+          new_amount: applied.next.total,
         });
       }
-      observed = undefined;
+      if (!sameValue(Number(sub.amount ?? 0), q.total) || (sub.extra_professionals ?? 0) !== q.extra_professionals) {
+        await subscriptions()
+          .update({ amount: q.total, extra_professionals: q.extra_professionals })
+          .eq("business_id", businessId);
+      }
 
       // a equipe mudou enquanto falávamos com o Asaas? mais uma volta
       const again = await billingQuote(businessId);

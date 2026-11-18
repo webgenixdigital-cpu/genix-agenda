@@ -5,7 +5,7 @@ import { timingSafeEqual } from "crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { asaas, type AsaasSubscription } from "@/lib/asaas";
-import { billingQuote, syncSubscriptionBilling } from "@/lib/billing";
+import { applySubscriptionValues, billingQuote, syncSubscriptionBilling } from "@/lib/billing";
 
 export const dynamic = "force-dynamic";
 
@@ -111,11 +111,9 @@ export async function POST(request: NextRequest) {
     if (!up?.upgrade_plan_id) return finish("ignorado: troca de plano não encontrada");
     if (!PAID.includes(body.event)) return finish(`ignorado: evento ${body.event} da troca de plano`, up.business_id);
     try {
-      if (up.asaas_subscription_id && up.upgrade_amount) {
-        await asaas(`/subscriptions/${up.asaas_subscription_id}`, {
-          method: "POST",
-          body: { value: Number(up.upgrade_amount), updatePendingPayments: true },
-        });
+      // renovação e cobranças em aberto no plano novo, pelo vencimento (cupom, 53)
+      if (up.asaas_subscription_id) {
+        await applySubscriptionValues(up.business_id, { reason: "troca_plano", plan: up.upgrade_plan_id });
       }
       await admin
         .from("subscriptions")
@@ -185,6 +183,8 @@ export async function POST(request: NextRequest) {
           ...(applySchedule
             ? { plan_id: sub.scheduled_plan_id, amount: body.payment?.value ?? s.value, scheduled_plan_id: null, scheduled_at: null }
             : {}),
+          // valor das próximas cobranças = o da assinatura no Asaas (cupom, 53: pode mudar entre uma e outra)
+          ...(typeof s.value === "number" ? { amount: Number(s.value) } : {}),
           status: "active",
           current_period_end: periodEnd,
           pending_invoice_url: null,
@@ -193,14 +193,20 @@ export async function POST(request: NextRequest) {
         })
         .eq("business_id", sub.business_id);
 
-      // anual: a fatura paga cobre os extras do novo período (zera a conta das avulsas)
-      const q = await billingQuote(sub.business_id);
+      // anual: a fatura paga cobre os extras do novo período (zera a conta das avulsas);
+      // o preço base é o do vencimento desta fatura (com o cupom, se houver)
+      const q = await billingQuote(sub.business_id, { ref: body.payment?.dueDate ?? null });
       if (q?.cycle === "YEARLY") {
         const paid = Number(body.payment?.value ?? s.value);
         const covered = q.extra_price > 0 ? Math.max(0, Math.round((paid - q.base_price) / q.extra_price)) : 0;
         await admin.from("subscriptions").update({ billed_extra_professionals: covered }).eq("business_id", sub.business_id);
       }
-      if (sub.billing_sync_status === "pendente") await syncSubscriptionBilling(sub.business_id, { reason: "sincronia" });
+      // cupom (53): o valor das próximas cobranças mudou (ex.: fim do desconto)? ajusta já
+      const next = s.nextDueDate ? await billingQuote(sub.business_id, { ref: s.nextDueDate }) : null;
+      const nextDiffers = !!next && Math.round(next.total * 100) !== Math.round(Number(s.value) * 100);
+      if (sub.billing_sync_status === "pendente" || (nextDiffers && sub.billing_auto)) {
+        await syncSubscriptionBilling(sub.business_id, { reason: "sincronia" });
+      }
       return finish(`ativada até ${s.nextDueDate}`, sub.business_id);
     }
 
@@ -211,11 +217,11 @@ export async function POST(request: NextRequest) {
         .update({ pending_invoice_url: body.payment.invoiceUrl ?? null, pending_due_date: body.payment.dueDate ?? null })
         .eq("business_id", sub.business_id);
 
-      // Rede de segurança (29): valor da cobrança diferente do esperado → corrige
-      // a assinatura e esta cobrança (updatePendingPayments)
+      // Rede de segurança (29): valor da cobrança diferente do esperado PARA O
+      // VENCIMENTO DELA (cupom, 53) → corrige a assinatura e as cobranças em aberto
       const value = body.payment.value;
       if (typeof value === "number" && (body.payment.status ?? "PENDING") === "PENDING") {
-        const q = await billingQuote(sub.business_id);
+        const q = await billingQuote(sub.business_id, { ref: body.payment.dueDate ?? null });
         const differs = !!q && Math.round(q.total * 100) !== Math.round(value * 100);
         if (differs && !sub.billing_auto) {
           await admin
@@ -225,7 +231,7 @@ export async function POST(request: NextRequest) {
           return finish("fatura registrada; valor diferente (correção manual)", sub.business_id);
         }
         if (differs || sub.billing_sync_status === "pendente") {
-          const r = await syncSubscriptionBilling(sub.business_id, { reason: "webhook", observedValue: value });
+          const r = await syncSubscriptionBilling(sub.business_id, { reason: "webhook" });
           return finish(`fatura registrada; valor ${r.status === "ok" ? "corrigido" : "a sincronizar"}`, sub.business_id);
         }
       }

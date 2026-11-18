@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { LANDING_PLANS, LANDING_SEO } from "@/content/landing";
-import { getPublicPlans } from "@/lib/plans-server";
+import { getLaunchOffer, getPublicPlans } from "@/lib/plans-server";
 import { ClosingCta, LandingFaq, LandingFooter } from "@/components/landing/landing-closing";
 import { LandingHeader } from "@/components/landing/landing-header";
 import { LandingPricing } from "@/components/landing/landing-pricing";
@@ -24,7 +24,7 @@ export const metadata: Metadata = {
 export const revalidate = 3600;
 
 export default async function Home() {
-  const plans = await getPublicPlans();
+  const [plans, offer] = await Promise.all([getPublicPlans(), getLaunchOffer()]);
 
   return (
     <>
@@ -44,7 +44,7 @@ export default async function Home() {
               <span className={lpKicker}>{LANDING_PLANS.kicker}</span>
               <h2 className={lpHeadTitle}>{LANDING_PLANS.title}</h2>
             </div>
-            <LandingPricing plans={plans} />
+            <LandingPricing plans={plans} offer={offer} />
           </div>
         </section>
 

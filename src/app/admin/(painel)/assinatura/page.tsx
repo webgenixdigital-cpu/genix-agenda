@@ -3,9 +3,12 @@ import { Check, Clock, ExternalLink, Sparkles, XCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { requireRoles } from "@/lib/admin";
 import { getFreeDailyLimit, getPlanContext, PLAN_NAMES, recommendedKind } from "@/lib/plan";
-import { cycleOfPlanId, isLegacyPlanId, kindOfPlanId, planIdFor, type PaidPlanId } from "@/lib/plan-ids";
+import {
+  cycleOfPlanId, isLegacyPlanId, isSoloKind, kindOfPlanId, PAID_KINDS, PAID_PLAN_IDS, paidRank, planIdFor, type PaidKind, type PaidPlanId,
+} from "@/lib/plan-ids";
 import { brl } from "@/lib/format";
-import { availablePaidPlans, plansPreview } from "@/lib/plans-server";
+import { availablePaidPlans, getPublicPlans, plansPreview } from "@/lib/plans-server";
+import { PlansComparison } from "@/components/plans-comparison";
 import { Button } from "@/components/ui/button";
 import { SubscribeForm, type Quotes } from "@/components/admin/assinatura/subscribe-form";
 import { CancelSubscriptionButton } from "@/components/admin/assinatura/cancel-button";
@@ -23,20 +26,7 @@ const br = (iso: string) =>
 
 const METHOD_LABEL: Record<string, string> = { PIX: "Pix", BOLETO: "Boleto", CREDIT_CARD: "Cartão de crédito" };
 
-const INCLUDES = {
-  profissional: [
-    "Agendamentos online ilimitados",
-    "Bloqueios, recorrência, pacotes e retornos",
-    "Financeiro, faturamento e relatório do contador",
-    "Vitrine sem o selo Genix",
-  ],
-  equipe: [
-    "Tudo do Profissional",
-    "Até 3 profissionais (extra por profissional)",
-    "Acessos da equipe: recepção e profissionais",
-    "Comissões, “Meus ganhos” e salão-parceiro",
-  ],
-};
+const daysLabel = (n: number) => (n === 1 ? "falta 1 dia" : `faltam ${n} dias`);
 
 // ---------------------------------------------------------------------
 // PARTE 1 — Dados
@@ -46,8 +36,8 @@ export default async function AssinaturaPage() {
   const plan = await getPlanContext(business.id);
   const supabase = createClient();
 
-  const ids: PaidPlanId[] = ["profissional_mensal", "profissional_anual", "equipe_mensal", "equipe_anual"];
-  const [quoteRows, { data: sub }, freeLimit, available, { data: changes }] = await Promise.all([
+  const ids: PaidPlanId[] = [...PAID_PLAN_IDS];
+  const [quoteRows, { data: sub }, freeLimit, available, { data: changes }, publicPlans] = await Promise.all([
     Promise.all(ids.map((id) => supabase.rpc("subscription_quote", { bid: business.id, p_plan: id }))),
     supabase
       .from("subscriptions")
@@ -65,6 +55,8 @@ export default async function AssinaturaPage() {
       .eq("business_id", business.id)
       .order("created_at", { ascending: false })
       .limit(12),
+    // preços da tabela comparativa (planos ativos; todos no modo de prévia)
+    getPublicPlans(),
   ]);
   // valor esperado da próxima cobrança (plano da renovação + extras de agora)
   const renewalPlan = sub?.scheduled_plan_id ?? sub?.plan_id ?? null;
@@ -73,17 +65,18 @@ export default async function AssinaturaPage() {
     : { data: null };
   const rq = renewalQuote as (Quote & { included: number }) | null;
   const q = Object.fromEntries(ids.map((id, i) => [id, quoteRows[i].data as Quote | null])) as Record<PaidPlanId, Quote | null>;
-  // planos novos só aparecem ativos depois da 28b (ou no modo de prévia local)
+  // o Básico só aparece ativo depois da 52b (ou no modo de prévia local)
   const quotesOk = ids.every((id) => q[id] && available.has(id));
   const preview = plansPreview();
   const quotes: Quotes | null = quotesOk
-    ? {
-        profissional: { mensal: Number(q.profissional_mensal!.total), anual: Number(q.profissional_anual!.total) },
-        equipe: { mensal: Number(q.equipe_mensal!.total), anual: Number(q.equipe_anual!.total) },
-      }
+    ? (Object.fromEntries(
+        PAID_KINDS.map((k) => [k, { mensal: Number(q[planIdFor(k, "mensal")]!.total), anual: Number(q[planIdFor(k, "anual")]!.total) }])
+      ) as Quotes)
     : null;
   const activePros = q.equipe_mensal?.professionals ?? 1;
-  const recommended = recommendedKind(activePros);
+  // fim do teste: 1 profissional → Profissional; Grátis: 1 profissional → Básico; 2+ → Equipe
+  const recommended: PaidKind = plan.trialDaysLeft !== null ? recommendedKind(activePros) : activePros <= 1 ? "basico" : "equipe";
+  const freeEnd = plan.freeEndsAt ? br(plan.freeEndsAt) : null;
 
   // cortesia (migration 38): sem cobrança, então nada de assinar, trocar ou pagar
   const hasPending = !plan.grant && !!sub?.asaas_subscription_id && plan.status !== "active" && plan.status !== "past_due";
@@ -114,8 +107,10 @@ export default async function AssinaturaPage() {
     statusText = "Esta conta não tem cobrança.";
   } else if (isActive) {
     statusTitle = `${PLAN_NAMES[currentKind]} ${currentCycle} ativo`;
+    // com troca agendada, a renovação já vem no valor do plano novo (o mesmo do quadro "Próxima cobrança")
+    const renewalAmount = sub?.scheduled_plan_id && rq ? Number(rq.total) : sub?.amount;
     statusText = plan.currentPeriodEnd
-      ? `Próxima renovação em ${br(plan.currentPeriodEnd)}${sub?.amount ? `, no valor de ${brl(sub.amount)}` : ""}.`
+      ? `Próxima renovação em ${br(plan.currentPeriodEnd)}${renewalAmount ? `, no valor de ${brl(renewalAmount)}` : ""}.`
       : "Assinatura ativa.";
     if (legacy) statusText += " Você mantém o valor contratado no antigo plano Completo.";
     if (plan.status === "past_due") {
@@ -129,18 +124,50 @@ export default async function AssinaturaPage() {
     StatusIcon = XCircle;
   } else if (plan.trialDaysLeft !== null) {
     statusTitle = "Teste grátis do plano Equipe";
-    statusText = `Termina em ${trialEnd} (${plan.trialDaysLeft === 1 ? "falta 1 dia" : `faltam ${plan.trialDaysLeft} dias`}). Para continuar com tudo, assine o ${PLAN_NAMES[recommended]}. Sem assinatura, sua conta passa para o Grátis, sem perder nada.`;
+    statusText = `Termina em ${trialEnd} (${daysLabel(plan.trialDaysLeft)}). Para continuar com tudo, assine o ${PLAN_NAMES[recommended]}. Sem assinatura, sua conta passa para o Grátis, sem perder nada${freeEnd ? `; o Grátis vale até ${freeEnd}` : ""}.`;
     StatusIcon = Clock;
+  } else if (plan.tier === "gratis" && plan.freeOver) {
+    statusTitle = "Período Grátis encerrado";
+    statusText = `Seu Grátis terminou${freeEnd ? ` em ${freeEnd}` : ""}. O painel e os seus dados continuam, e você pode agendar pelo painel, mas a vitrine não está recebendo agendamentos online. Assine o Básico para voltar a receber.`;
+    StatusIcon = XCircle;
   } else if (plan.tier === "gratis") {
     statusTitle = "Plano Grátis";
-    statusText = `Vitrine, agenda online com até ${freeLimit} agendamentos online por dia, 1 profissional e lembretes de véspera. Para sempre.`;
+    statusText = `Vitrine e agenda online com até ${freeLimit} agendamentos online por dia, para 1 profissional.${
+      freeEnd && plan.freeDaysLeft !== null
+        ? ` Vale até ${freeEnd} (${daysLabel(plan.freeDaysLeft)}). Depois, a vitrine para de receber agendamentos online até você assinar.`
+        : ""
+    }`;
     StatusIcon = Sparkles;
   }
 
-  // troca entre Profissional e Equipe (mesmo ciclo)
-  const otherKind = currentKind === "equipe" ? "profissional" : "equipe";
-  const otherId = planIdFor(otherKind, currentCycle);
-  const otherPrice = quotes ? quotes[otherKind][currentCycle] : null;
+  // resumo do status: plano atual, prazo do Grátis/teste e próxima cobrança
+  const facts: { label: string; value: string; testid: string }[] = [
+    { label: "Plano atual", value: PLAN_NAMES[plan.kind], testid: "status-plano-atual" },
+  ];
+  if (plan.trialDaysLeft !== null && trialEnd) {
+    facts.push({ label: "Teste do Equipe", value: `até ${trialEnd} (${daysLabel(plan.trialDaysLeft)})`, testid: "status-dias-teste" });
+  }
+  if (plan.tier === "gratis" && freeEnd) {
+    facts.push({
+      label: "Grátis",
+      value: plan.freeOver
+        ? `encerrado em ${freeEnd}`
+        : plan.freeDaysLeft !== null ? `até ${freeEnd} (${daysLabel(plan.freeDaysLeft)})` : `até ${freeEnd}`,
+      testid: "status-dias-gratis",
+    });
+  }
+  if (isActive && plan.currentPeriodEnd) {
+    facts.push({
+      label: "Próxima cobrança",
+      value: `${br(plan.currentPeriodEnd)}${rq ? ` · ${brl(Number(rq.total))}` : sub?.amount ? ` · ${brl(sub.amount)}` : ""}`,
+      testid: "status-proxima-cobranca",
+    });
+  }
+
+  // troca entre Básico, Profissional e Equipe (mesmo ciclo)
+  const changeTargets = PAID_KINDS.filter((k) => k !== currentKind)
+    .map((k) => ({ kind: k, id: planIdFor(k, currentCycle), price: quotes ? quotes[k][currentCycle] : null }))
+    .filter((t) => t.price !== null && available.has(t.id));
 
   // -------------------------------------------------------------------
   // PARTE 3 — Página
@@ -149,7 +176,7 @@ export default async function AssinaturaPage() {
     <main className="mx-auto max-w-3xl space-y-8 p-4 md:p-8">
       <header className="text-center">
         <h1 className="text-3xl md:text-4xl">Assinatura <Ajuda id="assinatura" className="-ml-2" /></h1>
-        <p className="mt-1 text-sm text-muted-foreground">Seu plano atual e os planos Profissional e Equipe.</p>
+        <p className="mt-1 text-sm text-muted-foreground">Seu plano atual e o que cada plano inclui.</p>
       </header>
 
       {preview && (
@@ -163,9 +190,19 @@ export default async function AssinaturaPage() {
         <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-secondary text-primary">
           <StatusIcon className="h-6 w-6" />
         </span>
-        <div>
+        <div className="min-w-0 flex-1">
           <p className="font-heading text-2xl">{statusTitle}</p>
           <p className="mt-1 text-muted-foreground">{statusText}</p>
+          {!plan.internal && (
+            <dl className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
+              {facts.map((f) => (
+                <div key={f.label} className="rounded-xl bg-secondary px-3 py-2" data-testid={f.testid}>
+                  <dt className="text-xs text-muted-foreground">{f.label}</dt>
+                  <dd className="font-semibold">{f.value}</dd>
+                </div>
+              ))}
+            </dl>
+          )}
         </div>
       </section>
 
@@ -234,8 +271,8 @@ export default async function AssinaturaPage() {
           {sub?.upgrade_plan_id && (
             <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900" data-testid="troca-aguardando">
               <p>
-                Mudança para o <strong>Equipe</strong> aguardando o pagamento da diferença proporcional. Assim que for paga,
-                o Equipe é liberado.
+                Mudança para o <strong>{PLAN_NAMES[kindOfPlanId(sub.upgrade_plan_id)]}</strong> aguardando o pagamento da diferença
+                proporcional. Assim que for paga, o plano novo é liberado.
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {sub.upgrade_invoice_url && (
@@ -255,27 +292,33 @@ export default async function AssinaturaPage() {
             <div className="rounded-xl bg-secondary p-4 text-sm" data-testid="troca-agendada">
               <p>
                 Troca agendada: na próxima renovação{plan.currentPeriodEnd ? ` (${br(plan.currentPeriodEnd)})` : ""} você passa
-                para o <strong>{PLAN_NAMES[kindOfPlanId(sub.scheduled_plan_id)]}</strong>. Os acessos da equipe ficam pausados,
-                sem apagar nada, e voltam se você retornar ao Equipe.
+                para o <strong>{PLAN_NAMES[kindOfPlanId(sub.scheduled_plan_id)]}</strong>. O que o plano novo não tem fica com
+                cadeado{currentKind === "equipe" ? " e os acessos da equipe ficam pausados" : ""}, sem apagar nada.
               </p>
               <div className="mt-2">
-                <CancelPlanChangeButton label="Manter o Equipe" />
+                <CancelPlanChangeButton label={`Manter o ${PLAN_NAMES[currentKind]}`} />
               </div>
             </div>
           )}
 
-          {plan.status === "active" && !sub?.upgrade_plan_id && !sub?.scheduled_plan_id && otherPrice !== null && available.has(otherId) && (
-            <ChangePlanButton
-              target={otherId}
-              direction={otherKind === "equipe" ? "up" : "down"}
-              price={otherPrice}
-              cycle={currentCycle}
-              blockedReason={
-                otherKind === "profissional" && activePros > 1
-                  ? `Você tem ${activePros} profissionais ativos. Para o Profissional, deixe só 1 ativo.`
-                  : undefined
-              }
-            />
+          {plan.status === "active" && !sub?.upgrade_plan_id && !sub?.scheduled_plan_id && changeTargets.length > 0 && (
+            <div className="flex flex-wrap gap-3" data-testid="trocar-plano">
+              {changeTargets.map((t) => (
+                <ChangePlanButton
+                  key={t.id}
+                  target={t.id}
+                  current={PLAN_NAMES[currentKind]}
+                  direction={paidRank(t.kind) > paidRank(currentKind) ? "up" : "down"}
+                  price={t.price!}
+                  cycle={currentCycle}
+                  blockedReason={
+                    isSoloKind(t.kind) && activePros > 1
+                      ? `Você tem ${activePros} profissionais ativos. Para o ${PLAN_NAMES[t.kind]}, deixe só 1 ativo.`
+                      : undefined
+                  }
+                />
+              ))}
+            </div>
           )}
 
           <div className="border-t pt-3">
@@ -297,18 +340,8 @@ export default async function AssinaturaPage() {
             </p>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            {(["profissional", "equipe"] as const).map((k) => (
-              <ul key={k} className="space-y-2 rounded-xl bg-secondary p-4">
-                <li className="text-sm font-semibold">{PLAN_NAMES[k]}</li>
-                {INCLUDES[k].map((f) => (
-                  <li key={f} className="flex gap-2 text-sm">
-                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" /> {f}
-                  </li>
-                ))}
-              </ul>
-            ))}
-          </div>
+          {/* PR 2 (cupom de desconto): o campo entra aqui, antes do formulário */}
+          {/* PR 3 (indicação): o aviso de indicação entra aqui */}
 
           {quotes ? (
             <SubscribeForm
@@ -323,6 +356,12 @@ export default async function AssinaturaPage() {
           )}
         </section>
       )}
+
+      {/* Tabela comparativa dos 4 planos (o que inclui e o que NÃO inclui) */}
+      <section className="space-y-3" data-testid="comparar-planos">
+        <h2 className="text-2xl">Compare os planos</h2>
+        <PlansComparison plans={publicPlans} current={plan.internal && !plan.grant ? null : plan.kind} />
+      </section>
     </main>
   );
 }

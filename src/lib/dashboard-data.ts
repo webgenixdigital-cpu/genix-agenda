@@ -10,6 +10,7 @@ import { loadPendingPayments } from "@/lib/agenda-data";
 import { defaultProviderName } from "@/lib/whatsapp/provider";
 import type { AdminContext } from "@/lib/admin";
 import type { PlanContext } from "@/lib/plan";
+import { planAllows } from "@/lib/plan-features";
 
 type BusinessLike = {
   id: string;
@@ -169,8 +170,10 @@ export async function loadHome(
     ownerLike ? loadFiscal(bid) : none,
   ]);
 
-  // Grátis: sem caixa, retornos, WhatsApp automático nem bloqueios (as consultas rodaram juntas; aqui só escondemos)
+  // Grátis: sem caixa nem bloqueios (Básico em diante); retornos e WhatsApp automático só do Profissional
+  // (as consultas rodaram juntas; aqui só escondemos)
   const paid = plan.tier === "completo";
+  const pro = planAllows(plan.kind, "profissional");
   const sum = (list: { amount: number | string }[]) => list.reduce((acc, c) => acc + Number(c.amount), 0);
 
   // --- Hoje
@@ -193,7 +196,7 @@ export async function loadHome(
   const waEvolution =
     !!wa && (wa.provider === "evolution" || (defaultProviderName() === "evolution" && !(wa.provider === "zapi" && wa.has_instance)));
   const whatsapp: WhatsappTile | null =
-    paid && wa && (waEvolution || wa.genix_enabled)
+    pro && wa && (waEvolution || wa.genix_enabled)
       ? { status: wa.status ?? "unknown", autoEnabled: !!wa.auto_enabled, sentToday: waSent?.count ?? 0 }
       : null;
 
@@ -208,7 +211,7 @@ export async function loadHome(
 
   // --- Retornos: fila "Hora de voltar" sem contato ainda
   const returnRows =
-    paid && returns && !returns.error ? ((returns.data ?? []) as { days_overdue: number; return_contacted_at: string | null }[]) : null;
+    pro && returns && !returns.error ? ((returns.data ?? []) as { days_overdue: number; return_contacted_at: string | null }[]) : null;
   const returnsTile = returnRows
     ? (() => {
         const queue = returnRows.filter((r) => !r.return_contacted_at);

@@ -1,23 +1,62 @@
-// Recursos dos planos pagos (usado no servidor e no navegador)
+// Planos e recursos (usado no servidor e no navegador).
+// Ordem: Grátis < Básico < Profissional < Equipe (igual a plan_rank/plan_allows no banco, migration 52).
 // minPlan: plano mínimo que libera o recurso (aparece no cadeado).
 
-export const FREE_LOCKED_HREFS = ["/admin/bloqueios", "/admin/financeiro"];
+export type PlanKind = "gratis" | "basico" | "profissional" | "equipe";
+export type MinPlan = Exclude<PlanKind, "gratis">;
 
-export type LockedFeatureKey = "bloqueios" | "retornos" | "financeiro" | "faturamento" | "pacotes" | "combos";
+export const PLAN_NAMES: Record<PlanKind, string> = {
+  gratis: "Grátis",
+  basico: "Básico",
+  profissional: "Profissional",
+  equipe: "Equipe",
+};
+
+const RANK: Record<PlanKind, number> = { gratis: 0, basico: 1, profissional: 2, equipe: 3 };
+
+/** O plano chega ao mínimo? (mesma regra de plan_allows no banco) */
+export const planAllows = (kind: PlanKind, min: MinPlan) => RANK[kind] >= RANK[min];
+
+/** Itens do menu com cadeado, conforme o plano */
+export function lockedHrefsFor(kind: PlanKind): string[] {
+  if (!planAllows(kind, "basico")) return ["/admin/bloqueios", "/admin/financeiro", "/admin/lembretes"];
+  return [];
+}
+
+export type LockedFeatureKey =
+  | "bloqueios"
+  | "retornos"
+  | "lembretes"
+  | "financeiro"
+  | "faturamento"
+  | "pacotes"
+  | "combos"
+  | "encaixe"
+  | "recorrencia";
 
 export const LOCKED_FEATURES: Record<
   LockedFeatureKey,
-  { title: string; description: string; bullets: string[]; minPlan: "profissional" | "equipe" }
+  { title: string; description: string; bullets: string[]; minPlan: MinPlan }
 > = {
   bloqueios: {
     title: "Bloqueios de agenda",
-    description: "Tire férias, folgas e feriados da agenda sem precisar recusar cliente por mensagem.",
+    description: "Marque almoço, folgas, férias e feriados sem precisar recusar cliente por mensagem.",
     bullets: [
       "Bloqueie um dia, um período ou só algumas horas",
-      "Folgas fixas toda semana, sem cadastrar dia por dia",
+      "Almoço e folgas fixas toda semana, sem cadastrar dia por dia",
       "Aviso de quem já estava marcado no período",
     ],
-    minPlan: "profissional",
+    minPlan: "basico",
+  },
+  lembretes: {
+    title: "Lembretes de véspera",
+    description: "Lembre os clientes de amanhã e de hoje com a mensagem pronta no WhatsApp, em um toque.",
+    bullets: [
+      "Fila de quem tem horário amanhã e hoje",
+      "Mensagem pronta com nome, serviço e horário",
+      "Marque quem já foi lembrado",
+    ],
+    minPlan: "basico",
   },
   retornos: {
     title: "Retornos",
@@ -37,7 +76,7 @@ export const LOCKED_FEATURES: Record<
       "Gráfico dos últimos 6 meses",
       "Entradas por Pix, cartão e dinheiro",
     ],
-    minPlan: "profissional",
+    minPlan: "basico",
   },
   faturamento: {
     title: "Faturamento e relatório para o contador",
@@ -47,7 +86,7 @@ export const LOCKED_FEATURES: Record<
       "Alertas ao chegar perto do limite",
       "Relatório para imprimir em PDF ou baixar em planilha",
     ],
-    minPlan: "profissional",
+    minPlan: "basico",
   },
   pacotes: {
     title: "Pacotes de sessões",
@@ -69,8 +108,35 @@ export const LOCKED_FEATURES: Record<
     ],
     minPlan: "profissional",
   },
+  encaixe: {
+    title: "Encaixe",
+    description: "Marque um horário fora da lista ou por cima de outro atendimento, quando o tempo de produto permite.",
+    bullets: [
+      "Horário fora do expediente ou da grade",
+      "Encaixe sobreposto durante a pausa de outro atendimento",
+      "Bloqueios e conflitos continuam valendo",
+    ],
+    minPlan: "basico",
+  },
+  recorrencia: {
+    title: "Agendamentos recorrentes",
+    description: "Repita o mesmo horário toda semana, a cada 15 dias ou todo mês, de uma vez só.",
+    bullets: [
+      "Semanal, quinzenal ou mensal",
+      "Aviso das datas que já estão ocupadas",
+      "Cancele uma data ou a série inteira",
+    ],
+    minPlan: "basico",
+  },
 };
 
-/** Texto do cadeado: "planos Profissional e Equipe" ou "plano Equipe" */
-export const minPlanLabel = (minPlan: "profissional" | "equipe") =>
-  minPlan === "equipe" ? "plano Equipe" : "planos Profissional e Equipe";
+/** Texto do cadeado: "a partir do Básico", "planos Profissional e Equipe" ou "plano Equipe" */
+export const minPlanLabel = (minPlan: MinPlan) =>
+  minPlan === "equipe" ? "plano Equipe" : minPlan === "profissional" ? "planos Profissional e Equipe" : "planos pagos, a partir do Básico";
+
+/** Mensagens dos erros de plano que vêm do banco (PLANO_BASICO, PLANO_PROFISSIONAL...) */
+export const PLAN_ERRORS = {
+  PLANO_BASICO: "Recurso dos planos pagos, a partir do Básico. Veja em Assinatura.",
+  PLANO_PROFISSIONAL: "Recurso dos planos Profissional e Equipe. Veja em Assinatura.",
+  PLANO_EQUIPE: "Recurso do plano Equipe. Veja em Assinatura.",
+} as const;

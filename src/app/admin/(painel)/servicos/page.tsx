@@ -1,7 +1,7 @@
 import { Ajuda } from "@/components/ajuda";
 import { createClient } from "@/lib/supabase/server";
 import { requireRoles } from "@/lib/admin";
-import { getPlanContext } from "@/lib/plan";
+import { allows, getPlanContext } from "@/lib/plan";
 import { ServicesManager } from "@/components/admin/servicos/services-manager";
 import { PackageTemplates } from "@/components/admin/servicos/package-templates";
 import { CombosManager, type ComboRow } from "@/components/admin/servicos/combos-manager";
@@ -49,7 +49,7 @@ export default async function ServicosPage() {
       </header>
       <ServicesManager services={services} />
 
-      {plan.tier === "completo" ? (
+      {allows(plan, "profissional") ? (
         <CombosManager
           combos={combos}
           services={services.map((s) => ({ id: s.id, name: s.name, price: s.price, duration_min: s.duration_min, active: s.active }))}
@@ -58,7 +58,7 @@ export default async function ServicosPage() {
         <LockedFeatureCard feature="combos" />
       )}
 
-      {plan.tier === "completo" ? (
+      {allows(plan, "profissional") ? (
         <PackageTemplates
           templates={(templates ?? []).map(({ package_template_items: items, ...t }) => ({
             ...t,

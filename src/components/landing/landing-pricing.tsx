@@ -8,7 +8,7 @@ import type { Plan } from "@/lib/plans-public";
 import { cn } from "@/lib/utils";
 import { lpBtnGold, lpBtnOutline, lpCard } from "./styles";
 
-// Valores sempre da tabela plans (migrations 28a/28b), lidos no servidor por getPublicPlans().
+// Valores sempre da tabela plans (migrations 28a/28b/52), lidos no servidor por getPublicPlans().
 
 function Features({ items, dark }: { items: string[]; dark?: boolean }) {
   return (
@@ -32,7 +32,7 @@ function Price({ value, per, dark }: { value: string; per?: string; dark?: boole
   );
 }
 
-/** Planos: Mensal/Anual; Grátis, Profissional (destaque escuro) e Equipe */
+/** Planos: Mensal/Anual; Grátis, Básico, Profissional (destaque escuro) e Equipe (2 × 2 a partir do md) */
 export function LandingPricing({ plans }: { plans: Plan[] }) {
   const t = LANDING_PLANS;
   const [cycle, setCycle] = useState<"MONTHLY" | "YEARLY">("MONTHLY");
@@ -40,6 +40,7 @@ export function LandingPricing({ plans }: { plans: Plan[] }) {
 
   const find = (kind: Plan["kind"]) => plans.find((p) => p.kind === kind && p.billing_cycle === cycle);
   const free = plans.find((p) => p.kind === "gratis");
+  const basic = find("basico");
   const pro = find("profissional");
   const team = find("equipe");
   if (!pro || !team) return null;
@@ -72,7 +73,7 @@ export function LandingPricing({ plans }: { plans: Plan[] }) {
         </div>
       </div>
 
-      <div className="mx-auto grid max-w-md items-stretch gap-6 lg:max-w-none lg:grid-cols-3">
+      <div className="mx-auto grid max-w-md items-stretch gap-6 md:max-w-4xl md:grid-cols-2">
         {/* ---------- GRÁTIS ---------- */}
         <div className={cn(lpCard, "lp-reveal flex flex-col")} data-testid="card-plano-gratis">
           <h3 className="text-[21px] font-bold">{t.free.name}</h3>
@@ -83,11 +84,23 @@ export function LandingPricing({ plans }: { plans: Plan[] }) {
           <Link href={signup} className={lpBtnOutline} data-testid="btn-plano-gratis">{t.free.cta}</Link>
         </div>
 
+        {/* ---------- BÁSICO ---------- */}
+        {basic && (
+          <div className={cn(lpCard, "lp-reveal flex flex-col")} data-testid="card-plano-basico">
+            <h3 className="text-[21px] font-bold">{t.basic.name}</h3>
+            <p className="mt-2 text-muted-foreground">{t.basic.text}</p>
+            <Price value={brl(basic.base_price)} per={per} />
+            <p className={cn(perLine, "text-muted-foreground")}>{yearly ? t.basic.yearlyEquivalent(brl(basic.base_price / 12)) : ""}</p>
+            <Features items={t.basic.items} />
+            <Link href={signup} className={lpBtnOutline} data-testid="btn-plano-basico">{t.basic.cta}</Link>
+          </div>
+        )}
+
         {/* ---------- PROFISSIONAL (destaque) ---------- */}
         {/* o deslocamento para cima fica no card interno: o revelar ao rolar mexe no transform do externo */}
         <div className="lp-reveal flex">
         <div
-          className={cn(lpCard, "relative flex flex-1 flex-col border-foreground bg-foreground text-[#f3ece4] shadow-[0_30px_60px_-30px_rgba(28,25,23,0.6)] lg:-translate-y-3")}
+          className={cn(lpCard, "relative flex flex-1 flex-col border-foreground bg-foreground text-[#f3ece4] shadow-[0_30px_60px_-30px_rgba(28,25,23,0.6)]")}
           data-testid="card-plano-profissional"
         >
           <span className="absolute -top-[13px] left-6 rounded-full bg-[#F2C078] px-3 py-1 text-xs font-bold text-foreground md:left-8">

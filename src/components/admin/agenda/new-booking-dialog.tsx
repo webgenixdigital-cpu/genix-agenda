@@ -44,8 +44,10 @@ type Props = {
   services: { id: string; name: string; price: number; duration_min: number; kind?: string | null }[];
   /** profissionais que quem está logado pode agendar (profissional: só ele mesmo) */
   professionals: { id: string; name: string }[];
-  /** plano pago (Profissional ou Equipe): libera "Repetir" (agendamentos recorrentes) */
+  /** plano pago (a partir do Básico): libera encaixe, encaixe sobreposto e "Repetir" (recorrência) */
   fullAccess?: boolean;
+  /** Profissional ou Equipe: libera "Vender pacote" (sem ele, botão com cadeado) */
+  packagesAccess?: boolean;
   /** matriz e recepção: botão "Vender pacote" (no Grátis aparece com cadeado) */
   canSellPackages?: boolean;
   /** matriz, recepção e profissional: "Encaixe sobreposto" (por cima de outro atendimento; 50/51) */
@@ -75,6 +77,7 @@ export function NewBookingDialog({
   services,
   professionals,
   fullAccess = false,
+  packagesAccess = false,
   canSellPackages = false,
   canOverlay = false,
   open: openProp,
@@ -242,10 +245,11 @@ export function NewBookingDialog({
       if (slots.some((s) => s.time === init.time)) {
         setFit(false);
         setTime(init.time);
-      } else {
+      } else if (fullAccess) {
         setFit(true);
         setFitTime(init.time);
       }
+      // Grátis: sem encaixe, fica na grade de horários livres
       return;
     }
     if (!fit && time && !slots.some((s) => s.time === time)) setTime("");
@@ -561,7 +565,7 @@ export function NewBookingDialog({
 
                 {/* vender pacote sem sair da Agenda (mesmo diálogo da ficha do cliente) */}
                 {canSellPackages && phoneOk && (
-                  fullAccess ? (
+                  packagesAccess ? (
                     <Button
                       type="button"
                       variant="outline"
@@ -576,7 +580,7 @@ export function NewBookingDialog({
                   ) : (
                     <Button asChild variant="outline" className="h-11 w-full" data-testid="btn-liberar-pacotes-agenda">
                       <Link href="/admin/assinatura">
-                        <Lock className="mr-1.5 h-4 w-4" /> Vender pacote · planos pagos
+                        <Lock className="mr-1.5 h-4 w-4" /> Vender pacote · planos Profissional e Equipe
                       </Link>
                     </Button>
                   )
@@ -625,7 +629,16 @@ export function NewBookingDialog({
                     </PopoverContent>
                   </Popover>
                 </div>
-                {serviceId && (
+                {serviceId && !fullAccess && (
+                  <Link
+                    href="/admin/assinatura"
+                    className="flex min-h-11 items-center gap-2 text-sm text-muted-foreground hover:text-primary"
+                    data-testid="link-liberar-encaixe"
+                  >
+                    <Lock className="h-4 w-4" /> Encaixe · a partir do Básico
+                  </Link>
+                )}
+                {serviceId && fullAccess && (
                   <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm">
                     <input
                       type="checkbox"
@@ -669,7 +682,7 @@ export function NewBookingDialog({
                 </p>
               ) : slots.length === 0 ? (
                 <p className="rounded-lg bg-secondary/40 p-3 text-sm text-muted-foreground" data-testid="sem-horarios-manual">
-                  Nenhum horário livre nesta data{service ? ` para ${service.name}` : ""}. Escolha outra data ou use o encaixe.
+                  Nenhum horário livre nesta data{service ? ` para ${service.name}` : ""}. Escolha outra data{fullAccess ? " ou use o encaixe" : ""}.
                 </p>
               ) : (
                 <div
@@ -709,7 +722,16 @@ export function NewBookingDialog({
             </section>
 
             {/* 4b. Encaixe sobreposto (50/51): matriz, recepção e profissional (na própria agenda) */}
-            {canOverlay && serviceId && (
+            {canOverlay && serviceId && !fullAccess && (
+              <Link
+                href="/admin/assinatura"
+                className="flex min-h-11 items-center gap-2 rounded-xl border border-dashed p-3 text-sm text-muted-foreground hover:text-primary"
+                data-testid="link-liberar-encaixe-sobreposto"
+              >
+                <Lock className="h-4 w-4 shrink-0" /> Encaixe sobreposto · a partir do Básico
+              </Link>
+            )}
+            {canOverlay && serviceId && fullAccess && (
               <div className={cn("space-y-3 rounded-xl border p-3", overlay && "border-dashed border-primary/60")}>
                 <div className="flex items-center gap-1">
                   <label className="flex min-h-11 flex-1 cursor-pointer items-center gap-3 text-sm font-semibold">
@@ -814,7 +836,7 @@ export function NewBookingDialog({
               <Textarea id="nb-notes" rows={2} value={notes} onChange={(e) => setNotes(e.target.value.slice(0, 500))} />
             </div>
 
-            {/* Repetir (recorrência) — recurso dos planos pagos */}
+            {/* Repetir (recorrência) — a partir do Básico */}
             {overlay ? null : fullAccess ? (
               <div className="space-y-3 rounded-xl border p-3">
                 <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm font-semibold">
@@ -898,7 +920,7 @@ export function NewBookingDialog({
                 className="flex min-h-11 items-center gap-2 rounded-xl border border-dashed p-3 text-sm text-muted-foreground hover:text-foreground"
                 data-testid="link-repetir-bloqueado"
               >
-                <Lock className="h-4 w-4 text-primary" /> Repetir este horário · planos Profissional e Equipe
+                <Lock className="h-4 w-4 text-primary" /> Repetir este horário · a partir do Básico
               </Link>
             )}
 

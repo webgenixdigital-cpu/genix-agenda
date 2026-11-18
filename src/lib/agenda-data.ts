@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import type { AdminContext } from "@/lib/admin";
 import { todayInZone } from "@/lib/dates";
-import { getPlanContext } from "@/lib/plan";
+import { allows, getPlanContext } from "@/lib/plan";
 import type { RescheduleProps } from "@/components/admin/agenda/booking-actions";
 import type { AgendaBlock, AgendaHour, AgendaItem } from "@/lib/agenda";
 
@@ -77,7 +77,7 @@ export async function loadAgenda(ctx: AdminContext, wholeTeam: boolean, o: Optio
     ]);
 
   // combos (32_combos) só nos planos pagos; components = serviços de cada combo
-  const services = (allServices ?? []).filter((s) => s.kind !== "combo" || plan.tier === "completo");
+  const services = (allServices ?? []).filter((s) => s.kind !== "combo" || allows(plan, "profissional"));
   const components = new Map<string, string[]>();
   for (const i of comboItems ?? []) components.set(i.combo_id, [...(components.get(i.combo_id) ?? []), i.service_id]);
 
@@ -112,10 +112,12 @@ export async function loadAgenda(ctx: AdminContext, wholeTeam: boolean, o: Optio
       return { id: p.id, name: p.name, serviceIds: ids.length ? [...ids, ...combos] : null };
     }),
     canChooseProfessional: role === "owner" || role === "reception",
+    // 52: encaixe e encaixe sobreposto a partir do Básico (o banco confere de novo)
+    canFit: allows(plan, "basico"),
     // 46_reabrir_atendimento: matriz e recepção (prazo de 30 dias da recepção conferido no banco)
     canReopen: role === "owner" || role === "reception",
     // 50/51 encaixe sobreposto: matriz e recepção (qualquer agenda) e profissional (a própria); demonstração não
-    canOverlay: role === "owner" || role === "reception" || role === "staff",
+    canOverlay: (role === "owner" || role === "reception" || role === "staff") && allows(plan, "basico"),
     today: todayInZone(business.timezone),
   };
 

@@ -36,6 +36,15 @@ export type WhatsappOverview = {
   stats_7d?: Partial<Record<MessageKind, { sent: number; failed: number; expired: number; skipped: number; queued: number }>> | null;
 };
 
+// 52: a coluna tier traz o plano (gratis | basico | profissional | equipe); antes, completo | gratis
+const TIER_LABEL: Record<string, string> = {
+  completo: "pago",
+  gratis: "Grátis",
+  basico: "Básico (sem automático)",
+  profissional: "Profissional",
+  equipe: "Equipe",
+};
+
 const STATUS: Record<WhatsappOverview["status"], { label: string; cls: string }> = {
   connected: { label: "Conectado", cls: "bg-green-100 text-green-800" },
   disconnected: { label: "Desconectado", cls: "bg-red-100 text-red-800" },
@@ -128,7 +137,7 @@ function InstanceCard({ row, defaultProvider }: { row: WhatsappOverview; default
         <div className="min-w-0">
           <p className="break-words font-semibold">{row.name}</p>
           <p className="break-words text-sm text-muted-foreground">
-            /v/{row.slug} · plano {row.tier === "completo" ? "pago" : "Grátis"} ·{" "}
+            /v/{row.slug} · plano {TIER_LABEL[row.tier] ?? row.tier} ·{" "}
             {row.auto_enabled ? "automático ligado pelo espaço" : "automático desligado pelo espaço"}
           </p>
         </div>

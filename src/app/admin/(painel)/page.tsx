@@ -283,8 +283,14 @@ function buildTiles(role: AdminContext["role"], plan: PlanContext, d: HomeData):
       tiles.push(tile(plural(plan.trialDaysLeft, "dia", "dias"), "de teste do plano Equipe", plan.trialDaysLeft <= 3 ? "alerta" : "normal"));
     } else if (plan.status === "past_due") {
       tiles.push(tile(name, "pagamento da assinatura em atraso", "alerta"));
+    } else if (plan.tier === "gratis" && plan.freeOver) {
+      tiles.push(tile("Grátis encerrado", "vitrine sem agendamento online · assine o Básico", "alerta"));
     } else if (plan.tier === "gratis") {
-      tiles.push(tile("Grátis", "conheça os planos pagos"));
+      tiles.push(
+        plan.freeDaysLeft !== null
+          ? tile(plural(plan.freeDaysLeft, "dia", "dias"), "restantes do plano Grátis", plan.freeDaysLeft <= 15 ? "alerta" : "normal")
+          : tile("Grátis", "conheça os planos pagos")
+      );
     } else if (plan.status === "active") {
       tiles.push(tile(name, plan.currentPeriodEnd ? `próxima cobrança ${ddmm(plan.currentPeriodEnd.slice(0, 10))}` : "assinatura em dia", "calmo"));
     } else {

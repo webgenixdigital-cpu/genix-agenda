@@ -4,39 +4,12 @@ import { useState } from "react";
 import Link from "next/link";
 import { Check, Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { FREE_MONTHS, PLAN_SUMMARY } from "@/content/planos";
 import { brl } from "@/lib/format";
 import type { Plan } from "@/lib/plans-public";
 import { cn } from "@/lib/utils";
 
-// Valores vêm da tabela plans (migrations 28a/28b); nada fixo aqui.
-
-// ---------------------------------------------------------------------
-// PARTE 1 — O que cada plano inclui (sem repetir os blocos de benefícios)
-// ---------------------------------------------------------------------
-const freeIncludes = (limit: number) => [
-  "Vitrine com link próprio e QR Code",
-  `Agenda online com até ${limit} agendamentos por dia`,
-  "1 profissional",
-  "Confirmação automática e remarcar",
-  "Ficha e histórico de cada cliente",
-  "Lembretes de véspera em um toque",
-  "Avaliações dos clientes na vitrine",
-];
-
-const PRO_INCLUDES = [
-  "Agendamentos online ilimitados",
-  "Bloqueios de férias, folgas e feriados",
-  "Agendamentos recorrentes",
-  "Pacotes de sessões e retornos",
-  "Financeiro, faturamento e relatório para o contador",
-  "Vitrine sem o selo Genix",
-];
-
-const TEAM_INCLUDES = [
-  "Acessos para recepção e profissionais",
-  "Comissões e “Meus ganhos” de cada profissional",
-  "Salão-parceiro no faturamento",
-];
+// Valores vêm da tabela plans (migrations 28a/52); textos em src/content/planos.ts.
 
 function Item({ children, strong }: { children: React.ReactNode; strong?: boolean }) {
   return (
@@ -46,8 +19,17 @@ function Item({ children, strong }: { children: React.ReactNode; strong?: boolea
   );
 }
 
+function PriceLine({ value, per, testid }: { value: string; per: string; testid?: string }) {
+  return (
+    <div className="mt-3 flex flex-wrap items-end justify-center gap-x-2 gap-y-1">
+      <p className="font-heading text-4xl leading-none md:text-5xl" data-testid={testid}>{value}</p>
+      <p className="pb-1 text-muted-foreground">{per}</p>
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------
-// PARTE 2 — Componente
+// Componente: Grátis, Básico, Profissional (destaque) e Equipe (com calculadora)
 // ---------------------------------------------------------------------
 export function Pricing({ plans }: { plans: Plan[] }) {
   const [cycle, setCycle] = useState<"MONTHLY" | "YEARLY">("YEARLY");
@@ -55,6 +37,7 @@ export function Pricing({ plans }: { plans: Plan[] }) {
 
   const find = (kind: Plan["kind"], c: Plan["billing_cycle"]) => plans.find((p) => p.kind === kind && p.billing_cycle === c);
   const free = plans.find((p) => p.kind === "gratis");
+  const basic = find("basico", cycle);
   const pro = find("profissional", cycle);
   const team = find("equipe", cycle);
   const teamMonthly = find("equipe", "MONTHLY");
@@ -62,12 +45,14 @@ export function Pricing({ plans }: { plans: Plan[] }) {
 
   const yearly = cycle === "YEARLY";
   const per = yearly ? "/ano" : "/mês";
+  const limit = free?.online_daily_limit ?? 6;
   const included = team.included_professionals;
   const extras = Math.max(pros - included, 0);
   const teamTotal = team.base_price + extras * team.extra_professional_price;
+  const equiv = (v: number) => (yearly ? `Equivale a ${brl(v / 12)}/mês.` : "Sem fidelidade. Cancele quando quiser.");
 
   return (
-    <div className="mx-auto max-w-6xl text-center">
+    <div className="mx-auto max-w-5xl text-center">
       {/* Alternância mensal / anual */}
       <div className="flex flex-col items-center gap-2">
         <div className="inline-flex rounded-full border bg-white p-1" role="tablist" aria-label="Forma de pagamento">
@@ -90,25 +75,44 @@ export function Pricing({ plans }: { plans: Plan[] }) {
         <p className="text-sm font-semibold text-green-700">2 meses grátis no plano anual</p>
       </div>
 
-      <div className="mt-10 grid items-start gap-8 lg:grid-cols-3">
+      <div className="mt-10 grid items-start gap-8 md:grid-cols-2">
         {/* ---------- GRÁTIS ---------- */}
         <div className="rounded-3xl border bg-card p-6 md:p-8" data-testid="card-plano-gratis">
           <p className="text-sm font-semibold text-muted-foreground">Grátis</p>
-          <div className="mt-3 flex items-end justify-center gap-2">
-            <p className="font-heading text-5xl leading-none">R$ 0</p>
-            <p className="pb-1 text-muted-foreground">para sempre</p>
-          </div>
-          <p className="mt-2 text-sm text-muted-foreground">Para começar a receber agendamentos hoje, sem pagar nada.</p>
+          <PriceLine value="R$ 0" per={`por ${FREE_MONTHS} meses`} />
+          <p className="mt-2 text-sm text-muted-foreground">{PLAN_SUMMARY.gratis.tagline}</p>
           <ul className="mx-auto mt-8 w-fit space-y-3">
-            {freeIncludes(free?.online_daily_limit ?? 6).map((f) => (
+            {PLAN_SUMMARY.gratis.items(limit, included).map((f) => (
               <Item key={f}>{f}</Item>
             ))}
           </ul>
           <Button asChild variant="outline" className="mt-8 h-12 w-full text-base" data-testid="btn-plano-gratis">
             <Link href="/cadastro">Criar conta grátis</Link>
           </Button>
-          <p className="mt-3 text-xs text-muted-foreground">Com o selo “Feito com Genix Agenda” na vitrine.</p>
+          <p className="mt-3 text-xs text-muted-foreground">
+            Com o selo “Feito com Genix Agenda” na vitrine. Depois dos {FREE_MONTHS} meses, o painel continua e a vitrine para de
+            receber agendamentos online até você assinar.
+          </p>
         </div>
+
+        {/* ---------- BÁSICO ---------- */}
+        {basic && (
+          <div className="rounded-3xl border bg-card p-6 md:p-8" data-testid="card-plano-basico">
+            <p className="text-sm font-semibold text-muted-foreground">Básico</p>
+            <PriceLine value={brl(basic.base_price)} per={per} testid="preco-basico" />
+            <p className="mt-2 text-sm text-muted-foreground">{equiv(basic.base_price)}</p>
+            <ul className="mx-auto mt-8 w-fit space-y-3">
+              <Item strong>Tudo do Grátis, mais:</Item>
+              {PLAN_SUMMARY.basico.items(limit, included).map((f) => (
+                <Item key={f}>{f}</Item>
+              ))}
+            </ul>
+            <p className="mt-6 text-sm text-muted-foreground">{PLAN_SUMMARY.basico.tagline}</p>
+            <Button asChild variant="outline" className="mt-8 h-12 w-full text-base" data-testid="btn-plano-basico">
+              <Link href="/cadastro">Testar 15 dias grátis</Link>
+            </Button>
+          </div>
+        )}
 
         {/* ---------- PROFISSIONAL ---------- */}
         <div className="relative rounded-3xl border-2 border-primary bg-card p-6 shadow-sm md:p-8" data-testid="card-plano-profissional">
@@ -116,17 +120,11 @@ export function Pricing({ plans }: { plans: Plan[] }) {
             Para quem atende sozinho
           </span>
           <p className="text-sm font-semibold text-primary">Profissional</p>
-          <div className="mt-3 flex flex-wrap items-end justify-center gap-x-2 gap-y-1">
-            <p className="font-heading text-5xl leading-none" data-testid="preco-profissional">{brl(pro.base_price)}</p>
-            <p className="pb-1 text-muted-foreground">{per}</p>
-          </div>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {yearly ? `Equivale a ${brl(pro.base_price / 12)}/mês.` : "Sem fidelidade. Cancele quando quiser."}
-          </p>
+          <PriceLine value={brl(pro.base_price)} per={per} testid="preco-profissional" />
+          <p className="mt-2 text-sm text-muted-foreground">{equiv(pro.base_price)}</p>
           <ul className="mx-auto mt-8 w-fit space-y-3">
-            <Item strong>Tudo do Grátis, mais:</Item>
-            {PRO_INCLUDES.map((f) => (
-              <Item key={f}>{f}</Item>
+            {PLAN_SUMMARY.profissional.items(limit, included).map((f, i) => (
+              <Item key={f} strong={i === 0}>{f}</Item>
             ))}
           </ul>
           <p className="mt-6 text-sm text-muted-foreground">Para 1 profissional. Se a equipe crescer, é só mudar para o Equipe.</p>
@@ -141,18 +139,11 @@ export function Pricing({ plans }: { plans: Plan[] }) {
             Para salões e equipes
           </span>
           <p className="text-sm font-semibold text-[#99582A]">Equipe</p>
-          <div className="mt-3 flex flex-wrap items-end justify-center gap-x-2 gap-y-1">
-            <p className="font-heading text-5xl leading-none" data-testid="preco-total">{brl(teamTotal)}</p>
-            <p className="pb-1 text-muted-foreground">{per}</p>
-          </div>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {yearly ? `Equivale a ${brl(teamTotal / 12)}/mês.` : "Sem fidelidade. Cancele quando quiser."}
-          </p>
+          <PriceLine value={brl(teamTotal)} per={per} testid="preco-total" />
+          <p className="mt-2 text-sm text-muted-foreground">{equiv(teamTotal)}</p>
           <ul className="mx-auto mt-8 w-fit space-y-3">
-            <Item strong>Tudo do Profissional, mais:</Item>
-            <Item>Até {included} profissionais inclusos</Item>
-            {TEAM_INCLUDES.map((f) => (
-              <Item key={f}>{f}</Item>
+            {PLAN_SUMMARY.equipe.items(limit, included).map((f, i) => (
+              <Item key={f} strong={i === 0}>{f}</Item>
             ))}
           </ul>
 
@@ -204,7 +195,8 @@ export function Pricing({ plans }: { plans: Plan[] }) {
       </div>
 
       <p className="copy mt-8 text-sm text-muted-foreground">
-        O teste de 15 dias é do plano Equipe, sem cartão. No fim, escolha o seu plano ou continue no Grátis.
+        Toda conta nova começa com 15 dias do plano Equipe, sem cartão. No fim, escolha o seu plano ou siga no Grátis, que vale{" "}
+        {FREE_MONTHS} meses a partir do cadastro.
       </p>
     </div>
   );

@@ -14,7 +14,14 @@ export async function markReminderSent(id: string, sent: boolean): Promise<{ ok:
     .eq("id", id)
     .eq("business_id", business.id);
 
-  if (error) return { ok: false, error: "Não foi possível registrar o lembrete." };
+  if (error) {
+    return {
+      ok: false,
+      error: error.message.includes("PLANO_BASICO")
+        ? "Lembretes de véspera são um recurso dos planos pagos, a partir do Básico."
+        : "Não foi possível registrar o lembrete.",
+    };
+  }
   revalidatePath("/admin/lembretes");
   return { ok: true };
 }
@@ -41,6 +48,7 @@ export async function markReturnContacted(id: string, contacted: boolean): Promi
 const TEXT_ERRORS: Record<string, string> = {
   SEM_PERMISSAO: "Somente a matriz e a recepção podem editar a mensagem.",
   DADOS_INVALIDOS: "Cada texto pode ter no máximo 1000 caracteres.",
+  PLANO_BASICO: "Lembretes de véspera são um recurso dos planos pagos, a partir do Básico.",
 };
 
 export async function saveManualReminderTexts(

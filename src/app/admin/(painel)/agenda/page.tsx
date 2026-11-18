@@ -2,7 +2,7 @@ import { Ajuda } from "@/components/ajuda";
 import Link from "next/link";
 import { CalendarDays, Clock } from "lucide-react";
 import { getAdminContext, seesWholeTeam } from "@/lib/admin";
-import { getPlanContext } from "@/lib/plan";
+import { allows, getPlanContext } from "@/lib/plan";
 import { addDaysISO, mondayOf, todayInZone } from "@/lib/dates";
 import { agendaProfessional, blockAppliesOn, loadAgenda, loadPendingPayments } from "@/lib/agenda-data";
 import { monthOf, monthRange, monthTitle } from "@/lib/agenda";
@@ -95,7 +95,7 @@ export default async function AgendaPage({ searchParams }: Props) {
               {activeCount} {activeCount === 1 ? "atendimento" : "atendimentos"} em {monthTitle(month).replace(/ de \d+$/, "")}
             </p>
           </div>
-          <NewBookingDialog defaultDate={month === today.slice(0, 7) ? today : `${month}-01`} services={data.services} professionals={data.pros} fullAccess={plan.tier === "completo"} canSellPackages={wholeTeam} canOverlay={role === "owner" || role === "reception" || role === "staff"} />
+          <NewBookingDialog defaultDate={month === today.slice(0, 7) ? today : `${month}-01`} services={data.services} professionals={data.pros} fullAccess={plan.tier === "completo"} packagesAccess={allows(plan, "profissional")} canSellPackages={wholeTeam} canOverlay={role === "owner" || role === "reception" || role === "staff"} />
         </header>
 
         <AgendaToolbar
@@ -151,7 +151,7 @@ export default async function AgendaPage({ searchParams }: Props) {
               {activeCount} {activeCount === 1 ? "atendimento" : "atendimentos"} de {shortISO(weekStart)} a {shortISO(weekEnd)}
             </p>
           </div>
-          <NewBookingDialog defaultDate={date} services={data.services} professionals={data.pros} fullAccess={plan.tier === "completo"} canSellPackages={wholeTeam} canOverlay={role === "owner" || role === "reception" || role === "staff"} />
+          <NewBookingDialog defaultDate={date} services={data.services} professionals={data.pros} fullAccess={plan.tier === "completo"} packagesAccess={allows(plan, "profissional")} canSellPackages={wholeTeam} canOverlay={role === "owner" || role === "reception" || role === "staff"} />
         </header>
 
         <AgendaToolbar
@@ -246,7 +246,7 @@ export default async function AgendaPage({ searchParams }: Props) {
           </p>
         </div>
         <div className="flex flex-wrap items-center justify-center gap-2">
-          <NewBookingDialog defaultDate={date} services={services} professionals={pros} fullAccess={plan.tier === "completo"} canSellPackages={wholeTeam} canOverlay={role === "owner" || role === "reception" || role === "staff"} />
+          <NewBookingDialog defaultDate={date} services={services} professionals={pros} fullAccess={plan.tier === "completo"} packagesAccess={allows(plan, "profissional")} canSellPackages={wholeTeam} canOverlay={role === "owner" || role === "reception" || role === "staff"} />
           <Link
             href={calendarHref}
             className="inline-flex h-11 items-center gap-2 rounded-md border bg-card px-4 text-sm font-semibold hover:bg-secondary md:hidden"

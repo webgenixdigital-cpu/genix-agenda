@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Gift, Sparkles } from "lucide-react";
+import { AlertTriangle, Gift, Sparkles } from "lucide-react";
 import { PLAN_NAMES, recommendedKind, type PlanContext } from "@/lib/plan";
 import { cn } from "@/lib/utils";
 
@@ -43,21 +43,47 @@ export function PlanBanner({
     );
   }
 
-  // Plano Grátis
-  if (plan.tier === "gratis") {
+  // Grátis vencido (52): a vitrine não recebe agendamento online
+  if (plan.tier === "gratis" && plan.freeOver) {
     return (
       <div
-        className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 border-b bg-secondary px-4 py-2.5 text-center text-sm md:px-8"
+        className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 border-b border-amber-300 bg-amber-50 px-4 py-2.5 text-center text-sm text-amber-900 md:px-8"
+        data-testid="faixa-gratis-encerrado"
+      >
+        <p className="flex items-center gap-2">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          <span>
+            <strong>Seu período Grátis terminou.</strong> A vitrine não está recebendo agendamentos online. O painel e os
+            seus dados continuam.
+          </span>
+        </p>
+        <Link href="/admin/assinatura" className="font-semibold text-primary underline" data-testid="link-faixa-assinar-basico">
+          Assinar o Básico
+        </Link>
+      </div>
+    );
+  }
+
+  // Plano Grátis
+  if (plan.tier === "gratis") {
+    const soon = plan.freeDaysLeft !== null && plan.freeDaysLeft <= 15;
+    return (
+      <div
+        className={cn(
+          "flex flex-wrap items-center justify-center gap-x-4 gap-y-2 border-b px-4 py-2.5 text-center text-sm md:px-8",
+          soon ? "border-amber-300 bg-amber-50 text-amber-900" : "bg-secondary"
+        )}
         data-testid="faixa-gratis"
       >
         <p className="flex items-center gap-2">
           <Sparkles className="h-4 w-4 shrink-0 text-primary" />
           <span>
-            <strong>Plano Grátis:</strong> até {freeLimit} agendamentos online por dia e 1 profissional.
+            <strong>Plano Grátis:</strong> até {freeLimit} agendamentos online por dia e 1 profissional
+            {plan.freeDaysLeft !== null ? ` · ${plan.freeDaysLeft === 1 ? "falta 1 dia" : `faltam ${plan.freeDaysLeft} dias`}` : ""}.
           </span>
         </p>
         <Link href="/admin/assinatura" className="font-semibold text-primary underline" data-testid="link-faixa-liberar">
-          Ver planos pagos
+          {soon ? "Assinar o Básico" : "Ver planos pagos"}
         </Link>
       </div>
     );

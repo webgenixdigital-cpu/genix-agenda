@@ -2,7 +2,7 @@
 // COPY DA LANDING PAGE ("/") — protótipo aprovado: docs/landing/prototipo-v5.html
 // Todo texto da página mora aqui; os componentes em src/components/landing só desenham.
 // Sem classes do Tailwind neste arquivo (a pasta não entra no `content` do Tailwind).
-// Preços NÃO ficam aqui: vêm da tabela plans (getPublicPlans, migrations 28a/28b).
+// Preços NÃO ficam aqui: vêm da tabela plans (getPublicPlans, migrations 28a/28b/52).
 // =====================================================================
 
 /** Trecho de título com palavra grifada em dourado: [antes, grifo, depois] */
@@ -11,7 +11,7 @@ export type Marked = readonly [string, string, string];
 export const LANDING_SEO = {
   title: "Genix Agenda | Agenda online grátis e vitrine digital para profissionais",
   description:
-    "Agenda online, vitrine digital e lembretes automáticos no WhatsApp para salões, barbearias, clínicas de estética e outros profissionais. Grátis para sempre para 1 profissional, sem cartão.",
+    "Agenda online, vitrine digital e lembretes automáticos no WhatsApp para salões, barbearias, clínicas de estética e outros profissionais. Plano Grátis de 6 meses para 1 profissional, sem cartão.",
 };
 
 export const LANDING_NAV = {
@@ -32,7 +32,7 @@ export const LANDING_HERO = {
   lead: "A Genix Agenda recebe os agendamentos, lembra seu cliente pelo WhatsApp e organiza seu financeiro, enquanto você faz o que sabe fazer.",
   inputPlaceholder: "Seu e-mail ou WhatsApp",
   cta: "Testar 15 dias grátis",
-  micro: ["Sem cartão", "Pronto em minutos", "Plano grátis para sempre"],
+  micro: ["Sem cartão", "Pronto em minutos", "6 meses no plano Grátis"],
 };
 
 /** Mock do celular (ilustração; nomes fictícios) */
@@ -159,16 +159,23 @@ export const LANDING_PLANS = {
     name: "Grátis",
     text: "Para começar a organizar a agenda.",
     price: "R$ 0",
-    per: "para sempre",
-    items: (limit: number) => [`${limit} agendamentos online por dia`, "1 profissional", "Confirmação automática", "Lembretes manuais"],
+    per: "por 6 meses",
+    items: (limit: number) => [`${limit} agendamentos online por dia`, "1 profissional", "Confirmação automática", "Remarcar e editar agendamento"],
     cta: "Criar conta grátis",
+  },
+  basic: {
+    name: "Básico",
+    text: "Agenda sem limite para quem atende sozinho.",
+    yearlyEquivalent: (perMonth: string) => `equivale a ${perMonth}/mês`,
+    items: ["Agendamentos online ilimitados", "Encaixe e bloqueios", "Lembretes de véspera e recorrência", "Financeiro e contador"],
+    cta: "Testar 15 dias grátis",
   },
   pro: {
     badge: "Mais escolhido",
     name: "Profissional",
     text: "Tudo liberado para quem atende sozinho.",
     yearlyEquivalent: (perMonth: string) => `equivale a ${perMonth}/mês`,
-    items: ["WhatsApp automático (ativação assistida)", "Retornos, pacotes e combos", "Financeiro e faturamento", "Agendamentos online ilimitados"],
+    items: ["Tudo do Básico", "WhatsApp automático (ativação assistida)", "Retornos, pacotes e combos", "Para fidelizar e vender mais"],
     cta: "Testar 15 dias grátis",
   },
   team: {
@@ -178,7 +185,7 @@ export const LANDING_PLANS = {
     items: ["Tudo do Profissional", "Acessos por profissional", "Comissões", "Salão-parceiro"],
     cta: "Testar 15 dias grátis",
   },
-  roi: ["Uma única falta evitada por mês ", "já paga o plano Profissional", "."] as Marked,
+  roi: ["Uma única falta evitada por mês ", "já paga o plano Básico", "."] as Marked,
 };
 
 export const LANDING_FAQ = {
@@ -188,7 +195,8 @@ export const LANDING_FAQ = {
     { q: "Meu cliente precisa baixar algum aplicativo?", a: "Não. Ele agenda pelo seu link, direto no navegador do celular." },
     { q: "Os lembretes saem do meu WhatsApp?", a: "Sim. Você conecta seu número por QR Code, e o envio segue um ritmo seguro, com textos variados. A ativação é feita junto com a nossa equipe, para garantir um envio seguro." },
     { q: "É difícil configurar?", a: "Você cadastra serviços e horários em poucos minutos, e a configuração inicial guia cada passo." },
-    { q: "Posso cancelar quando quiser?", a: "Sim, sem multa. E o plano Grátis continua disponível." },
+    { q: "Posso cancelar quando quiser?", a: "Sim, sem multa. O painel e os seus dados continuam com você." },
+    { q: "Quanto tempo dura o plano Grátis?", a: "6 meses a partir do cadastro, com os 15 dias de teste do Equipe dentro. Depois, o painel continua e a vitrine volta a receber agendamentos online quando você assina o Básico." },
   ],
 };
 

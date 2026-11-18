@@ -35,7 +35,8 @@ export default function TermosPage() {
         <ul>
           <li><strong>Teste grátis:</strong> toda conta nova recebe 15 dias do plano Equipe, sem cadastro de cartão.</li>
           <li><strong>Plano Grátis:</strong> ao final do teste, se não houver assinatura, a conta passa automaticamente para o plano Grátis, com recursos e limites informados na página de planos (por exemplo, limite diário de agendamentos online e de profissionais ativos). Nenhum dado é apagado nessa mudança.</li>
-          <li><strong>Planos pagos (Profissional e Equipe):</strong> cobrados de forma mensal ou anual, conforme os valores vigentes na página de planos no momento da contratação, incluindo eventual valor por profissional adicional.</li>
+          <li><strong>Prazo do plano Grátis:</strong> o plano Grátis vale por 6 meses contados do cadastro (o teste de 15 dias está incluído nesse prazo). Para contas criadas antes desta versão dos Termos, o prazo de 6 meses conta a partir da data de publicação desta versão. Ao fim do prazo, sem assinatura, o painel e os dados continuam disponíveis, mas a vitrine deixa de receber agendamentos online até a contratação de um plano pago.</li>
+          <li><strong>Planos pagos (Básico, Profissional e Equipe):</strong> cobrados de forma mensal ou anual, conforme os valores vigentes na página de planos no momento da contratação, incluindo eventual valor por profissional adicional.</li>
           <li>Os pagamentos são processados por empresa parceira de meios de pagamento. A renovação é automática ao fim de cada período, até o cancelamento.</li>
           <li>Em caso de falta de pagamento, poderemos, após aviso, retornar a conta ao plano Grátis.</li>
           <li>Alterações de preço serão comunicadas com antecedência e só valem para o período seguinte.</li>

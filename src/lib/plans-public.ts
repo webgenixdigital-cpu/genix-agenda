@@ -1,6 +1,7 @@
 // Planos para as páginas públicas ("/" e /para/[nicho]): leitura, tipos e FAQ.
-// Valores sempre da tabela plans (migrations 28a/28b); nada de preço fixo no código.
+// Valores sempre da tabela plans (migrations 28a/28b/52); nada de preço fixo no código.
 import { brl } from "@/lib/format";
+import { FREE_MONTHS } from "@/content/planos";
 
 export type Plan = {
   id: string;
@@ -9,7 +10,7 @@ export type Plan = {
   base_price: number;
   included_professionals: number;
   extra_professional_price: number;
-  kind: "gratis" | "profissional" | "equipe";
+  kind: "gratis" | "basico" | "profissional" | "equipe";
   online_daily_limit: number | null;
 };
 
@@ -31,6 +32,7 @@ const find = (plans: Plan[], kind: Plan["kind"], cycle: Plan["billing_cycle"]) =
 /** Perguntas frequentes com os valores atuais (sem repetir a tabela) */
 export function planFaq(plans: Plan[]) {
   const limit = plans.find((p) => p.kind === "gratis")?.online_daily_limit ?? 6;
+  const basicM = find(plans, "basico", "MONTHLY");
   const proM = find(plans, "profissional", "MONTHLY");
   const teamM = find(plans, "equipe", "MONTHLY");
   const teamY = find(plans, "equipe", "YEARLY");
@@ -38,12 +40,12 @@ export function planFaq(plans: Plan[]) {
 
   return [
     {
-      q: "O plano Grátis é para sempre mesmo?",
-      a: `Sim. Vitrine com link próprio, agenda online com até ${limit} agendamentos online por dia, 1 profissional, ficha dos clientes, avaliações e lembretes de véspera em um toque. Sem prazo para acabar e sem cartão.`,
+      q: "Quanto tempo dura o plano Grátis?",
+      a: `${FREE_MONTHS} meses a partir do cadastro (os 15 dias de teste do Equipe contam dentro). Inclui vitrine com link próprio, agenda online com até ${limit} agendamentos online por dia, 1 profissional, ficha dos clientes, confirmação automática e avaliações. Depois dos ${FREE_MONTHS} meses, o painel e os seus dados continuam, mas a vitrine para de receber agendamentos online até você assinar o Básico${basicM ? ` (${brl(basicM.base_price)}/mês)` : ""}. Sem cartão.`,
     },
     {
-      q: "Qual a diferença entre o Profissional e o Equipe?",
-      a: `O Profissional${proM ? ` (${brl(proM.base_price)}/mês)` : ""} libera tudo para quem atende sozinho: agendamentos ilimitados, bloqueios, recorrência, pacotes, retornos, financeiro e relatório do contador. O Equipe${teamM ? ` (${brl(teamM.base_price)}/mês)` : ""} tem tudo isso para até ${included} profissionais, com acesso individual para recepção e profissionais, comissões e salão-parceiro.`,
+      q: "Qual a diferença entre Básico, Profissional e Equipe?",
+      a: `O Básico${basicM ? ` (${brl(basicM.base_price)}/mês)` : ""} tira o limite da agenda e libera encaixe, bloqueios (almoço, folgas e férias), lembretes de véspera, recorrência e o financeiro com o relatório do contador. O Profissional${proM ? ` (${brl(proM.base_price)}/mês)` : ""} soma retornos, pacotes, combos e o WhatsApp automático. Os dois são para 1 profissional. O Equipe${teamM ? ` (${brl(teamM.base_price)}/mês)` : ""} tem tudo isso para até ${included} profissionais, com acesso individual para recepção e profissionais, comissões e salão-parceiro.`,
     },
     {
       q: "Quanto custa cada profissional a mais no Equipe?",
@@ -53,7 +55,7 @@ export function planFaq(plans: Plan[]) {
     },
     {
       q: "O que acontece quando o teste de 15 dias acaba?",
-      a: "Você testa o plano Equipe por 15 dias, sem cartão. No fim, escolhe o Profissional (se atende sozinho) ou o Equipe. Se não assinar, a conta passa para o Grátis e nada é apagado.",
+      a: `Você testa o plano Equipe por 15 dias, sem cartão. No fim, escolhe o Básico ou o Profissional (se atende sozinho) ou o Equipe. Se não assinar, a conta passa para o Grátis, que vale até completar ${FREE_MONTHS} meses do cadastro, e nada é apagado.`,
     },
     {
       q: "Quais formas de pagamento são aceitas?",

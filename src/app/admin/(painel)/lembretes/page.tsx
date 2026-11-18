@@ -3,7 +3,7 @@ import Link from "next/link";
 import { AlertCircle, Bot, CheckCircle2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminContext } from "@/lib/admin";
-import { getPlanContext } from "@/lib/plan";
+import { allows, getPlanContext } from "@/lib/plan";
 import { LockedFeature } from "@/components/admin/locked-feature";
 import { todayISO } from "@/lib/dates";
 import { longDate, whatsappLink } from "@/lib/format";
@@ -44,8 +44,9 @@ export default async function LembretesPage({ searchParams }: Props) {
   const supabase = createClient();
 
   const isReturns = searchParams.dia === "retornos";
-  // Grátis: a fila manual de lembretes é liberada; os Retornos continuam nos planos pagos
-  if (isReturns && plan.tier === "gratis") return <LockedFeature feature="retornos" />;
+  // 52: fila manual de véspera a partir do Básico; Retornos a partir do Profissional
+  if (isReturns && !allows(plan, "profissional")) return <LockedFeature feature="retornos" />;
+  if (!isReturns && !allows(plan, "basico")) return <LockedFeature feature="lembretes" />;
   const isToday = searchParams.dia === "hoje";
   const date = todayISO(isToday ? 0 : 1);
 

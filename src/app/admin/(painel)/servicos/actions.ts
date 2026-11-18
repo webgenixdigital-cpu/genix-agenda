@@ -112,6 +112,7 @@ export type ComboInput = {
 };
 
 const COMBO_ERRORS: Record<string, string> = {
+  PLANO_PROFISSIONAL: "Combos são um recurso dos planos Profissional e Equipe.",
   PLANO_GRATIS: "Combos são um recurso dos planos Profissional e Equipe.",
   SEM_PERMISSAO: "Só o dono do espaço pode criar ou editar combos.",
   NOME_INVALIDO: "Dê um nome ao combo (2 a 80 letras).",

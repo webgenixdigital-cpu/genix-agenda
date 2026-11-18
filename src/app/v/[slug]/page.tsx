@@ -44,7 +44,7 @@ async function loadVitrine(slug: string) {
     supabase.rpc("public_plan_info", { p_slug: slug }),
     supabase.from("combo_items").select("combo_id, service_id, position").eq("business_id", business.id).order("position"),
   ]);
-  const plan = planInfo.data as { blocked_professional_ids?: string[]; tier?: string } | null;
+  const plan = planInfo.data as { blocked_professional_ids?: string[]; tier?: string; kind?: string; online_closed?: boolean } | null;
   // extras com cobrança vencida há 15+ dias (29): fora do agendamento online
   const blocked = plan?.blocked_professional_ids ?? [];
 
@@ -52,7 +52,8 @@ async function loadVitrine(slug: string) {
   const rows = (services.data ?? []) as Service[];
   const priceOf = new Map(rows.map((s) => [s.id, Number(s.price)]));
   const list = rows
-    .filter((s) => s.kind !== "combo" || plan?.tier === "completo")
+    // 52: combos só do Profissional em diante (sem "kind", migration 52a ainda não aplicada: plano pago)
+    .filter((s) => s.kind !== "combo" || (plan?.kind ? plan.kind === "profissional" || plan.kind === "equipe" : plan?.tier === "completo"))
     .map((s) => {
       if (s.kind !== "combo") return s;
       const ids = (comboItems.data ?? []).filter((i) => i.combo_id === s.id).map((i) => i.service_id as string);
@@ -72,6 +73,7 @@ async function loadVitrine(slug: string) {
     hours: (hours.data ?? []) as BusinessHour[],
     reviews: reviews.data ?? [],
     blocked,
+    onlineClosed: !!plan?.online_closed,
   };
 }
 
@@ -108,7 +110,7 @@ export default async function VitrinePage({ params }: Props) {
   const data = await loadVitrine(params.slug);
   if (!data) notFound();
 
-  const { business: b, services, professionals, hours, reviews, blocked } = data;
+  const { business: b, services, professionals, hours, reviews, blocked, onlineClosed } = data;
   const wa = whatsappLink(b.whatsapp, b.whatsapp_message ?? undefined);
   const today = todayWeekday();
   const todayHours = hours.find((h) => h.weekday === today);
@@ -425,6 +427,7 @@ export default async function VitrinePage({ params }: Props) {
         services={onlineServices}
         professionals={professionals.filter((p) => !blocked.includes(p.id))}
         hours={hours}
+        onlineClosed={onlineClosed}
       />
 
       {/* WhatsApp flutuante */}

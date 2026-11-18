@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getEditorContext } from "@/lib/admin";
-import { getPlanContext } from "@/lib/plan";
+import { allows, getPlanContext } from "@/lib/plan";
 import { birthISO, birthParts } from "@/lib/birthday";
 import { loadSaleOptions, type SaleProfessional, type SaleTemplate } from "@/lib/package-sale";
 import type { PlanRule, PlanVisit } from "@/lib/package-plan";
@@ -191,6 +191,7 @@ const PACKAGE_ERRORS: Record<string, string> = {
   MODELO_INVALIDO: "Esse modelo de pacote não está mais disponível.",
   CLIENTE_INVALIDO: "Cliente não encontrado.",
   SEM_PERMISSAO: "Somente a matriz e a recepção podem vender ou cancelar pacotes.",
+  PLANO_PROFISSIONAL: "Pacotes são um recurso dos planos Profissional e Equipe.",
   PLANO_GRATIS: "Pacotes são um recurso dos planos Profissional e Equipe.",
   FORMA_INVALIDA: "Escolha a forma de pagamento.",
   NAO_ENCONTRADO: "Pacote não encontrado.",
@@ -337,7 +338,7 @@ export async function startPackageSale(input: {
   const { business, role } = await getEditorContext();
   if (role !== "owner" && role !== "reception") return { ok: false, error: "Só a matriz e a recepção vendem pacotes." };
   const plan = await getPlanContext(business.id);
-  if (plan.tier !== "completo") return { ok: false, error: "Pacotes são um recurso dos planos Profissional e Equipe." };
+  if (!allows(plan, "profissional")) return { ok: false, error: "Pacotes são um recurso dos planos Profissional e Equipe." };
 
   const parsed = parseCustomerPhone(input.phone, input.phoneCountry);
   if (!parsed) return { ok: false, error: phoneError(input.phoneCountry) };

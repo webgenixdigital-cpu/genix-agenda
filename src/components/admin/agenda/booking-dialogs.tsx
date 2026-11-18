@@ -122,6 +122,7 @@ export function BookingDialogsProvider({ children }: { children: React.ReactNode
               businessName={active.ctx.businessName}
               professionals={active.ctx.reschedule.professionals}
               canChooseProfessional={active.ctx.reschedule.canChooseProfessional}
+              canFit={active.ctx.reschedule.canFit ?? true}
               canOverlay={active.ctx.reschedule.canOverlay}
               today={active.ctx.reschedule.today}
             />

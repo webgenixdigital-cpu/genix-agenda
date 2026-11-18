@@ -6,9 +6,11 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getEditorContext } from "@/lib/admin";
 import { asaas, AsaasError, type AsaasBillingType, type AsaasCustomer, type AsaasPayment, type AsaasSubscription } from "@/lib/asaas";
 import { isValidCpfCnpj, onlyDigits } from "@/lib/cpf-cnpj";
-import { cycleOfPlanId, isPaidPlanId, kindOfPlanId, type PaidPlanId } from "@/lib/plan-ids";
+import { cycleOfPlanId, isPaidPlanId, isSoloKind, kindOfPlanId, paidRank, type PaidPlanId } from "@/lib/plan-ids";
+import { PLAN_NAMES } from "@/lib/plan-features";
 import { availablePaidPlans } from "@/lib/plans-server";
 import { getPlanContext } from "@/lib/plan";
+import { daysLeftOf } from "@/lib/billing";
 
 type Result = { ok: true; invoiceUrl?: string; message?: string } | { ok: false; error: string };
 type Quote = { total: number; extra_professionals: number; professionals: number };
@@ -16,13 +18,14 @@ type Quote = { total: number; extra_professionals: number; professionals: number
 // Boleto desativado por enquanto (expõe o documento do recebedor)
 const BILLING: AsaasBillingType[] = ["PIX", "CREDIT_CARD"];
 const ONLY_OWNER = "Somente o dono do espaço pode alterar a assinatura.";
-const PRO_ONE = "O plano Profissional é para 1 profissional ativo. Desative os outros na Equipe ou escolha o plano Equipe.";
+const soloOnly = (id: string) =>
+  `O plano ${kindLabel(id)} é para 1 profissional ativo. Desative os outros na Equipe ou escolha o plano Equipe.`;
 const MIN_CHARGE = 5; // menor cobrança avulsa aceita pelo Asaas (R$)
 const UNAVAILABLE = "Este plano ainda não está disponível. Tente de novo em instantes.";
 const GRANTED = "Este espaço tem cortesia da Genix: não há assinatura para contratar ou trocar.";
 
 const todayISO = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
-const kindLabel = (id: string) => (kindOfPlanId(id) === "profissional" ? "Profissional" : "Equipe");
+const kindLabel = (id: string) => PLAN_NAMES[kindOfPlanId(id)];
 const cycleLabel = (id: string) => (cycleOfPlanId(id) === "anual" ? "anual" : "mensal");
 const description = (planId: string, businessName: string) =>
   `Genix Agenda ${kindLabel(planId)} (${cycleLabel(planId)}) - ${businessName}`;
@@ -68,7 +71,7 @@ export async function startSubscription(input: {
 
   const q = await quoteFor(biz.id, input.planId);
   if (!q) return { ok: false, error: "Não foi possível calcular o valor do plano." };
-  if (kindOfPlanId(input.planId) === "profissional" && q.professionals > 1) return { ok: false, error: PRO_ONE };
+  if (isSoloKind(kindOfPlanId(input.planId)) && q.professionals > 1) return { ok: false, error: soloOnly(input.planId) };
 
   const { data: sub } = await admin
     .from("subscriptions")
@@ -193,9 +196,9 @@ export async function cancelSubscription(): Promise<Result> {
 }
 
 // ---------------------------------------------------------------------
-// PARTE 3 — Trocar entre Profissional e Equipe (mesmo ciclo)
+// PARTE 3 — Trocar entre Básico, Profissional e Equipe (mesmo ciclo)
 // Upgrade mensal: vale na hora; o novo valor entra na próxima cobrança.
-// Upgrade anual: cobrança avulsa proporcional; vira Equipe quando pagar (webhook).
+// Upgrade anual: cobrança avulsa proporcional; vira o plano novo quando pagar (webhook).
 // Downgrade: vale no próximo ciclo (o valor da renovação já muda no Asaas).
 // ---------------------------------------------------------------------
 export async function changePlan(target: PaidPlanId): Promise<Result> {
@@ -228,9 +231,9 @@ export async function changePlan(target: PaidPlanId): Promise<Result> {
   if (!q) return { ok: false, error: "Não foi possível calcular o valor do plano." };
 
   try {
-    // ---------- Downgrade: Equipe → Profissional, no próximo ciclo ----------
-    if (to === "profissional") {
-      if (q.professionals > 1) return { ok: false, error: PRO_ONE };
+    // ---------- Downgrade (para um plano menor), no próximo ciclo ----------
+    if (paidRank(to) < paidRank(from)) {
+      if (isSoloKind(to) && q.professionals > 1) return { ok: false, error: soloOnly(target) };
       await asaas(`/subscriptions/${sub.asaas_subscription_id}`, {
         method: "POST",
         body: { value: Number(q.total), description: description(target, biz.name), updatePendingPayments: true },
@@ -240,19 +243,18 @@ export async function changePlan(target: PaidPlanId): Promise<Result> {
         .update({ scheduled_plan_id: target, scheduled_at: new Date().toISOString() })
         .eq("business_id", biz.id);
       refresh();
-      return { ok: true, message: "Troca agendada: o plano Profissional começa na próxima renovação." };
+      return { ok: true, message: `Troca agendada: o plano ${kindLabel(target)} começa na próxima renovação.` };
     }
 
-    // ---------- Upgrade: Profissional → Equipe ----------
+    // ---------- Upgrade (para um plano maior) ----------
     const updateRenewal = () =>
       asaas(`/subscriptions/${sub.asaas_subscription_id}`, {
         method: "POST",
         body: { value: Number(q.total), description: description(target, biz.name), updatePendingPayments: true },
       });
 
-    // diferença proporcional aos dias que faltam (só no anual)
-    const msLeft = sub.current_period_end ? new Date(sub.current_period_end).getTime() - Date.now() : 0;
-    const daysLeft = Math.max(0, Math.ceil(msLeft / 86_400_000));
+    // diferença proporcional aos dias que faltam (só no anual; no máximo 365 dias = diferença cheia)
+    const daysLeft = daysLeftOf(sub.current_period_end);
     const diff = Math.round(Math.max(0, Number(q.total) - Number(sub.amount ?? 0)) * (daysLeft / 365) * 100) / 100;
 
     if (cycleOfPlanId(target) === "mensal" || diff < MIN_CHARGE) {
@@ -262,7 +264,7 @@ export async function changePlan(target: PaidPlanId): Promise<Result> {
         .update({ plan_id: target, amount: q.total, extra_professionals: q.extra_professionals, scheduled_plan_id: null, scheduled_at: null })
         .eq("business_id", biz.id);
       refresh();
-      return { ok: true, message: "Pronto! Você já está no plano Equipe. O novo valor vale a partir da próxima cobrança." };
+      return { ok: true, message: `Pronto! Você já está no plano ${kindLabel(target)}. O novo valor vale a partir da próxima cobrança.` };
     }
 
     const payment = await asaas<AsaasPayment>("/payments", {
@@ -272,7 +274,7 @@ export async function changePlan(target: PaidPlanId): Promise<Result> {
         billingType: sub.billing_type === "CREDIT_CARD" ? "CREDIT_CARD" : "PIX",
         value: diff,
         dueDate: todayISO(),
-        description: `Genix Agenda: mudança para o plano Equipe (proporcional a ${daysLeft} dias) - ${biz.name}`,
+        description: `Genix Agenda: mudança para o plano ${kindLabel(target)} (proporcional a ${daysLeft} dias) - ${biz.name}`,
         externalReference: `upgrade:${biz.id}`,
       },
     });

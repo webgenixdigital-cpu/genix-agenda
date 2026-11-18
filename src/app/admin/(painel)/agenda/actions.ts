@@ -274,7 +274,7 @@ export async function createManualBooking(input: {
 // agenda) e o profissional (a própria); 1 por trecho; o banco confere tudo.
 // ---------------------------------------------------------------------
 const OVERLAY_ERRORS: Record<string, string> = {
-  SEM_PERMISSAO: "Só a matriz e o próprio profissional marcam encaixe sobreposto.",
+  SEM_PERMISSAO: "Encaixe sobreposto: a matriz e a recepção marcam em qualquer agenda; o profissional, só na própria.",
   PROFISSIONAL_INDISPONIVEL: "Esse profissional não está ativo.",
   PROFISSIONAL_NAO_FAZ: "Esse profissional não faz esse serviço.",
   MEIA_NOITE: "O atendimento passaria da meia-noite.",

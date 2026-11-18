@@ -19,8 +19,11 @@ const PACKAGE_ERRORS: Record<string, string> = {
   PACOTE_INVALIDO: "Esse pacote não pode ser usado aqui (cancelado, de outro cliente ou de outro serviço).",
   // combos (32_combos), no gatilho do item 0
   PROFISSIONAL_NAO_FAZ: "Esse profissional não faz todos os serviços deste combo.",
+  PLANO_PROFISSIONAL: "Combos são um recurso dos planos Profissional e Equipe.",
   PLANO_GRATIS: "Combos são um recurso dos planos Profissional e Equipe.",
   COMBO_INCOMPLETO: "Esse combo está incompleto. Edite o combo em Serviços.",
+  // 51: encaixe (fora da lista) e encaixe sobreposto, a partir do Básico
+  PLANO_BASICO: "Encaixe é um recurso dos planos pagos, a partir do Básico. No Grátis, escolha um horário da lista.",
 };
 const packageError = (message?: string) =>
   PACKAGE_ERRORS[Object.keys(PACKAGE_ERRORS).find((k) => message?.includes(k)) ?? ""];
@@ -85,7 +88,7 @@ export async function completeBooking(id: string, method: Method | "pendente" | 
 // ---------------------------------------------------------------------
 const PAYMENT_ERRORS: Record<string, string> = {
   SEM_PERMISSAO: "Você não pode registrar o pagamento deste atendimento.",
-  PLANO_GRATIS: "Registrar pagamento no caixa é um recurso dos planos pagos.",
+  PLANO_GRATIS: "Registrar pagamento no caixa é um recurso dos planos pagos, a partir do Básico.",
   NAO_PENDENTE: "Esse pagamento já foi registrado.",
   JA_LANCADO: "Esse atendimento já tem um lançamento no caixa.",
   FORMA_INVALIDA: "Escolha a forma de pagamento.",
@@ -506,7 +509,7 @@ export type SeriesInput = {
 export type SeriesDate = { seq: number; date: string; issue: string | null };
 
 const SERIES_ERRORS: Record<string, string> = {
-  PLANO_GRATIS: "Agendamentos recorrentes são um recurso dos planos Profissional e Equipe.",
+  PLANO_GRATIS: "Agendamentos recorrentes são um recurso dos planos pagos, a partir do Básico.",
   SEM_PERMISSAO: "Você só pode agendar na sua própria agenda.",
   FREQUENCIA_INVALIDA: "Escolha a frequência.",
   QUANTIDADE_INVALIDA: "Escolha de 1 a 52 vezes.",
@@ -594,6 +597,7 @@ export async function cancelSeriesFuture(seriesId: string): Promise<{ ok: true; 
 // PARTE 6 — Remarcar (mesmo agendamento; regras em 21_remarcar.sql)
 // ---------------------------------------------------------------------
 const RESCHEDULE_ERRORS: Record<string, string> = {
+  PLANO_BASICO: "Encaixe é um recurso dos planos pagos, a partir do Básico. No Grátis, escolha um horário livre.",
   PASSADO: "Escolha uma data e horário a partir de agora.",
   FECHADO: "O espaço não abre nesse dia.",
   FORA_EXPEDIENTE: "Esse horário fica fora do expediente.",
@@ -759,6 +763,7 @@ const EDIT_ERRORS: Record<string, string> = {
   PROFISSIONAL_NAO_FAZ: "Esse profissional não faz esse serviço.",
   LIMITE_ITENS: "O agendamento já tem o máximo de 10 serviços.",
   ITEM_ORIGINAL: "O serviço original não pode ser removido.",
+  PLANO_PROFISSIONAL: "Combos são um recurso dos planos Profissional e Equipe.",
   PLANO_GRATIS: "Combos são um recurso dos planos Profissional e Equipe.",
   COMBO_INCOMPLETO: "Esse combo está incompleto. Edite o combo em Serviços.",
   ITEM_INVALIDO: "Esse serviço já não está no agendamento.",

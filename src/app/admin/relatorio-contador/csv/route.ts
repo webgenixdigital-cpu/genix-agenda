@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
   const { business } = await requireRoles(["owner", "viewer"]);
   const plan = await getPlanContext(business.id);
-  if (plan.tier === "gratis") return NextResponse.json({ error: "Recurso dos planos Profissional e Equipe." }, { status: 403 });
+  if (plan.tier === "gratis") return NextResponse.json({ error: "Recurso dos planos pagos, a partir do Básico." }, { status: 403 });
 
   const today = todayISO();
   const sp = req.nextUrl.searchParams;

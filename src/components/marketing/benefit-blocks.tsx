@@ -3,7 +3,7 @@
 import { CalendarCheck, HeartHandshake, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type MinPlan = "Grátis" | "Profissional" | "Equipe";
+type MinPlan = "Grátis" | "Básico" | "Profissional" | "Equipe";
 
 const BLOCKS: { icon: typeof CalendarCheck; title: string; text: string; items: [string, MinPlan][] }[] = [
   {
@@ -15,8 +15,9 @@ const BLOCKS: { icon: typeof CalendarCheck; title: string; text: string; items: 
       ["Confirmação automática", "Grátis"],
       ["Remarcar com os horários livres", "Grátis"],
       ["Visão da semana com arrastar", "Grátis"],
-      ["Agendamentos recorrentes", "Profissional"],
-      ["Bloqueios de férias, folgas e feriados", "Profissional"],
+      ["Encaixe, inclusive por cima de outro atendimento", "Básico"],
+      ["Agendamentos recorrentes", "Básico"],
+      ["Bloqueios de almoço, folgas, férias e feriados", "Básico"],
     ],
   },
   {
@@ -25,7 +26,7 @@ const BLOCKS: { icon: typeof CalendarCheck; title: string; text: string; items: 
     text: "Tudo sobre cada cliente num lugar só e o lembrete certo na hora certa.",
     items: [
       ["Ficha e histórico de cada cliente", "Grátis"],
-      ["Lembretes de véspera em um toque", "Grátis"],
+      ["Lembretes de véspera em um toque", "Básico"],
       ["Avaliações dos clientes na vitrine", "Grátis"],
       ["Retornos: quem está na hora de voltar", "Profissional"],
       ["Pacotes de sessões com saldo", "Profissional"],
@@ -36,9 +37,9 @@ const BLOCKS: { icon: typeof CalendarCheck; title: string; text: string; items: 
     title: "Dinheiro sob controle",
     text: "Saiba quanto entrou, quanto falta para o limite e entregue tudo pronto ao contador.",
     items: [
-      ["Caixa com Pix, cartão e dinheiro", "Profissional"],
-      ["Faturamento e limites do MEI e do Simples", "Profissional"],
-      ["Relatório pronto para o contador", "Profissional"],
+      ["Caixa com Pix, cartão e dinheiro", "Básico"],
+      ["Faturamento e limites do MEI e do Simples", "Básico"],
+      ["Relatório pronto para o contador", "Básico"],
       ["Comissões e “Meus ganhos” da equipe", "Equipe"],
       ["Salão-parceiro no faturamento", "Equipe"],
     ],
@@ -47,6 +48,7 @@ const BLOCKS: { icon: typeof CalendarCheck; title: string; text: string; items: 
 
 const TAG: Record<MinPlan, string> = {
   Grátis: "bg-green-50 text-green-800 ring-green-600/20",
+  Básico: "bg-stone-100 text-stone-800 ring-stone-500/20",
   Profissional: "bg-primary/10 text-primary ring-primary/20",
   Equipe: "bg-[#F2C078]/30 text-[#7a4520] ring-[#C47B47]/30",
 };

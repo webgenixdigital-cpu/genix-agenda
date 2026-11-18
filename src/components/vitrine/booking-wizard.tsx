@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Script from "next/script";
 import { format, addDays, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ArrowLeft, Check, Loader2, MessageCircle, UserRound } from "lucide-react";
+import { ArrowLeft, CalendarDays, Check, Loader2, MessageCircle, UserRound } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { BOOK_EVENT } from "@/components/vitrine/book-trigger";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -31,6 +31,8 @@ type Props = {
   services: Service[];
   professionals: Professional[];
   hours: BusinessHour[];
+  /** 51: o espaço não está recebendo agendamento online (mensagem neutra, sem dizer o motivo) */
+  onlineClosed?: boolean;
 };
 
 type Slot = { slot_time: string; professional_ids: string[] };
@@ -66,7 +68,7 @@ declare global {
 // ---------------------------------------------------------------------
 // PARTE 2 — Componente
 // ---------------------------------------------------------------------
-export function BookingWizard({ slug, businessName, whatsapp, services, professionals, hours }: Props) {
+export function BookingWizard({ slug, businessName, whatsapp, services, professionals, hours, onlineClosed = false }: Props) {
   const supabase = useMemo(() => createClient(), []);
 
   const [open, setOpen] = useState(false);
@@ -219,7 +221,35 @@ export function BookingWizard({ slug, businessName, whatsapp, services, professi
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="max-h-[92svh] w-[calc(100%-1rem)] max-w-xl overflow-y-auto rounded-2xl p-4 sm:p-6 md:p-8">
-        {done ? (
+        {onlineClosed ? (
+          /* ---------- SEM AGENDAMENTO ONLINE (51) ---------- */
+          <div className="text-center" data-testid="agendamento-online-indisponivel">
+            <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-secondary text-primary">
+              <CalendarDays className="h-7 w-7" />
+            </div>
+            <DialogTitle className="mt-4 font-heading text-3xl">Agendamento online indisponível</DialogTitle>
+            <DialogDescription className="mt-2">
+              No momento, {businessName} não está recebendo agendamentos pela vitrine. Fale com o espaço para marcar seu horário.
+            </DialogDescription>
+            <div className="mt-6 grid gap-2">
+              {whatsappLink(whatsapp, `Olá, ${businessName}! Gostaria de marcar um horário.`) && (
+                <Button asChild className="h-12 bg-whatsapp text-base text-white hover:bg-whatsapp-hover">
+                  <a
+                    href={whatsappLink(whatsapp, `Olá, ${businessName}! Gostaria de marcar um horário.`) ?? undefined}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    data-testid="btn-whatsapp-sem-online"
+                  >
+                    <MessageCircle className="mr-2 h-5 w-5" /> Falar pelo WhatsApp
+                  </a>
+                </Button>
+              )}
+              <Button variant="ghost" className="h-11" onClick={() => setOpen(false)} data-testid="btn-fechar-sem-online">
+                Fechar
+              </Button>
+            </div>
+          </div>
+        ) : done ? (
           /* ---------- SUCESSO ---------- */
           <div className="text-center" data-testid="booking-success">
             <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-green-100 text-green-700">

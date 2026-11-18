@@ -10,10 +10,10 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Criar conta grátis | Genix Agenda" };
 
 const PERKS = [
-  "15 dias com todos os recursos liberados",
+  "15 dias do plano Equipe, com todos os recursos liberados",
   "Sem cartão de crédito",
   "Passo a passo guiado para deixar tudo pronto",
-  "Depois, assine ou continue no plano Grátis",
+  "Depois, assine a partir do Básico ou siga no Grátis (6 meses a partir do cadastro)",
 ];
 
 export default async function CadastroPage({ searchParams }: { searchParams: { nicho?: string } }) {

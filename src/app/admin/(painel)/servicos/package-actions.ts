@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getEditorContext } from "@/lib/admin";
-import { getPlanContext } from "@/lib/plan";
+import { allows, getPlanContext } from "@/lib/plan";
 
 type Result = { ok: true } | { ok: false; error: string };
 
@@ -24,6 +24,7 @@ const FULL_ONLY = "Pacotes são um recurso dos planos Profissional e Equipe.";
 // erros de save_package_template (37_plano_fechado.sql)
 const TEMPLATE_ERRORS: Record<string, string> = {
   SEM_PERMISSAO: ONLY_OWNER,
+  PLANO_PROFISSIONAL: FULL_ONLY,
   PLANO_GRATIS: FULL_ONLY,
   NOME_INVALIDO: "Dê um nome ao pacote (2 a 80 letras).",
   QUANTIDADE_INVALIDA: "Escolha de 1 a 6 serviços diferentes.",
@@ -40,7 +41,7 @@ const TEMPLATE_ERRORS: Record<string, string> = {
 export async function savePackageTemplate(input: PackageTemplateInput): Promise<Result> {
   const { business, role } = await getEditorContext();
   if (role !== "owner") return { ok: false, error: ONLY_OWNER };
-  if ((await getPlanContext(business.id)).tier !== "completo") return { ok: false, error: FULL_ONLY };
+  if (!allows(await getPlanContext(business.id), "profissional")) return { ok: false, error: FULL_ONLY };
 
   const name = input.name.trim();
   if (name.length < 2) return { ok: false, error: TEMPLATE_ERRORS.NOME_INVALIDO };
@@ -79,7 +80,7 @@ export async function savePackageTemplate(input: PackageTemplateInput): Promise<
 export async function togglePackageTemplate(id: string, active: boolean): Promise<Result> {
   const { business, role } = await getEditorContext();
   if (role !== "owner") return { ok: false, error: ONLY_OWNER };
-  if ((await getPlanContext(business.id)).tier !== "completo") return { ok: false, error: FULL_ONLY };
+  if (!allows(await getPlanContext(business.id), "profissional")) return { ok: false, error: FULL_ONLY };
 
   const supabase = createClient();
   const { error } = await supabase.from("package_templates").update({ active }).eq("id", id).eq("business_id", business.id);
@@ -94,7 +95,7 @@ export async function togglePackageTemplate(id: string, active: boolean): Promis
 export async function deletePackageTemplate(id: string): Promise<Result> {
   const { business, role } = await getEditorContext();
   if (role !== "owner") return { ok: false, error: ONLY_OWNER };
-  if ((await getPlanContext(business.id)).tier !== "completo") return { ok: false, error: FULL_ONLY };
+  if (!allows(await getPlanContext(business.id), "profissional")) return { ok: false, error: FULL_ONLY };
 
   const supabase = createClient();
   const { error } = await supabase.from("package_templates").delete().eq("id", id).eq("business_id", business.id);

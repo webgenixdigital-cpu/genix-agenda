@@ -15,7 +15,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { asaas, AsaasError, type AsaasPayment } from "@/lib/asaas";
 import { todayISO } from "@/lib/dates";
 import { brl } from "@/lib/format";
-import { kindOfPlanId } from "@/lib/plan-ids";
+import { isSoloKind, kindOfPlanId } from "@/lib/plan-ids";
 
 /** menor cobrança avulsa aceita pelo Asaas (R$) */
 export const MIN_CHARGE = 5;
@@ -23,7 +23,7 @@ export const MIN_CHARGE = 5;
 export const EXTRA_OVERDUE =
   "Há uma cobrança de profissional extra em aberto. Pague a fatura na Assinatura para ativar novos profissionais.";
 export const SCHEDULED_DOWNGRADE =
-  "Você agendou a troca para o plano Profissional (1 profissional). Para ativar mais alguém, desfaça a troca agendada na Assinatura.";
+  "Você agendou a troca para um plano de 1 profissional (Básico ou Profissional). Para ativar mais alguém, desfaça a troca agendada na Assinatura.";
 
 export type BillingQuote = {
   plan: string;
@@ -123,7 +123,7 @@ export async function previewTeamChange(businessId: string, delta: 1 | -1): Prom
   if (delta > 0) {
     const { data: overdue } = await admin.rpc("billing_extra_overdue", { bid: businessId });
     if (overdue) return { ok: false, error: EXTRA_OVERDUE };
-    if (now >= 1 && sub.scheduled_plan_id && kindOfPlanId(sub.scheduled_plan_id) === "profissional") {
+    if (now >= 1 && sub.scheduled_plan_id && isSoloKind(kindOfPlanId(sub.scheduled_plan_id))) {
       return { ok: false, error: SCHEDULED_DOWNGRADE };
     }
   }

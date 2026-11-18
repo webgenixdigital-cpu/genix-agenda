@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { brl } from "@/lib/format";
 import { isValidCpfCnpj, maskCpfCnpj } from "@/lib/cpf-cnpj";
-import { planIdFor, type Cycle, type PaidKind } from "@/lib/plan-ids";
+import { isSoloKind, planIdFor, type Cycle, type PaidKind } from "@/lib/plan-ids";
+import { PLAN_NAMES } from "@/lib/plan-features";
 import { cn } from "@/lib/utils";
 
 /** valores calculados no banco (subscription_quote) para cada plano e ciclo */
@@ -16,11 +17,11 @@ export type Quotes = Record<PaidKind, Record<Cycle, number>>;
 
 type Props = {
   quotes: Quotes;
-  /** profissionais ativos (o Profissional é para 1) */
+  /** profissionais ativos (Básico e Profissional são para 1) */
   activePros: number;
   /** extras cobrados no Equipe (além dos 3 inclusos) */
   equipeExtras: number;
-  /** plano sugerido: 1 profissional → Profissional; 2+ → Equipe */
+  /** plano sugerido (destaque "Indicado para você") */
   recommended: PaidKind;
   firstDueLabel: string; // "hoje" ou "em 03/11/2026 (fim do teste)"
 };
@@ -31,14 +32,15 @@ const METHODS = [
 ] as const;
 
 const KINDS: { id: PaidKind; title: string; text: string }[] = [
-  { id: "profissional", title: "Profissional", text: "Para quem atende sozinho: tudo liberado para 1 profissional." },
+  { id: "basico", title: "Básico", text: "Agenda sem limite, encaixe, bloqueios, lembretes e financeiro para 1 profissional." },
+  { id: "profissional", title: "Profissional", text: "Tudo do Básico + retornos, pacotes, combos e WhatsApp automático." },
   { id: "equipe", title: "Equipe", text: "Para salões e equipes: até 3 profissionais, acessos da equipe e comissões." },
 ];
 
 export function SubscribeForm({ quotes, activePros, equipeExtras, recommended, firstDueLabel }: Props) {
   const [pending, start] = useTransition();
-  const proBlocked = activePros > 1;
-  const [kind, setKind] = useState<PaidKind>(proBlocked ? "equipe" : recommended);
+  const soloBlocked = activePros > 1;
+  const [kind, setKind] = useState<PaidKind>(soloBlocked ? "equipe" : recommended);
   const [cycle, setCycle] = useState<Cycle>("anual");
   const [method, setMethod] = useState<(typeof METHODS)[number]["value"]>("PIX");
   const [name, setName] = useState("");
@@ -46,7 +48,7 @@ export function SubscribeForm({ quotes, activePros, equipeExtras, recommended, f
   const [error, setError] = useState<string | null>(null);
 
   const docOk = isValidCpfCnpj(doc);
-  const valid = name.trim().length >= 3 && docOk && !(kind === "profissional" && proBlocked);
+  const valid = name.trim().length >= 3 && docOk && !(isSoloKind(kind) && soloBlocked);
   const total = quotes[kind][cycle];
 
   function submit() {
@@ -73,9 +75,9 @@ export function SubscribeForm({ quotes, activePros, equipeExtras, recommended, f
       {/* 1. Plano */}
       <fieldset>
         <legend className="mb-3 text-sm font-semibold text-primary">1. Escolha o plano</legend>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 md:grid-cols-3">
           {KINDS.map((k) => {
-            const disabled = k.id === "profissional" && proBlocked;
+            const disabled = isSoloKind(k.id) && soloBlocked;
             return (
               <button
                 key={k.id}
@@ -96,7 +98,7 @@ export function SubscribeForm({ quotes, activePros, equipeExtras, recommended, f
                   </span>
                 )}
                 <p className="text-sm font-semibold">{k.title}</p>
-                <p className="mt-1 font-heading text-3xl">
+                <p className="mt-1 font-heading text-3xl md:text-2xl">
                   {brl(quotes[k.id][cycle])}
                   <span className="text-base text-muted-foreground"> {cycle === "anual" ? "/ano" : "/mês"}</span>
                 </p>
@@ -104,7 +106,7 @@ export function SubscribeForm({ quotes, activePros, equipeExtras, recommended, f
                   <p className="text-xs text-muted-foreground">equivale a {brl(quotes[k.id].anual / 12)}/mês</p>
                 )}
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {disabled ? `Você tem ${activePros} profissionais ativos. O Profissional é para 1.` : k.text}
+                  {disabled ? `Você tem ${activePros} profissionais ativos. O ${k.title} é para 1.` : k.text}
                 </p>
                 {k.id === "equipe" && equipeExtras > 0 && (
                   <p className="mt-1 text-xs text-muted-foreground">
@@ -186,7 +188,7 @@ export function SubscribeForm({ quotes, activePros, equipeExtras, recommended, f
       <div className="rounded-xl bg-secondary p-4 text-sm">
         <p>
           <strong>
-            {kind === "profissional" ? "Profissional" : "Equipe"}: {brl(total)}
+            {PLAN_NAMES[kind]}: {brl(total)}
           </strong>{" "}
           {cycle === "anual" ? `por ano (equivale a ${brl(total / 12)}/mês)` : "por mês"}. Primeira cobrança com vencimento {firstDueLabel}.
         </p>

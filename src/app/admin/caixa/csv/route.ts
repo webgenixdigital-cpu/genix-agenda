@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
   // mesmas permissões da página do Caixa (dono; a demonstração só lê)
   const { business } = await requireRoles(["owner", "viewer"]);
   const plan = await getPlanContext(business.id);
-  if (plan.tier === "gratis") return NextResponse.json({ error: "Recurso dos planos Profissional e Equipe." }, { status: 403 });
+  if (plan.tier === "gratis") return NextResponse.json({ error: "Recurso dos planos pagos, a partir do Básico." }, { status: 403 });
 
   const tz = business.timezone || "America/Sao_Paulo";
   const today = todayInZone(tz);

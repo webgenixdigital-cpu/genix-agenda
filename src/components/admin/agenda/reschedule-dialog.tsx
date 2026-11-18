@@ -4,7 +4,8 @@ import { Ajuda } from "@/components/ajuda";
 import { useEffect, useState, useTransition } from "react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarDays, CheckCircle2, Layers2, Loader2, MessageCircle } from "lucide-react";
+import { CalendarDays, CheckCircle2, Layers2, Loader2, Lock, MessageCircle } from "lucide-react";
+import Link from "next/link";
 import { toast } from "sonner";
 import { listRescheduleSlots, rescheduleBooking, rescheduleOverlay } from "@/app/admin/(painel)/agenda/actions";
 import { OverlayPreview } from "@/components/admin/agenda/overlay-preview";
@@ -30,6 +31,7 @@ export function RescheduleDialog({
   businessName,
   professionals,
   canChooseProfessional,
+  canFit = true,
   canOverlay = false,
   today,
 }: {
@@ -40,6 +42,8 @@ export function RescheduleDialog({
   professionals: ProOption[];
   /** matriz e recepção: trocam o profissional e podem encaixar */
   canChooseProfessional: boolean;
+  /** 51: encaixe a partir do Básico (Grátis: cadeado com link para Assinatura) */
+  canFit?: boolean;
   /** 50: matriz e profissional remarcam como encaixe sobreposto */
   canOverlay?: boolean;
   today: string;
@@ -225,7 +229,17 @@ export function RescheduleDialog({
               </div>
             )}
 
-            {canChooseProfessional && (
+            {canChooseProfessional && !canFit && (
+              <Link
+                href="/admin/assinatura"
+                className="flex min-h-11 items-center gap-2 rounded-xl border border-dashed p-3 text-sm text-muted-foreground hover:text-primary"
+                data-testid="link-liberar-encaixe-remarcar"
+              >
+                <Lock className="h-4 w-4 shrink-0" /> Encaixar outro horário · a partir do Básico
+              </Link>
+            )}
+
+            {canChooseProfessional && canFit && (
               <div className="space-y-2 rounded-xl border p-3">
                 <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm font-semibold">
                   <input

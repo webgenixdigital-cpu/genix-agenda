@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getEditorContext, requireRoles } from "@/lib/admin";
-import { getPlanContext } from "@/lib/plan";
+import { allows, getPlanContext } from "@/lib/plan";
 import {
   defaultProviderName,
   getProvider,
@@ -33,7 +33,7 @@ async function ownerContext() {
 /** Matriz + plano pago. Devolve o espaço ou a mensagem de erro. */
 async function paidOwner(): Promise<{ businessId: string } | { error: string }> {
   const { business } = await ownerContext();
-  if ((await getPlanContext(business.id)).tier !== "completo") return { error: PAID_ONLY };
+  if (!allows(await getPlanContext(business.id), "profissional")) return { error: PAID_ONLY };
   return { businessId: business.id };
 }
 
@@ -202,6 +202,7 @@ export async function disconnectWhatsapp(): Promise<Result> {
 // ---------------------------------------------------------------------
 const AUTO_ERRORS: Record<string, string> = {
   SEM_PERMISSAO: "Somente a matriz pode alterar esta opção.",
+  PLANO_PROFISSIONAL: PAID_ONLY,
   PLANO_GRATIS: PAID_ONLY,
   NAO_HABILITADO: NOT_RELEASED,
   ACEITE_OBRIGATORIO: "Para ativar, confirme que leu o aviso de risco.",

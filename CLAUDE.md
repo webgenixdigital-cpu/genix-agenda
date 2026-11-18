@@ -62,7 +62,7 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
 | `EVOLUTION_API_URL` / `EVOLUTION_API_KEY` | **só servidor** | Evolution API v2 self-hosted (`https://wa.genixagenda.com.br`); a chave global só cria/apaga instâncias, o resto usa o token da instância (coluna `token`, sem grant para `authenticated`) |
 | `WHATSAPP_SEND_ENABLED` | só servidor | `1` liga os envios automáticos; sem ela nada sai (local fica desligado: o banco é o mesmo da produção) |
 | `WHATSAPP_QUEUE_V2` | só servidor | `1` = fila nova da 42 (confirmação, antes do horário, véspera, aniversário); sem ela ou `0` = caminho antigo, só véspera. É a chave de volta: desligar na Vercel + redeploy, sem SQL. Lógica em `lib/whatsapp/queue.ts` |
-| `PLANS_PREVIEW` | só servidor, **só local** | `1` no `.env.local` + `npm run dev`: tabela de preços, Assinatura e actions tratam os planos novos (`gratis`, `profissional_*`, `equipe_*`) como ativos mesmo com `active = false`, para testar no sandbox do Asaas antes da 28b. Nunca liga com `NODE_ENV=production` (`next build`/`start`, Vercel); **não cadastrar na Vercel**. Lógica em `lib/plans-server.ts` |
+| `PLANS_PREVIEW` | só servidor, **só local** | `1` no `.env.local` + `npm run dev`: tabela de preços, Assinatura e actions tratam os planos novos (`gratis`, `basico_*`, `profissional_*`, `equipe_*`) como ativos mesmo com `active = false`, para testar no sandbox do Asaas antes da parte B (28b, 51b). Nunca liga com `NODE_ENV=production` (`next build`/`start`, Vercel); **não cadastrar na Vercel**. Lógica em `lib/plans-server.ts` |
 
 - Nunca prefixar segredos com `NEXT_PUBLIC_`. Nunca importar `lib/supabase/admin.ts` em componente `"use client"`.
 - No `.env.local`, a chave do Asaas começa com `$`: escrever `ASAAS_API_KEY=\$aact_...` (na Vercel, sem a barra).
@@ -70,24 +70,36 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
 
 ## 4. Decisões de produto (respeitar sempre)
 
-- **Freemium — 3 planos** (migrations 28a/28b): toda conta nova ganha **15 dias do Equipe**; no fim do teste a oferta
-  segue a equipe ativa (1 profissional → Profissional; 2+ → Equipe); sem pagamento, cai no **Grátis** (nada é apagado).
-  - **Grátis** (para sempre): vitrine, agenda online com **6 agendamentos online/dia** (`plans.online_daily_limit`
-    da linha `gratis`), **1 profissional**, selo "Feito com Genix Agenda", avaliações, remarcar, confirmação
-    automática, ficha/histórico e a fila manual de Lembretes (wa.me). Bloqueios, Retornos, Financeiro, pacotes,
-    recorrência e acessos de equipe ficam com cadeado + CTA.
-  - **Profissional** (R$ 48,70/mês | R$ 487,00/ano): tudo pago para **1 profissional**, sem selo; sem acessos de equipe
-    nem profissional extra.
-  - **Equipe** (R$ 98,70/mês | R$ 987,00/ano): até 3 profissionais + R$ 19,90/mês (R$ 199,00/ano) por extra; acessos
+- **Freemium — 4 planos** (migrations 28a/28b e **51a/51b**): toda conta nova ganha **15 dias do Equipe**; no fim do teste
+  a oferta segue a equipe ativa (1 profissional → Profissional; 2+ → Equipe); sem pagamento, cai no **Grátis** (nada é apagado).
+  Ordem: Grátis < Básico < Profissional < Equipe (`plan_rank`/`plan_allows` no banco; `planAllows`/`allows` no código).
+  - **Grátis** (**6 meses**, `subscriptions.free_ends_at`): contas novas = cadastro + 6 meses (o teste fica dentro);
+    contas que existiam antes da 51b = publicação + 6 meses. Inclui vitrine, agenda online com **6 agendamentos
+    online/dia** (`plans.online_daily_limit` da linha `gratis`), **1 profissional**, selo "Feito com Genix Agenda",
+    avaliações, clientes/ficha, confirmação automática, remarcar e editar agendamento. **Fim dos 6 meses**
+    (`free_period_over`): painel, dados e agendamento manual continuam; a **vitrine para de aceitar agendamento online**
+    (mensagem neutra ao cliente, `public_plan_info.online_closed`) e o dono vê aviso para assinar o Básico.
+  - **Básico** (R$ 28,70/mês | R$ 287,00/ano): Grátis + agendamentos ilimitados, **encaixe e encaixe sobreposto**
+    (inclusive no Remarcar), **bloqueios** (almoço, folga fixa, férias, feriados), **fila manual de véspera**,
+    recorrência e financeiro (caixa, pagar depois, faturamento, contador). 1 profissional, sem selo.
+  - **Profissional** (R$ 62,70/mês | R$ 627,00/ano): Básico + retornos, pacotes, combos e WhatsApp automático.
+    1 profissional; sem acessos de equipe nem profissional extra.
+  - **Equipe** (R$ 121,70/mês | R$ 1.217,00/ano): até 3 profissionais + R$ 18,70/mês (R$ 187,00/ano) por extra; acessos
     da equipe (recepção, profissional, "Meus ganhos"), comissões e salão-parceiro.
   - **Anual = 10 × mensal** ("2 meses grátis no plano anual"). Assinantes do antigo Completo (`mensal`/`anual`) contam
     como Equipe e mantêm o valor contratado.
-  - Valores vêm da tabela `plans` e da função `subscription_quote` (não fixar no código).
-  - Banco: `access_tier` (`completo`|`gratis`) separa pago × grátis; `plan_kind` diz qual plano; `plan_max_professionals`
-    e o gatilho de `business_members` (só Equipe tem acessos) travam no banco. Acessos de equipe num plano sem equipe
-    ficam **pausados**, nunca apagados.
-  - Troca de plano: upgrade mensal na hora (novo valor na próxima cobrança); upgrade anual com cobrança avulsa
-    proporcional; downgrade só no próximo ciclo (`subscriptions.scheduled_plan_id`).
+  - Valores vêm da tabela `plans` e da função `subscription_quote` (não fixar no código). Textos do que cada plano
+    inclui: `src/content/planos.ts` (tabela comparativa da Assinatura e cartões da `/` e da `/para`).
+  - Banco: `access_tier` (`completo`|`gratis`) separa pago × grátis (o que é "a partir do Básico" usa ele);
+    `plan_kind` diz qual plano; `plan_allows(bid, 'profissional')` trava pacotes, combos e WhatsApp automático;
+    `plan_allows(bid, 'basico')` trava encaixe (gatilho `guard_manual_booking_plan`), encaixe sobreposto, `p_fit` do
+    Remarcar e a fila de véspera (gatilho `guard_reminder_plan`); erros `PLANO_BASICO` / `PLANO_PROFISSIONAL` /
+    `PLANO_EQUIPE` / `LIMITE_PLANO_BASICO`. `plan_max_professionals` e o gatilho de `business_members` (só Equipe tem
+    acessos) travam no banco. Acessos de equipe num plano sem equipe ficam **pausados**, nunca apagados.
+  - Troca de plano (entre os 3 pagos, mesmo ciclo): upgrade mensal na hora (novo valor na próxima cobrança); upgrade
+    anual com cobrança avulsa proporcional; downgrade só no próximo ciclo (`subscriptions.scheduled_plan_id`);
+    Básico e Profissional exigem 1 profissional ativo.
+  - Cupom de desconto e indicação: PRs seguintes (espaço reservado na Assinatura).
 - **Sem área da saúde nesta fase:** nada de prontuário, anamnese, alergias, medicamentos, gestação, dados clínicos.
   O segmento `psicologia_terapias` existe no banco mas **não é oferecido**. Campos de ficha técnica nunca de saúde.
   Os Termos/Privacidade publicados afirmam isso.
@@ -102,7 +114,7 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
 - **Demo pública** (`/demo`) entra no Lumina como `viewer`; ao salvar, o servidor redireciona com `?demo=bloqueado`.
 - **Buscadores (Google, 30):** `sitemap.ts` lista estáticas, nichos ativos (`/para`, `/explorar`) e vitrines publicadas que não são demo nem `businesses.search_hidden`; `robots.ts` bloqueia painel, `/genix`, `/api`, `/auth`, `/demo`, cadastro/senha e `/v/*/avaliar`. `search_hidden` só a Genix muda (`/genix?aba=buscadores`; gatilho no banco); contas novas nascem visíveis. Vitrine oculta/demo e o painel têm `noindex`.
 - **Avaliações** próprias pós-atendimento (link único por atendimento concluído), não Google.
-- **WhatsApp:** links `wa.me` (fila de um toque) + **lembrete automático beta** (planos pagos, liberado pela Genix
+- **WhatsApp:** links `wa.me` (fila de um toque) + **lembrete automático beta** (Profissional e Equipe, liberado pela Genix
   por espaço em `/genix?aba=whatsapp`; credenciais só no servidor; camada `lib/whatsapp/provider.ts`; relógio pg_cron →
   `/api/whatsapp/tick`). Provider padrão **Evolution API** (33): o dono conecta pelo QR em Configurações (instância
   `genix_<12 hex do uuid>`), mas sem a liberação nada sai; Z-API segue como alternativa. Ritmo por número (6/h; intervalo sorteado 7–13 min + 0–59 s em
@@ -127,8 +139,9 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
 
 - **RLS é a fonte da verdade.** Toda regra de permissão deve existir no banco, não só na tela.
 - Funções de apoio: `member_role_of`, `my_professional_id`, `sees_whole_agenda`, `can_manage_booking`,
-  `is_business_owner`, `access_tier` (`completo`|`gratis`), `plan_kind` (`gratis`|`profissional`|`equipe`),
-  `plan_max_professionals`, `free_daily_limit`, `can_use_full_features`, `is_platform_admin`.
+  `is_business_owner`, `access_tier` (`completo`|`gratis`), `plan_kind` (`gratis`|`basico`|`profissional`|`equipe`),
+  `plan_rank`, `plan_allows(bid, mínimo)`, `free_period_over`, `plan_max_professionals`, `free_daily_limit`,
+  `can_use_full_features`, `is_platform_admin`.
 - **Cortesia (38):** `plan_grants` (1 linha por espaço, `kind` `profissional`|`equipe`, `expires_at` null = vitalícia;
   sem política de escrita, só SQL Editor/service role). `active_plan_grant(bid)` vem antes de tudo em `access_tier`
   e `plan_kind`: teste vencido, webhook e cron não rebaixam. No código, `getPlanContext().grant` (conta sem cobrança).
@@ -169,7 +182,7 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
   `recalc_booking`; editar só por `booking_add_item`, `booking_remove_item`, `booking_set_discount` (gatilho
   `guard_booking_totals` barra update direto; as funções ligam `genix.booking_edit`). Caixa = cobrado
   (`price` − itens `paid_by_package`). Limite de desconto do profissional: `businesses.staff_discount_max_pct`.
-- **Combos (32, só planos pagos):** linha em `services` com `kind = 'combo'` (preço especial, duração = soma) +
+- **Combos (32, Profissional e Equipe):** linha em `services` com `kind = 'combo'` (preço especial, duração = soma) +
   `combo_items`; grava só por `save_combo` (gatilho `guard_service_combo`). Agendar combo: `bookings.service_id` = combo e
   o gatilho do item 0 abre um item por serviço (`add_service_items`, preço proporcional, `combo_group`).
   `professional_does_service` exige todos os serviços do combo. Serviço desativado/excluído → combo inativo.
@@ -249,9 +262,10 @@ src/app/admin/(painel)/      layout.tsx e page.tsx (Início) na raiz; pastas com
 src/app/genix/               administração da plataforma (page.tsx, actions.ts, field-actions.ts, search-actions.ts...)
 src/app/api/asaas/webhook/   webhook de pagamento
 src/components/              admin/* (por tela do painel), genix/, vitrine/, marketing/, auth/, ui/ (shadcn)
-                             + componentes soltos (site-header, site-footer, business-card, niche-*...)
+                             + componentes soltos (site-header, site-footer, business-card, niche-*, plans-comparison...)
+src/content/                 textos: ajuda.ts, landing.ts, planos.ts (o que cada plano inclui)
 src/lib/                     admin, asaas, billing (cobrança do extra), cash, cpf-cnpj, dates, format, legal, messages, niches, onboarding,
-                             plan, plan-features, segments, types, utils;
+                             plan (servidor), plan-features (ordem dos planos, cadeados), plan-ids, plans-public, plans-server, segments, types, utils;
                              supabase/{client,server,admin,public,middleware} (public = sem cookies, só dados públicos)
 src/middleware.ts            sessão do Supabase e proteção das rotas
 supabase/                    migrations, seed (não rodar em produção), manual

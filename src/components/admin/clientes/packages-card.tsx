@@ -81,7 +81,7 @@ export function PackagesCard({
   templates: SaleTemplate[];
   canSell: boolean; // matriz ou recepção
   professionals: ProOption[];
-  locked: boolean;  // plano Grátis: vender fica travado; sessões já vendidas continuam
+  locked: boolean;  // Grátis e Básico: vender fica travado; sessões já vendidas continuam
   /** hoje no fuso do espaço (data padrão do Registrar pagamento) */
   today: string;
 }) {
@@ -122,7 +122,7 @@ export function PackagesCard({
         {canSell && locked && (
           <Button asChild variant="outline" className="h-11" data-testid="btn-liberar-pacotes">
             <Link href="/admin/assinatura">
-              <Lock className="mr-1.5 h-4 w-4" /> Vender pacote · planos pagos
+              <Lock className="mr-1.5 h-4 w-4" /> Vender pacote · planos Profissional e Equipe
             </Link>
           </Button>
         )}

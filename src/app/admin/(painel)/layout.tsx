@@ -8,8 +8,8 @@ import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/admin/actions";
 import { Button } from "@/components/ui/button";
 import { getAdminContext } from "@/lib/admin";
-import { getFreeDailyLimit, getPlanContext, hasTeamFeatures } from "@/lib/plan";
-import { FREE_LOCKED_HREFS } from "@/lib/plan-features";
+import { getFreeDailyLimit, getPlanContext, hasTeamFeatures, allows } from "@/lib/plan";
+import { lockedHrefsFor } from "@/lib/plan-features";
 import { SIDEBAR_COOKIE } from "@/lib/ui-prefs";
 import { AdminSidebar } from "@/components/admin/admin-sidebar";
 import { DemoBanner } from "@/components/admin/demo-banner";
@@ -70,7 +70,7 @@ export default async function PainelLayout({ children }: { children: React.React
   }
 
   let waDisconnected = false;
-  if (isOwner && plan.tier === "completo" && waStatus) {
+  if (isOwner && allows(plan, "profissional") && waStatus) {
     const w = waStatus.data as { genix_enabled: boolean; auto_enabled: boolean; status: string } | null;
     waDisconnected = !!w?.genix_enabled && w.auto_enabled && w.status === "disconnected";
   }
@@ -78,7 +78,7 @@ export default async function PainelLayout({ children }: { children: React.React
   const overdueExtra: { invoice_url: string | null } | null =
     isOwner && !plan.internal && overdue ? overdue.data : null;
 
-  // Sem o plano Equipe (Grátis ou Profissional) só a matriz usa o painel: os acessos da
+  // Sem o plano Equipe (Grátis, Básico ou Profissional) só a matriz usa o painel: os acessos da
   // equipe ficam pausados (nunca apagados) e voltam quando o espaço assina o Equipe
   if (isTeam && !hasTeamFeatures(plan)) {
     return (
@@ -109,7 +109,7 @@ export default async function PainelLayout({ children }: { children: React.React
           businessName={ctx.business.name}
           slug={ctx.business.slug}
           email={isDemo ? "Conta de demonstração" : ctx.email}
-          lockedHrefs={plan.tier === "gratis" ? FREE_LOCKED_HREFS : []}
+          lockedHrefs={lockedHrefsFor(plan.kind)}
           role={ctx.role}
           initialCollapsed={sidebarCollapsed}
           belowDemoBanner={isDemo}

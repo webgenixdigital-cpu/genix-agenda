@@ -28,7 +28,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!n) return { title: "Página não encontrada" };
   return {
     title: `Agenda online para ${n.name} | Genix Agenda`,
-    description: `Vitrine digital e agenda online para ${n.name.toLowerCase()}. Grátis para sempre para 1 profissional; planos Profissional e Equipe com 15 dias de teste, sem cartão.`,
+    description: `Vitrine digital e agenda online para ${n.name.toLowerCase()}. Plano Grátis de 6 meses para 1 profissional; planos Básico, Profissional e Equipe, com 15 dias de teste e sem cartão.`,
   };
 }
 
@@ -42,7 +42,7 @@ const STEPS = [
 ];
 
 
-const TRUST = ["Grátis para sempre", "15 dias do Equipe para testar", "Sem cartão"];
+const TRUST = ["6 meses no plano Grátis", "15 dias do Equipe para testar", "Sem cartão"];
 
 // ---------------------------------------------------------------------
 // PARTE 2 — Página
@@ -197,7 +197,7 @@ export default async function NichoPage({ params }: Props) {
             <div className="text-center">
               <h2 className="text-3xl md:text-[42px]">Comece grátis. Cresça no seu ritmo.</h2>
               <p className="copy mt-4 text-muted-foreground">
-                Toda conta nova ganha 15 dias do plano Equipe. Depois, escolha o seu plano ou continue no Grátis para sempre.
+                Toda conta nova ganha 15 dias do plano Equipe. Depois, escolha o seu plano ou siga no Grátis, que vale 6 meses a partir do cadastro.
               </p>
             </div>
             <div className="mt-12">

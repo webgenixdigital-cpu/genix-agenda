@@ -10,6 +10,8 @@ type Result = { ok: true } | { ok: false; error: string };
 
 const FREE_LIMIT =
   "No plano Grátis é possível ter 1 profissional ativo. Para montar sua equipe, assine o plano Equipe.";
+const BASIC_LIMIT =
+  "O plano Básico é para 1 profissional ativo. Para montar sua equipe, mude para o plano Equipe.";
 const PRO_LIMIT =
   "O plano Profissional é para 1 profissional ativo. Para montar sua equipe, mude para o plano Equipe.";
 const STALE = "O valor da assinatura mudou desde o aviso. Confira o novo valor e tente de novo.";
@@ -17,6 +19,7 @@ const STALE = "O valor da assinatura mudou desde o aviso. Confira o novo valor e
 // erro do gatilho de limite (28a e 29): Grátis, Profissional, avulsa vencida ou troca agendada
 const limitError = (message?: string) =>
   message?.includes("LIMITE_PLANO_PROFISSIONAL") ? PRO_LIMIT
+  : message?.includes("LIMITE_PLANO_BASICO") ? BASIC_LIMIT
   : message?.includes("LIMITE_PLANO_GRATIS") ? FREE_LIMIT
   : message?.includes("EXTRA_EM_ABERTO") ? EXTRA_OVERDUE
   : message?.includes("TROCA_AGENDADA") ? SCHEDULED_DOWNGRADE

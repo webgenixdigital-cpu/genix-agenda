@@ -6,7 +6,7 @@ import { getActiveNiches } from "@/lib/niches";
 import { LinkForm } from "@/components/admin/configuracoes/link-form";
 import { HoursForm } from "@/components/admin/configuracoes/hours-form";
 import { WhatsappForm, type WhatsappPanelStatus } from "@/components/admin/configuracoes/whatsapp-form";
-import { getPlanContext } from "@/lib/plan";
+import { allows, getPlanContext } from "@/lib/plan";
 import { defaultProviderName } from "@/lib/whatsapp/provider";
 import { queueV2Enabled } from "@/lib/whatsapp/queue";
 import type { WhatsappStats } from "@/components/admin/configuracoes/whatsapp-messages";
@@ -80,7 +80,7 @@ export default async function ConfiguracoesPage() {
     open_time: h.open_time ?? "",
     close_time: h.close_time ?? "",
   }));
-  const showWhatsapp = plan.tier === "completo" && !!waPanel && (waEvolution || waPanel.genix_enabled);
+  const showWhatsapp = allows(plan, "profissional") && !!waPanel && (waEvolution || waPanel.genix_enabled);
   const waStatus = waPanel?.status === "connected" ? "conectado" : waPanel?.status === "disconnected" ? "desconectado" : "não conectado";
 
   const sections: SettingsSection[] = [

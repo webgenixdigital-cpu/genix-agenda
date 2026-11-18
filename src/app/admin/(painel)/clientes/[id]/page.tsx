@@ -20,7 +20,7 @@ import { PaymentPendingBadge } from "@/components/admin/payment-pending-badge";
 import { ActionRow } from "@/components/admin/agenda/action-tile";
 import { RegisterPaymentButton } from "@/components/admin/register-payment-button";
 import { Button } from "@/components/ui/button";
-import { getPlanContext } from "@/lib/plan";
+import { allows, getPlanContext } from "@/lib/plan";
 import { loadSaleOptions } from "@/lib/package-sale";
 import type { BookingStatus } from "@/lib/types";
 import { birthdayLabel } from "@/lib/birthday";
@@ -354,19 +354,19 @@ export default async function ClientePage({ params }: Props) {
       )}
 
       {/* Lembretes automáticos (beta): só para espaço liberado pela Genix, num plano pago */}
-      {canSell && plan.tier === "completo" && waEnabled && (
+      {canSell && allows(plan, "profissional") && waEnabled && (
         <AutoReminderToggle customerId={c.id} initial={c.no_auto_reminders} />
       )}
 
-      {/* Pacotes: no Grátis só aparece se já houver pacote vendido */}
-      {(plan.tier === "completo" || packages.length > 0) && (
+      {/* Pacotes: no Grátis e no Básico só aparece se já houver pacote vendido */}
+      {(allows(plan, "profissional") || packages.length > 0) && (
         <PackagesCard
           customerId={c.id}
           packages={packages}
           templates={sale.templates}
           canSell={canSell}
           professionals={sale.professionals}
-          locked={plan.tier !== "completo"}
+          locked={!allows(plan, "profissional")}
           today={todayInZone(business.timezone)}
         />
       )}

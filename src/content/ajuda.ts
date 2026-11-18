@@ -61,7 +61,8 @@ const AJUDA_TEXTOS = {
     ],
     atencao: [
       "Para mudar o texto da mensagem, toque em “Editar mensagem”.",
-      "Essa lista é manual. Para enviar sozinho, veja “WhatsApp automático” em Configurações.",
+      "Essa lista é manual. Para enviar sozinho, veja “WhatsApp automático” em Configurações (planos Profissional e Equipe).",
+      "Recurso dos planos pagos, a partir do Básico.",
     ],
   },
   retornos: {
@@ -73,7 +74,7 @@ const AJUDA_TEXTOS = {
       "Aqui, em “Hora de voltar” e “Nos próximos 7 dias”, toque em “Chamar para voltar”: o WhatsApp abre com a mensagem pronta.",
       "O cliente vai sozinho para “Já chamados”. Se foi engano, toque em “Voltar para a fila”.",
     ],
-    atencao: ["Recurso dos planos pagos."],
+    atencao: ["Recurso dos planos Profissional e Equipe."],
   },
   bloqueios: {
     titulo: "Bloqueios",
@@ -85,7 +86,7 @@ const AJUDA_TEXTOS = {
     ],
     atencao: [
       "Bloqueio não cancela atendimentos já marcados nesses horários; confira a agenda.",
-      "Recurso dos planos pagos.",
+      "Recurso dos planos pagos, a partir do Básico. Vale para almoço, folga fixa, férias e feriados.",
     ],
   },
   servicos: {
@@ -105,7 +106,7 @@ const AJUDA_TEXTOS = {
       "Escolha os serviços e o preço do combo; o tempo é a soma dos serviços.",
       "Salve: o combo aparece na vitrine e na agenda.",
     ],
-    atencao: ["Só profissionais que fazem todos os serviços do combo podem atender.", "Recurso dos planos pagos."],
+    atencao: ["Só profissionais que fazem todos os serviços do combo podem atender.", "Recurso dos planos Profissional e Equipe."],
   },
   "pacotes-modelos": {
     titulo: "Pacotes",
@@ -115,7 +116,7 @@ const AJUDA_TEXTOS = {
       "Escolha os serviços, quantas sessões de cada, o preço fechado e a validade.",
       "Depois, venda o pacote na ficha do cliente ou no Novo agendamento.",
     ],
-    atencao: ["Mudar um modelo não muda pacotes já vendidos.", "Recurso dos planos pagos."],
+    atencao: ["Mudar um modelo não muda pacotes já vendidos.", "Recurso dos planos Profissional e Equipe."],
   },
   equipe: {
     titulo: "Equipe",
@@ -166,19 +167,20 @@ const AJUDA_TEXTOS = {
       "Toque em “Novo lançamento” para registrar uma entrada ou despesa avulsa.",
       "Veja os totais por forma de pagamento.",
     ],
-    atencao: ["Atendimento concluído entra sozinho no caixa. Não lance de novo à mão.", "Recurso dos planos pagos."],
+    atencao: ["Atendimento concluído entra sozinho no caixa. Não lance de novo à mão.", "Recurso dos planos pagos, a partir do Básico."],
   },
   "faturamento-limites": {
     titulo: "Faturamento e limites",
     serve:
       "Acompanha quanto você faturou nos últimos 12 meses e avisa quando estiver chegando perto do limite do seu enquadramento (ex.: MEI).",
     passos: ["Em Configurações, escolha o enquadramento do seu espaço.", "Aqui, acompanhe o total e a barra até o limite."],
-    atencao: ["É um acompanhamento para te avisar a tempo. Confirme os valores com o seu contador."],
+    atencao: ["É um acompanhamento para te avisar a tempo. Confirme os valores com o seu contador.", "Recurso dos planos pagos, a partir do Básico."],
   },
   contador: {
     titulo: "Relatório para o contador",
     serve: "Junta num relatório o que o contador costuma pedir: receitas, despesas e, se tiver, a parte dos parceiros.",
     passos: ["Escolha o mês ou o período.", "Imprima ou baixe a planilha.", "Envie para o seu contador."],
+    atencao: ["Recurso dos planos pagos, a partir do Básico."],
   },
   "meus-ganhos": {
     titulo: "Meus ganhos",
@@ -191,9 +193,15 @@ const AJUDA_TEXTOS = {
   },
   assinatura: {
     titulo: "Assinatura",
-    serve: "Mostra seu plano, a próxima cobrança e deixa trocar de plano.",
-    passos: ["Compare os planos.", "Escolha mensal ou anual (no anual você ganha 2 meses).", "Pague por Pix ou cartão."],
+    serve: "Mostra seu plano, quantos dias faltam do Grátis ou do teste, a próxima cobrança, e deixa trocar de plano.",
+    passos: [
+      "Compare os 4 planos na tabela: o que cada um inclui e o que não inclui.",
+      "Escolha Básico, Profissional ou Equipe, mensal ou anual (no anual você ganha 2 meses).",
+      "Pague por Pix ou cartão.",
+    ],
     atencao: [
+      "O Grátis vale 6 meses a partir do cadastro (os 15 dias de teste do Equipe contam dentro). Depois, o painel e os seus dados continuam, mas a vitrine para de receber agendamentos online até você assinar.",
+      "Básico e Profissional são para 1 profissional. Para mais gente, escolha o Equipe.",
       "Plano maior no mensal: muda na hora, e o novo valor vale a partir da próxima cobrança.",
       "Plano maior no anual: muda quando você pagar a diferença proporcional aos dias que faltam.",
       "Plano menor: começa na próxima renovação.",
@@ -259,7 +267,7 @@ const AJUDA_TEXTOS = {
       "Para não parecer robô, o intervalo entre as mensagens varia (7 a 13 minutos), com no máximo 6 por hora, das 8h às 20h.",
       "Confirmação e lembretes saem só para agendamentos confirmados; a de aniversário não depende de agendamento.",
       "Se duas mensagens caírem perto para o mesmo cliente, a segunda é adiada para não incomodar; só é descartada se passar do prazo — e fica registrada.",
-      "Recurso dos planos pagos, em teste.",
+      "Recurso dos planos Profissional e Equipe, em teste.",
     ],
   },
   "msg-confirmacao": {
@@ -318,6 +326,7 @@ const AJUDA_TEXTOS = {
       "O encaixe ignora o horário de funcionamento, mas não passa por cima de bloqueios nem de outro atendimento.",
       "Para marcar por cima de outro atendimento (enquanto o produto age), use o “Encaixe sobreposto”.",
       "No Remarcar, só a matriz e a recepção podem usar.",
+      "Recurso dos planos pagos, a partir do Básico. No Grátis, escolha um dos horários livres da lista.",
     ],
   },
   "encaixe-sobreposto": {
@@ -336,6 +345,7 @@ const AJUDA_TEXTOS = {
       "Bloqueios continuam valendo, e a vitrine continua vendo esse horário como ocupado.",
       "Só a matriz e o próprio profissional usam. A recepção, não.",
       "Na agenda ele aparece com o selo “Encaixe”, ao lado do outro atendimento. Para mudar o horário, use o Remarcar.",
+      "Recurso dos planos pagos, a partir do Básico.",
     ],
   },
   remarcar: {
@@ -360,7 +370,7 @@ const AJUDA_TEXTOS = {
       "Marque “Repetir este horário” e escolha a frequência e quantas vezes.",
       "Toque em “Ver datas”, confira e crie.",
     ],
-    atencao: ["Datas com conflito são puladas, sem criar data extra no fim.", "Recurso dos planos pagos."],
+    atencao: ["Datas com conflito são puladas, sem criar data extra no fim.", "Recurso dos planos pagos, a partir do Básico."],
   },
   "vender-pacote": {
     titulo: "Vender pacote",
@@ -370,7 +380,7 @@ const AJUDA_TEXTOS = {
       "Escolha “Livre” (o cliente marca cada sessão depois) ou “Datas fixas”.",
       "Confirme a venda.",
     ],
-    atencao: ["Recurso dos planos pagos."],
+    atencao: ["Recurso dos planos Profissional e Equipe."],
   },
   "datas-fixas": {
     titulo: "Datas fixas",

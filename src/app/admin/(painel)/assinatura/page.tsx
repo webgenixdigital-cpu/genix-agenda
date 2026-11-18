@@ -147,8 +147,9 @@ export default async function AssinaturaPage() {
     statusText = "Esta conta não tem cobrança.";
   } else if (isActive) {
     statusTitle = `${PLAN_NAMES[currentKind]} ${currentCycle} ativo`;
-    // com troca agendada, a renovação já vem no valor do plano novo (o mesmo do quadro "Próxima cobrança")
-    const renewalAmount = sub?.scheduled_plan_id && rq ? Number(rq.total) : sub?.amount;
+    // valor da próxima cobrança (o mesmo do quadro "Próxima cobrança"): plano da renovação, extras e
+    // cupom pelo vencimento (53) — com troca agendada já vem no valor do plano novo
+    const renewalAmount = rq ? Number(rq.total) : sub?.amount;
     statusText = plan.currentPeriodEnd
       ? `Próxima renovação em ${br(plan.currentPeriodEnd)}${renewalAmount ? `, no valor de ${brl(renewalAmount)}` : ""}.`
       : "Assinatura ativa.";

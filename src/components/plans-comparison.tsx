@@ -44,7 +44,7 @@ export function PlansComparison({
       <>{brl(full)}{per}</>
     ) : (
       <>
-        <s className="font-normal text-muted-foreground">
+        <s className="relative font-normal text-muted-foreground">
           <span className="sr-only">{LAUNCH_TEXT.wasLabel(brl(full))}</span>
           <span aria-hidden>{brl(full)}</span>
         </s>{" "}

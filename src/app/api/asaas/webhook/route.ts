@@ -183,6 +183,8 @@ export async function POST(request: NextRequest) {
           ...(applySchedule
             ? { plan_id: sub.scheduled_plan_id, amount: body.payment?.value ?? s.value, scheduled_plan_id: null, scheduled_at: null }
             : {}),
+          // valor das próximas cobranças = o da assinatura no Asaas (cupom, 53: pode mudar entre uma e outra)
+          ...(typeof s.value === "number" ? { amount: Number(s.value) } : {}),
           status: "active",
           current_period_end: periodEnd,
           pending_invoice_url: null,

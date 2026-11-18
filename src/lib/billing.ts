@@ -324,7 +324,8 @@ export async function previewTeamChange(businessId: string, delta: 1 | -1): Prom
   }
 
   // cancelada (acesso até o fim do período) ou troca anual aguardando pagamento: sem aviso
-  if (sub.status === "canceled" || sub.status === "expired" || sub.upgrade_payment_id) return NONE;
+  // ("expired" com assinatura no Asaas = 1ª fatura em aberto depois do teste: avisa como no teste)
+  if (sub.status === "canceled" || sub.upgrade_payment_id) return NONE;
 
   const [q0, q1] = await Promise.all([billingQuote(businessId), billingQuote(businessId, { professionals: next })]);
   if (!q0 || !q1 || sameValue(q0.total, q1.total)) return NONE; // dentro do incluso (ou Profissional)
@@ -381,8 +382,9 @@ export async function syncSubscriptionBilling(
     let stable = false;
     for (let round = 0; round < 3 && !stable; round++) {
       const { data: sub } = await subscriptions().select(SUB_COLUMNS).eq("business_id", businessId).maybeSingle<Sub>();
-      // sem renovação (cancelada) ou troca anual aguardando pagamento: nada a ajustar agora
-      if (!sub?.asaas_subscription_id || sub.status === "canceled" || sub.status === "expired" || sub.upgrade_payment_id) {
+      // sem renovação (cancelada) ou troca anual aguardando pagamento: nada a ajustar agora.
+      // "expired" COM assinatura no Asaas = assinou depois do teste e a 1ª fatura está em aberto: ajusta normalmente
+      if (!sub?.asaas_subscription_id || sub.status === "canceled" || sub.upgrade_payment_id) {
         stable = true;
         break;
       }

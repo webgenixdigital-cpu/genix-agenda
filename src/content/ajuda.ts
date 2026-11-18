@@ -218,6 +218,7 @@ const AJUDA_TEXTOS = {
     ],
     atencao: [
       "O desconto é um só por espaço. Se trocar entre Profissional e Equipe, ele continua até a mesma data.",
+      "No anual, a anuidade só tem desconto se o ano inteiro couber até a data final. Quem passa do mensal para o anual no meio do desconto paga o anual no preço normal.",
       "O Básico e o profissional extra do Equipe não têm desconto.",
       "Se cancelar e assinar de novo, o desconto vale só até a data final original. Se a primeira fatura nunca foi paga, o desconto é desfeito e você pode usar de novo.",
     ],

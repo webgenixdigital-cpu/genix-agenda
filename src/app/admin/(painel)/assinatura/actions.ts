@@ -152,8 +152,21 @@ export async function startSubscription(input: {
       })
       .eq("business_id", biz.id);
 
-    // 4) cupom de lançamento: registra o desconto (início = 1º vencimento; quem já tinha mantém a data final)
-    await claimIfNew(biz.id, q, nextDueDate, ctx.userId);
+    // 4) cupom de lançamento: registra o desconto (início = 1º vencimento). Quem já tinha mantém a data
+    // final, e o histórico ganha "reaproveitado" (assim desistir desta fatura não anula o desconto já usado)
+    if (q.discounted) await claimDiscount(biz.id, q.plan, nextDueDate, ctx.userId);
+
+    // 5) próximas cobranças pelo vencimento (ex.: o desconto acaba antes da 2ª cobrança).
+    // Falha aqui não desfaz a assinatura: fica "pendente" para o webhook ou o /genix.
+    if (q.discounted) {
+      await applySubscriptionValues(biz.id, { reason: "assinatura", actor: ctx.userId }).catch(async (e) => {
+        console.error("Ajuste do valor depois de assinar falhou", biz.id, e);
+        await admin
+          .from("subscriptions")
+          .update({ billing_sync_status: "pendente", billing_sync_error: "Ajustar o valor das próximas cobranças (cupom)." })
+          .eq("business_id", biz.id);
+      });
+    }
 
     revalidatePath("/admin/assinatura");
     return { ok: true, invoiceUrl: first?.invoiceUrl };

@@ -103,7 +103,9 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
     até 31/12/2026 23:59 (SP), inclusive contas que já existem (a partir da próxima cobrança). Por **12 meses** a partir do
     1º vencimento: Pro 48,70/mês ou 487/ano; Equipe 98,70/mês ou 987/ano (1ª anuidade); depois volta sozinho ao cheio.
     Extra do Equipe e Básico sem desconto. **1 por espaço**: trocar Pro ↔ Equipe mantém a data final; ir para o Básico
-    perde; cancelar e assinar de novo mantém a data final; 1ª fatura nunca paga = desconto `anulado` (pode usar de novo).
+    perde; cancelar e assinar de novo mantém a data final; 1ª fatura nunca paga = desconto `anulado` (pode usar de novo;
+    nunca anula um desconto já reaproveitado, 54). **Anual** (54): só com desconto se o ano inteiro couber até a data
+    final (vencimento + 12 meses ≤ `ends_on`); mensal → anual no meio do desconto = anual cheio.
     Selo “Preço de lançamento até 31/12/2026 · por 12 meses” na Assinatura, `/` e `/para`; quem assinou vê
     “Desconto até dd/mm/aaaa; depois R$ X”. O código fica no banco para campanhas futuras (digitadas).
   - Indicação: PR seguinte (espaço reservado na Assinatura).
@@ -214,7 +216,8 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
   Avulsa vencida: bloqueia ativações; após 15 dias os extras não pagos saem do agendamento online.
 - **Cupom de lançamento (53):** `coupons` + `coupon_prices` (preço por plano), `subscription_discounts` (1 por espaço,
   `ativo`|`encerrado`|`anulado`, `starts_on` = 1º vencimento com desconto, `ends_on` = 1º SEM desconto) e
-  `subscription_discount_log` (auditoria: aplicado, reaproveitado, troca_plano, valor, virada, anulado). Escrita só pelo
+  `subscription_discount_log` (auditoria: aplicado, reaproveitado, troca_plano, valor, virada, anulado); `encerrado` só
+  registra a virada, o preço segue a data (54). Escrita só pelo
   servidor: `subscription_discount_claim` / `subscription_discount_void` (service role). O preço depende do
   **VENCIMENTO**: `billing_quote(bid, plano, profissionais, p_ref)` (sem `p_ref` = próxima cobrança). O Asaas gera cada
   cobrança **40 dias antes**, então **nunca usar `updatePendingPayments`**: `applySubscriptionValues` (`lib/billing.ts`)

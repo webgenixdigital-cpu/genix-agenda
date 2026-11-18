@@ -208,6 +208,20 @@ const AJUDA_TEXTOS = {
       "Se o teste grátis acabar sem assinatura, a conta passa para o Grátis e nada é apagado.",
     ],
   },
+  "preco-lancamento": {
+    titulo: "Preço de lançamento",
+    serve: "Desconto automático nos planos Profissional e Equipe para quem assinar até 31/12/2026, durante 12 meses.",
+    passos: [
+      "Escolha o Profissional ou o Equipe, mensal ou anual: o preço com desconto já aparece, sem digitar cupom.",
+      "Os 12 meses contam a partir da primeira cobrança. No anual, o desconto vale para a primeira anuidade.",
+      "Depois dos 12 meses, a cobrança volta sozinha ao preço normal. Você não precisa fazer nada.",
+    ],
+    atencao: [
+      "O desconto é um só por espaço. Se trocar entre Profissional e Equipe, ele continua até a mesma data.",
+      "O Básico e o profissional extra do Equipe não têm desconto.",
+      "Se cancelar e assinar de novo, o desconto vale só até a data final original. Se a primeira fatura nunca foi paga, o desconto é desfeito e você pode usar de novo.",
+    ],
+  },
   configuracoes: {
     titulo: "Configurações",
     serve: "Ajusta como o seu espaço funciona: dados da vitrine, horários, confirmação, mensagens e descontos.",

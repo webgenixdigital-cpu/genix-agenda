@@ -7,17 +7,30 @@ import {
   cycleOfPlanId, isLegacyPlanId, isSoloKind, kindOfPlanId, PAID_KINDS, PAID_PLAN_IDS, paidRank, planIdFor, type PaidKind, type PaidPlanId,
 } from "@/lib/plan-ids";
 import { brl } from "@/lib/format";
-import { availablePaidPlans, getPublicPlans, plansPreview } from "@/lib/plans-server";
+import { availablePaidPlans, getLaunchOffer, getPublicPlans, plansPreview } from "@/lib/plans-server";
+import { offerEndLabel, offerOpen } from "@/lib/plans-public";
+import { LAUNCH_TEXT } from "@/content/planos";
 import { PlansComparison } from "@/components/plans-comparison";
 import { Button } from "@/components/ui/button";
-import { SubscribeForm, type Quotes } from "@/components/admin/assinatura/subscribe-form";
+import { SubscribeForm, type Discounts, type Quotes } from "@/components/admin/assinatura/subscribe-form";
 import { CancelSubscriptionButton } from "@/components/admin/assinatura/cancel-button";
 import { CancelPlanChangeButton, ChangePlanButton } from "@/components/admin/assinatura/change-plan";
 import { BillingSummary, type BillingChange } from "@/components/admin/assinatura/billing-summary";
 
 export const dynamic = "force-dynamic";
 
-type Quote = { total: number; professionals: number; extra_professionals: number };
+type Quote = {
+  total: number;
+  professionals: number;
+  extra_professionals: number;
+  // cupom de lançamento (53)
+  full_total: number;
+  discounted: boolean;
+  coupon_label: string | null;
+  discount_months: number | null;
+  /** 1º vencimento sem desconto (null = ainda não assinou) */
+  discount_ends_on: string | null;
+};
 
 const br = (iso: string) =>
   new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric" }).format(
@@ -28,6 +41,13 @@ const METHOD_LABEL: Record<string, string> = { PIX: "Pix", BOLETO: "Boleto", CRE
 
 const daysLabel = (n: number) => (n === 1 ? "falta 1 dia" : `faltam ${n} dias`);
 
+/** "Desconto até": o dia anterior ao 1º vencimento sem desconto */
+const dayBefore = (ymd: string) => {
+  const d = new Date(`${ymd}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().slice(0, 10);
+};
+
 // ---------------------------------------------------------------------
 // PARTE 1 — Dados
 // ---------------------------------------------------------------------
@@ -37,7 +57,7 @@ export default async function AssinaturaPage() {
   const supabase = createClient();
 
   const ids: PaidPlanId[] = [...PAID_PLAN_IDS];
-  const [quoteRows, { data: sub }, freeLimit, available, { data: changes }, publicPlans] = await Promise.all([
+  const [quoteRows, { data: sub }, freeLimit, available, { data: changes }, publicPlans, launchOffer] = await Promise.all([
     Promise.all(ids.map((id) => supabase.rpc("subscription_quote", { bid: business.id, p_plan: id }))),
     supabase
       .from("subscriptions")
@@ -57,6 +77,8 @@ export default async function AssinaturaPage() {
       .limit(12),
     // preços da tabela comparativa (planos ativos; todos no modo de prévia)
     getPublicPlans(),
+    // cupom de lançamento no prazo (53)
+    getLaunchOffer(),
   ]);
   // valor esperado da próxima cobrança (plano da renovação + extras de agora)
   const renewalPlan = sub?.scheduled_plan_id ?? sub?.plan_id ?? null;
@@ -64,6 +86,7 @@ export default async function AssinaturaPage() {
     ? await supabase.rpc("subscription_quote", { bid: business.id, p_plan: renewalPlan })
     : { data: null };
   const rq = renewalQuote as (Quote & { included: number }) | null;
+  const offer = offerOpen(launchOffer) ? launchOffer : null;
   const q = Object.fromEntries(ids.map((id, i) => [id, quoteRows[i].data as Quote | null])) as Record<PaidPlanId, Quote | null>;
   // o Básico só aparece ativo depois da 52b (ou no modo de prévia local)
   const quotesOk = ids.every((id) => q[id] && available.has(id));
@@ -73,6 +96,23 @@ export default async function AssinaturaPage() {
         PAID_KINDS.map((k) => [k, { mensal: Number(q[planIdFor(k, "mensal")]!.total), anual: Number(q[planIdFor(k, "anual")]!.total) }])
       ) as Quotes)
     : null;
+  // cupom de lançamento (53): preço cheio e o aviso de cada plano com desconto
+  const discountNote = (x: Quote) =>
+    x.discount_ends_on
+      ? LAUNCH_TEXT.subscribed(br(dayBefore(x.discount_ends_on)), brl(Number(x.full_total)))
+      : offer
+        ? `${LAUNCH_TEXT.until(x.coupon_label ?? offer.label, offerEndLabel(offer))} · ${LAUNCH_TEXT.forMonths(x.discount_months ?? offer.duration_months)}`
+        : LAUNCH_TEXT.forMonths(x.discount_months ?? 12);
+  const discountOf = (x: Quote | null) =>
+    x && x.discounted && Number(x.full_total) > Number(x.total) ? { full: Number(x.full_total), note: discountNote(x) } : null;
+  const discounts: Discounts | null = quotesOk
+    ? (Object.fromEntries(
+        PAID_KINDS.map((k) => [k, { mensal: discountOf(q[planIdFor(k, "mensal")]), anual: discountOf(q[planIdFor(k, "anual")]) }])
+      ) as Discounts)
+    : null;
+  // a tabela comparativa só mostra o preço de lançamento para quem ainda pode usar
+  const tableOffer = q.profissional_mensal?.discounted ? offer : null;
+
   const activePros = q.equipe_mensal?.professionals ?? 1;
   // fim do teste: 1 profissional → Profissional; Grátis: 1 profissional → Básico; 2+ → Equipe
   const recommended: PaidKind = plan.trialDaysLeft !== null ? recommendedKind(activePros) : activePros <= 1 ? "basico" : "equipe";
@@ -163,10 +203,23 @@ export default async function AssinaturaPage() {
       testid: "status-proxima-cobranca",
     });
   }
+  // cupom de lançamento (53): até quando vale e o valor depois
+  if ((isActive || hasPending) && rq?.discounted && rq.discount_ends_on) {
+    facts.push({
+      label: rq.coupon_label ?? "Preço de lançamento",
+      value: LAUNCH_TEXT.subscribed(br(dayBefore(rq.discount_ends_on)), brl(Number(rq.full_total))),
+      testid: "status-desconto",
+    });
+  }
 
   // troca entre Básico, Profissional e Equipe (mesmo ciclo)
   const changeTargets = PAID_KINDS.filter((k) => k !== currentKind)
-    .map((k) => ({ kind: k, id: planIdFor(k, currentCycle), price: quotes ? quotes[k][currentCycle] : null }))
+    .map((k) => ({
+      kind: k,
+      id: planIdFor(k, currentCycle),
+      price: quotes ? quotes[k][currentCycle] : null,
+      discount: discounts ? discounts[k][currentCycle] : null,
+    }))
     .filter((t) => t.price !== null && available.has(t.id));
 
   // -------------------------------------------------------------------
@@ -197,7 +250,10 @@ export default async function AssinaturaPage() {
             <dl className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
               {facts.map((f) => (
                 <div key={f.label} className="rounded-xl bg-secondary px-3 py-2" data-testid={f.testid}>
-                  <dt className="text-xs text-muted-foreground">{f.label}</dt>
+                  <dt className="flex items-center text-xs text-muted-foreground">
+                    {f.label}
+                    {f.testid === "status-desconto" && <Ajuda id="preco-lancamento" className="-my-3 -ml-2" />}
+                  </dt>
                   <dd className="font-semibold">{f.value}</dd>
                 </div>
               ))}
@@ -310,6 +366,8 @@ export default async function AssinaturaPage() {
                   current={PLAN_NAMES[currentKind]}
                   direction={paidRank(t.kind) > paidRank(currentKind) ? "up" : "down"}
                   price={t.price!}
+                  fullPrice={t.discount?.full}
+                  discountNote={t.discount?.note}
                   cycle={currentCycle}
                   blockedReason={
                     isSoloKind(t.kind) && activePros > 1
@@ -334,18 +392,24 @@ export default async function AssinaturaPage() {
       {!plan.internal && !isActive && !hasPending && !isCanceledWithAccess && role === "owner" && (
         <section className="space-y-5 rounded-2xl border bg-card p-5 md:p-6">
           <div>
-            <h2 className="text-2xl">Escolha seu plano</h2>
+            <h2 className="text-2xl">
+              Escolha seu plano
+              {discounts && PAID_KINDS.some((k) => discounts[k].mensal || discounts[k].anual) && (
+                <Ajuda id="preco-lancamento" className="-ml-1" />
+              )}
+            </h2>
             <p className="mt-1 text-sm text-muted-foreground">
               Você tem {activePros} {activePros === 1 ? "profissional ativo" : "profissionais ativos"}. Anual = 2 meses grátis.
             </p>
           </div>
 
-          {/* PR 2 (cupom de desconto): o campo entra aqui, antes do formulário */}
+          {/* Cupom de lançamento (53): automático; o preço com desconto já vem nos valores abaixo */}
           {/* PR 3 (indicação): o aviso de indicação entra aqui */}
 
           {quotes ? (
             <SubscribeForm
               quotes={quotes}
+              discounts={discounts}
               activePros={activePros}
               equipeExtras={q.equipe_mensal?.extra_professionals ?? 0}
               recommended={recommended}
@@ -360,7 +424,7 @@ export default async function AssinaturaPage() {
       {/* Tabela comparativa dos 4 planos (o que inclui e o que NÃO inclui) */}
       <section className="space-y-3" data-testid="comparar-planos">
         <h2 className="text-2xl">Compare os planos</h2>
-        <PlansComparison plans={publicPlans} current={plan.internal && !plan.grant ? null : plan.kind} />
+        <PlansComparison plans={publicPlans} current={plan.internal && !plan.grant ? null : plan.kind} offer={tableOffer} />
       </section>
     </main>
   );

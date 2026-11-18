@@ -17,6 +17,20 @@ export type PlanFeatureRow = { label: string; values: Record<PlanKind, PlanCell>
 /** Duração do Grátis (meses a partir do cadastro) */
 export const FREE_MONTHS = 6;
 
+/** Cupom de lançamento (migration 53): textos. Preços, prazo e duração vêm do banco (launch_offer/billing_quote). */
+export const LAUNCH_TEXT = {
+  /** "Preço de lançamento até 31/12/2026" */
+  until: (label: string, end: string) => `${label} até ${end}`,
+  /** "por 12 meses" */
+  forMonths: (n: number) => `por ${n} meses`,
+  /** "depois R$ 62,70/mês" */
+  then: (full: string, per: string) => `depois ${full}${per}`,
+  /** quem já assinou: "Desconto até 09/12/2027; depois R$ 62,70" */
+  subscribed: (until: string, full: string) => `Desconto até ${until}; depois ${full}`,
+  /** acessível: preço cheio riscado */
+  wasLabel: (full: string) => `Preço normal: ${full}`,
+};
+
 /** Tabela comparativa. limit = agendamentos online por dia no Grátis; included = profissionais no Equipe */
 export function planFeatureRows(limit: number, included: number): PlanFeatureRow[] {
   const all = (v: PlanCell = true) => ({ gratis: v, basico: v, profissional: v, equipe: v });

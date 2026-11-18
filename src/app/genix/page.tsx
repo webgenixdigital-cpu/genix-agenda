@@ -13,30 +13,44 @@ import { todayISO } from "@/lib/dates";
 import { BillingManager, type BillingOverview } from "@/components/genix/billing-manager";
 import { SearchVisibilityManager, type SearchOverview } from "@/components/genix/search-visibility-manager";
 import { asaas, type AsaasSubscription } from "@/lib/asaas";
+import { billingQuote } from "@/lib/billing";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Administração | Genix Agenda", robots: { index: false, follow: false } };
 
 type Props = { searchParams: { aba?: string } };
 
-/** Assinaturas (29): visão do banco + valor lido agora no Asaas */
+/** Assinaturas (29): visão do banco + valor lido agora no Asaas + cupom de lançamento (53) */
 async function loadBilling(supabase: ReturnType<typeof createClient>): Promise<BillingOverview[]> {
-  const { data } = await supabase.rpc("genix_billing_overview");
-  const rows = (data ?? []) as Omit<BillingOverview, "asaas_value">[];
+  const [{ data }, { data: discounts }] = await Promise.all([
+    supabase.rpc("genix_billing_overview"),
+    supabase
+      .from("subscription_discounts")
+      .select("business_id, coupon_code, status, starts_on, ends_on")
+      .neq("status", "anulado"),
+  ]);
+  const rows = (data ?? []) as Omit<BillingOverview, "asaas_value" | "discount">[];
+  const byBusiness = new Map((discounts ?? []).map((d) => [d.business_id as string, d as BillingOverview["discount"]]));
   const num = (v: unknown) => (v == null ? null : Number(v));
   return Promise.all(
     rows.map(async (r) => {
       let asaasValue: number | null = null;
+      let expected = num(r.expected);
       if (r.asaas_subscription_id) {
-        asaasValue = await asaas<AsaasSubscription>(`/subscriptions/${r.asaas_subscription_id}`)
-          .then((s) => Number(s.value))
-          .catch(() => null);
+        const s = await asaas<AsaasSubscription>(`/subscriptions/${r.asaas_subscription_id}`).catch(() => null);
+        if (s) {
+          asaasValue = Number(s.value);
+          // o valor no Asaas é o do próximo vencimento a ser gerado: esperado para a mesma data (cupom)
+          const q = await billingQuote(r.business_id, { ref: s.nextDueDate });
+          if (q) expected = q.total;
+        }
       }
       return {
         ...r,
         amount: num(r.amount),
-        expected: num(r.expected),
+        expected,
         asaas_value: asaasValue,
+        discount: byBusiness.get(r.business_id) ?? null,
         open_extras: Number(r.open_extras),
         overdue_extras: Number(r.overdue_extras),
         blocked_professionals: Number(r.blocked_professionals),

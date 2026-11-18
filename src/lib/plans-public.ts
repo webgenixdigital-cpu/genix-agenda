@@ -29,6 +29,47 @@ export function normalizePlans(rows: Record<string, unknown>[] | null): Plan[] {
 const find = (plans: Plan[], kind: Plan["kind"], cycle: Plan["billing_cycle"]) =>
   plans.find((p) => p.kind === kind && p.billing_cycle === cycle);
 
+// ---------------------------------------------------------------------
+// Cupom de lançamento (migration 53): oferta automática no prazo.
+// Os preços vêm do banco (coupon_prices); nada fixo no código.
+// ---------------------------------------------------------------------
+export type LaunchOffer = {
+  code: string;
+  label: string;
+  /** fim do prazo para assinar (ISO) */
+  ends_at: string;
+  duration_months: number;
+  /** preço base com desconto por id de plano (só Profissional e Equipe) */
+  prices: Record<string, number>;
+};
+
+export function normalizeOffer(raw: unknown): LaunchOffer | null {
+  if (!raw || typeof raw !== "object") return null;
+  const o = raw as Record<string, unknown>;
+  const prices = Object.fromEntries(Object.entries((o.prices ?? {}) as Record<string, unknown>).map(([k, v]) => [k, Number(v)]));
+  return {
+    code: String(o.code),
+    label: String(o.label),
+    ends_at: String(o.ends_at),
+    duration_months: Number(o.duration_months),
+    prices,
+  };
+}
+
+/** a oferta ainda vale agora? (as páginas públicas ficam em cache por até 1 h) */
+export const offerOpen = (offer: LaunchOffer | null, now = Date.now()): offer is LaunchOffer =>
+  !!offer && new Date(offer.ends_at).getTime() >= now;
+
+/** "31/12/2026" (fim do prazo no fuso de São Paulo) */
+export const offerEndLabel = (offer: LaunchOffer) =>
+  new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric" }).format(
+    new Date(offer.ends_at)
+  );
+
+/** preço com desconto de um plano (null = plano sem cupom) */
+export const offerPrice = (offer: LaunchOffer | null, plan: Plan | undefined) =>
+  offer && plan && offer.prices[plan.id] != null ? offer.prices[plan.id] : null;
+
 /** Perguntas frequentes com os valores atuais (sem repetir a tabela) */
 export function planFaq(plans: Plan[]) {
   const limit = plans.find((p) => p.kind === "gratis")?.online_daily_limit ?? 6;

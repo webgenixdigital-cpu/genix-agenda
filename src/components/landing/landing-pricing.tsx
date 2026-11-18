@@ -3,12 +3,15 @@
 import { useState } from "react";
 import Link from "next/link";
 import { LANDING_NAV, LANDING_PLANS } from "@/content/landing";
+import { LAUNCH_TEXT } from "@/content/planos";
+import { useOfferOpen } from "@/components/use-offer-open";
 import { brl } from "@/lib/format";
-import type { Plan } from "@/lib/plans-public";
+import { offerEndLabel, offerPrice, type LaunchOffer, type Plan } from "@/lib/plans-public";
 import { cn } from "@/lib/utils";
 import { lpBtnGold, lpBtnOutline, lpCard } from "./styles";
 
 // Valores sempre da tabela plans (migrations 28a/28b/52), lidos no servidor por getPublicPlans().
+// Preço de lançamento (53): launch_offer() no servidor (getLaunchOffer), escondido no navegador quando o prazo acaba.
 
 function Features({ items, dark }: { items: string[]; dark?: boolean }) {
   return (
@@ -23,18 +26,42 @@ function Features({ items, dark }: { items: string[]; dark?: boolean }) {
   );
 }
 
-function Price({ value, per, dark }: { value: string; per?: string; dark?: boolean }) {
+function Price({ value, per, dark, was }: { value: string; per?: string; dark?: boolean; was?: string }) {
   return (
-    <p className="mt-4 font-heading text-[42px] leading-none">
-      {value}
-      {per && <small className={cn("font-sans text-[15px]", dark ? "text-stone-300" : "text-muted-foreground")}>{per}</small>}
+    <>
+      {was && (
+        <p className={cn("mt-4 text-[15px] line-through", dark ? "text-stone-400" : "text-muted-foreground")}>
+          <span className="sr-only">{LAUNCH_TEXT.wasLabel(was)}</span>
+          <span aria-hidden>{was}{per}</span>
+        </p>
+      )}
+      <p className={cn("font-heading text-[42px] leading-none", was ? "mt-1" : "mt-4")}>
+        {value}
+        {per && <small className={cn("font-sans text-[15px]", dark ? "text-stone-300" : "text-muted-foreground")}>{per}</small>}
+      </p>
+    </>
+  );
+}
+
+/** selo "Preço de lançamento até 31/12/2026 · por 12 meses" */
+function LaunchBadge({ offer, dark }: { offer: LaunchOffer; dark?: boolean }) {
+  return (
+    <p
+      className={cn(
+        "mt-4 w-fit rounded-full px-3 py-1 text-xs font-bold",
+        dark ? "bg-[#F2C078]/20 text-[#F2C078]" : "bg-[#F2C078]/40 text-[#7a4520]"
+      )}
+      data-testid="selo-preco-lancamento"
+    >
+      {LAUNCH_TEXT.until(offer.label, offerEndLabel(offer))} · {LAUNCH_TEXT.forMonths(offer.duration_months)}
     </p>
   );
 }
 
 /** Planos: Mensal/Anual; Grátis, Básico, Profissional (destaque escuro) e Equipe (2 × 2 a partir do md) */
-export function LandingPricing({ plans }: { plans: Plan[] }) {
+export function LandingPricing({ plans, offer: serverOffer = null }: { plans: Plan[]; offer?: LaunchOffer | null }) {
   const t = LANDING_PLANS;
+  const offer = useOfferOpen(serverOffer);
   const [cycle, setCycle] = useState<"MONTHLY" | "YEARLY">("MONTHLY");
   const yearly = cycle === "YEARLY";
 
@@ -46,6 +73,11 @@ export function LandingPricing({ plans }: { plans: Plan[] }) {
   if (!pro || !team) return null;
 
   const per = yearly ? t.perYear : t.perMonth;
+  const proPromo = offerPrice(offer, pro);
+  const teamPromo = offerPrice(offer, team);
+  // linha de baixo do preço: equivalência no anual; com cupom, também o preço depois do desconto
+  const promoLine = (full: number, promo: number) =>
+    `${yearly ? `${t.pro.yearlyEquivalent(brl(promo / 12))} · ` : ""}${LAUNCH_TEXT.then(brl(full), per)}`;
   const signup = LANDING_NAV.signup.href;
   const perLine = "mt-2 min-h-[22px] text-sm";
 
@@ -108,8 +140,16 @@ export function LandingPricing({ plans }: { plans: Plan[] }) {
           </span>
           <h3 className="text-[21px] font-bold">{t.pro.name}</h3>
           <p className="mt-2 text-stone-300">{t.pro.text}</p>
-          <Price value={brl(pro.base_price)} per={per} dark />
-          <p className={cn(perLine, "text-stone-300")}>{yearly ? t.pro.yearlyEquivalent(brl(pro.base_price / 12)) : ""}</p>
+          {offer && proPromo != null && <LaunchBadge offer={offer} dark />}
+          <Price
+            value={brl(proPromo ?? pro.base_price)}
+            per={per}
+            dark
+            was={proPromo != null ? brl(pro.base_price) : undefined}
+          />
+          <p className={cn(perLine, "text-stone-300")}>
+            {proPromo != null ? promoLine(pro.base_price, proPromo) : yearly ? t.pro.yearlyEquivalent(brl(pro.base_price / 12)) : ""}
+          </p>
           <Features items={t.pro.items} dark />
           <Link href={signup} className={lpBtnGold} data-testid="btn-plano-profissional">{t.pro.cta}</Link>
         </div>
@@ -119,7 +159,13 @@ export function LandingPricing({ plans }: { plans: Plan[] }) {
         <div className={cn(lpCard, "lp-reveal flex flex-col")} data-testid="card-plano-equipe">
           <h3 className="text-[21px] font-bold">{t.team.name}</h3>
           <p className="mt-2 text-muted-foreground">{t.team.text(team.included_professionals)}</p>
-          <Price value={brl(team.base_price)} per={per} />
+          {offer && teamPromo != null && <LaunchBadge offer={offer} />}
+          <Price
+            value={brl(teamPromo ?? team.base_price)}
+            per={per}
+            was={teamPromo != null ? brl(team.base_price) : undefined}
+          />
+          {teamPromo != null && <p className={cn(perLine, "text-muted-foreground")}>{promoLine(team.base_price, teamPromo)}</p>}
           <p className={cn(perLine, "text-muted-foreground")}>{t.team.extra(brl(team.extra_professional_price), per)}</p>
           <Features items={t.team.items} />
           <Link href={signup} className={lpBtnOutline} data-testid="btn-plano-equipe">{t.team.cta}</Link>

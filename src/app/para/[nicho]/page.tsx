@@ -13,7 +13,7 @@ import { Pricing } from "@/components/marketing/pricing";
 import { Button } from "@/components/ui/button";
 import { brl, duration } from "@/lib/format";
 import { getActiveNiches } from "@/lib/niches";
-import { getPublicPlans } from "@/lib/plans-server";
+import { getLaunchOffer, getPublicPlans } from "@/lib/plans-server";
 
 export const revalidate = 3600;
 
@@ -52,10 +52,11 @@ export default async function NichoPage({ params }: Props) {
   if (!niche) notFound();
 
   const supabase = createClient();
-  const [{ data: templates }, plans, { count }] = await Promise.all([
+  const [{ data: templates }, plans, { count }, offer] = await Promise.all([
     supabase.from("niche_service_templates").select("id, name, duration_min, price").eq("niche_id", niche.id).order("sort_order"),
     getPublicPlans(),
     supabase.from("public_directory").select("id", { count: "exact", head: true }).eq("subcategory", niche.id),
+    getLaunchOffer(),
   ]);
 
   const services = templates ?? [];
@@ -201,7 +202,7 @@ export default async function NichoPage({ params }: Props) {
               </p>
             </div>
             <div className="mt-12">
-              <Pricing plans={plans} />
+              <Pricing plans={plans} offer={offer} />
             </div>
           </div>
         </section>

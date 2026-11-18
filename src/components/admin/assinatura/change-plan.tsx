@@ -15,6 +15,8 @@ export function ChangePlanButton({
   current,
   direction,
   price,
+  fullPrice,
+  discountNote,
   cycle,
   blockedReason,
 }: {
@@ -24,6 +26,9 @@ export function ChangePlanButton({
   direction: "up" | "down";
   /** valor do plano de destino no mesmo ciclo */
   price: number;
+  /** cupom de lançamento (53): preço cheio e aviso ("Desconto até 09/12/2027; depois R$ 121,70") */
+  fullPrice?: number;
+  discountNote?: string;
   cycle: "mensal" | "anual";
   /** motivo para não permitir (ex.: Básico ou Profissional com 2+ ativos) */
   blockedReason?: string;
@@ -40,7 +45,11 @@ export function ChangePlanButton({
         ? `Mudar para o ${name} (${brl(price)}${per})? Vamos gerar uma cobrança só da diferença proporcional aos dias que faltam; o ${name} é liberado quando ela for paga.`
         : `Mudar para o ${name} agora? O novo valor (${brl(price)}${per}) vale a partir da próxima cobrança.`
       : `Mudar para o ${name} (${brl(price)}${per}) na próxima renovação? Até lá, você continua no ${current}. Depois, os recursos que o ${name} não tem ficam com cadeado${toTeamless ? " e os acessos da equipe ficam pausados" : ""} (nada é apagado).`;
-    if (!confirm(text)) return;
+    const discounted = fullPrice != null && fullPrice > price;
+    // a nota de quem já assinou já traz o "depois R$ X"
+    const note = discountNote ?? "Preço de lançamento";
+    const full = discounted ? ` ${note}${note.includes("depois") ? "" : `; depois ${brl(fullPrice)}${per}`}.` : "";
+    if (!confirm(text + full)) return;
     start(async () => {
       const r = await changePlan(target);
       if (!r) return; // demonstração: o servidor redirecionou
@@ -74,6 +83,12 @@ export function ChangePlanButton({
           </>
         )}
       </Button>
+      {fullPrice != null && fullPrice > price && !blockedReason && (
+        <p className="text-xs text-muted-foreground" data-testid={`preco-troca-${kindOfPlanId(target)}`}>
+          <s>{brl(fullPrice)}</s> {brl(price)}
+          {per}
+        </p>
+      )}
       {blockedReason && <p className="text-xs text-muted-foreground">{blockedReason}</p>}
     </div>
   );

@@ -1,6 +1,7 @@
 // Renova a sessão em toda requisição e protege as rotas /admin
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { isReferralCode, REFERRAL_COOKIE, REFERRAL_COOKIE_DAYS } from "@/lib/referral-public";
 
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -47,6 +48,19 @@ export async function updateSession(request: NextRequest) {
     url.pathname = "/admin";
     url.search = "";
     return NextResponse.redirect(url);
+  }
+
+  // Indique e ganhe (56): ?ind=CODIGO em qualquer página guarda o código por 30 dias.
+  // Só quem ainda não tem login (quem já tem conta não pode ser indicado).
+  const ind = request.nextUrl.searchParams.get("ind");
+  if (!user && isReferralCode(ind)) {
+    response.cookies.set(REFERRAL_COOKIE, ind.toUpperCase(), {
+      maxAge: REFERRAL_COOKIE_DAYS * 24 * 60 * 60,
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+    });
   }
 
   return response;

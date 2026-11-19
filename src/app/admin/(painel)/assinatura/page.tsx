@@ -16,6 +16,8 @@ import { SubscribeForm, type Discounts, type Quotes } from "@/components/admin/a
 import { CancelSubscriptionButton } from "@/components/admin/assinatura/cancel-button";
 import { CancelPlanChangeButton, ChangePlanButton } from "@/components/admin/assinatura/change-plan";
 import { BillingSummary, type BillingChange } from "@/components/admin/assinatura/billing-summary";
+import { ReferralCard } from "@/components/admin/assinatura/referral-card";
+import type { ReferralItem } from "@/lib/referral-public";
 
 export const dynamic = "force-dynamic";
 
@@ -57,7 +59,7 @@ export default async function AssinaturaPage() {
   const supabase = createClient();
 
   const ids: PaidPlanId[] = [...PAID_PLAN_IDS];
-  const [quoteRows, { data: sub }, freeLimit, available, { data: changes }, publicPlans, launchOffer] = await Promise.all([
+  const [quoteRows, { data: sub }, freeLimit, available, { data: changes }, publicPlans, launchOffer, { data: referralsRaw }] = await Promise.all([
     Promise.all(ids.map((id) => supabase.rpc("subscription_quote", { bid: business.id, p_plan: id }))),
     supabase
       .from("subscriptions")
@@ -79,7 +81,12 @@ export default async function AssinaturaPage() {
     getPublicPlans(),
     // cupom de lançamento no prazo (53)
     getLaunchOffer(),
+    // Indique e ganhe (56): só a matriz (a função devolve null para os outros papéis)
+    role === "owner" ? supabase.rpc("my_referrals") : Promise.resolve({ data: null }),
   ]);
+  const referrals = referralsRaw as
+    | { code: string | null; rewards: { guardado: number; aplicado: number }; items: ReferralItem[] }
+    | null;
   // valor esperado da próxima cobrança (plano da renovação + extras de agora)
   const renewalPlan = sub?.scheduled_plan_id ?? sub?.plan_id ?? null;
   const { data: renewalQuote } = renewalPlan
@@ -405,7 +412,7 @@ export default async function AssinaturaPage() {
           </div>
 
           {/* Cupom de lançamento (53): automático; o preço com desconto já vem nos valores abaixo */}
-          {/* PR 3 (indicação): o aviso de indicação entra aqui */}
+          {/* Indicação (56): card "Indique e ganhe" mais abaixo, para todos os estados */}
 
           {quotes ? (
             <SubscribeForm
@@ -420,6 +427,16 @@ export default async function AssinaturaPage() {
             <p className="text-sm text-muted-foreground">Os planos ainda não estão disponíveis para assinatura. Tente de novo em instantes.</p>
           )}
         </section>
+      )}
+
+      {/* Indique e ganhe (56): só a matriz */}
+      {role === "owner" && referrals?.code && (
+        <ReferralCard
+          code={referrals.code}
+          businessName={business.name}
+          rewards={{ guardado: Number(referrals.rewards.guardado), aplicado: Number(referrals.rewards.aplicado) }}
+          items={referrals.items ?? []}
+        />
       )}
 
       {/* Tabela comparativa dos 4 planos (o que inclui e o que NÃO inclui) */}

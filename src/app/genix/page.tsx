@@ -11,6 +11,7 @@ import { RevenueLimitsManager } from "@/components/genix/revenue-limits-manager"
 import { loadLimits } from "@/lib/faturamento-data";
 import { todayISO } from "@/lib/dates";
 import { BillingManager, type BillingOverview } from "@/components/genix/billing-manager";
+import { ReferralsManager, type GenixReferral } from "@/components/genix/referrals-manager";
 import { SearchVisibilityManager, type SearchOverview } from "@/components/genix/search-visibility-manager";
 import { asaas, type AsaasSubscription } from "@/lib/asaas";
 import { billingQuote } from "@/lib/billing";
@@ -60,7 +61,7 @@ async function loadBilling(supabase: ReturnType<typeof createClient>): Promise<B
 }
 
 export default async function GenixAdminPage({ searchParams }: Props) {
-  const aba = (["fichas", "whatsapp", "limites", "assinaturas", "buscadores"] as const).find((a) => a === searchParams.aba) ?? "nichos";
+  const aba = (["fichas", "whatsapp", "limites", "assinaturas", "indicacoes", "buscadores"] as const).find((a) => a === searchParams.aba) ?? "nichos";
   const supabase = createClient();
 
   // Só administradores da plataforma. Para os demais, a página "não existe".
@@ -87,6 +88,7 @@ export default async function GenixAdminPage({ searchParams }: Props) {
   ]);
   const limits = aba === "limites" ? await loadLimits() : [];
   const billing = aba === "assinaturas" ? await loadBilling(supabase) : [];
+  const referrals = aba === "indicacoes" ? await supabase.rpc("genix_referrals_overview") : null;
   // ocultar dos buscadores (30); erro = migration ainda não aplicada
   const search = aba === "buscadores" ? await supabase.rpc("genix_search_overview") : null;
 
@@ -129,6 +131,7 @@ export default async function GenixAdminPage({ searchParams }: Props) {
             { key: "whatsapp", label: "WhatsApp", href: "/genix?aba=whatsapp" },
             { key: "limites", label: "Limites de faturamento", href: "/genix?aba=limites" },
             { key: "assinaturas", label: "Assinaturas", href: "/genix?aba=assinaturas" },
+            { key: "indicacoes", label: "Indicações", href: "/genix?aba=indicacoes" },
             { key: "buscadores", label: "Buscadores", href: "/genix?aba=buscadores" },
           ].map((t) => (
             <Link
@@ -149,6 +152,8 @@ export default async function GenixAdminPage({ searchParams }: Props) {
           <NicheManager niches={list} />
         ) : aba === "assinaturas" ? (
           <BillingManager rows={billing} />
+        ) : aba === "indicacoes" ? (
+          <ReferralsManager rows={(referrals?.data ?? []) as GenixReferral[]} />
         ) : aba === "buscadores" ? (
           <SearchVisibilityManager rows={(search?.data ?? []) as SearchOverview[]} missing={!!search?.error} />
         ) : aba === "limites" ? (

@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { maskPhone } from "@/lib/format";
 import { SEGMENTS } from "@/lib/segments";
 import { SIGNUP_PREFILL_KEY } from "@/content/landing";
+import { attachReferral } from "./actions";
 
 // ---------------------------------------------------------------------
 // PARTE 1 — Utilitários
@@ -151,6 +152,9 @@ export function SignupForm({
       setError(code ? ERRORS[code] : "Sua conta foi criada, mas o espaço não. Toque em continuar para tentar de novo.");
       return;
     }
+
+    // 3) indicação (56): vincula a quem indicou, se a pessoa veio por um link ?ind=
+    await attachReferral().catch(() => null);
 
     router.replace("/admin?bem-vindo=1");
     router.refresh();

@@ -108,7 +108,14 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
     final (vencimento + 12 meses ≤ `ends_on`); mensal → anual no meio do desconto = anual cheio.
     Selo “Preço de lançamento até 31/12/2026 · por 12 meses” na Assinatura, `/` e `/para`; quem assinou vê
     “Desconto até dd/mm/aaaa; depois R$ X”. O código fica no banco para campanhas futuras (digitadas).
-  - Indicação: PR seguinte (espaço reservado na Assinatura).
+  - **Indique e ganhe (56):** card na Assinatura (só a matriz) com o link `/cadastro?ind=CODIGO`
+    (`businesses.referral_code`, fixo), copiar, WhatsApp com mensagem pronta e a lista (nome do espaço, data, situação:
+    cadastrou / assinou / pagou / prêmio). Vínculo **só no cadastro** (até 2 h, sem assinatura; cookie `genix_ind` de
+    30 dias gravado no middleware). Autoindicação barrada (mesmo dono, e-mail, WhatsApp; CPF/CNPJ conferido no Asaas no
+    pagamento). Prêmio: o indicado **paga** a 1ª cobrança de um plano pago → quem indicou ganha **1 mês grátis** (mensal:
+    a próxima cobrança vai 1 mês para frente; anual: renovação 1 mês depois). 1 prêmio por indicado; sem limite;
+    acumulam e saem **em sequência**; quem não tem assinatura paga guarda até a 1ª cobrança paga; estorno da 1ª cobrança
+    do indicado antes do uso cancela. Com o cupom (#50): a data final do desconto não muda, o preço segue o vencimento.
 - **Sem área da saúde nesta fase:** nada de prontuário, anamnese, alergias, medicamentos, gestação, dados clínicos.
   O segmento `psicologia_terapias` existe no banco mas **não é oferecido**. Campos de ficha técnica nunca de saúde.
   Os Termos/Privacidade publicados afirmam isso.
@@ -225,6 +232,15 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
   é desconto por pagamento antecipado (não serve). A virada para o cheio acontece no webhook (`PAYMENT_CREATED` compara
   com o vencimento da cobrança; `PAYMENT_CONFIRMED` confere o próximo vencimento) ou no “Sincronizar agora” do /genix;
   sem cron. Público: `launch_offer()` (anon) → `getLaunchOffer()`; `useOfferOpen` esconde a oferta quando o prazo passa.
+- **Indicação (56):** `referrals` (1 por indicado; `cadastrou`|`assinou`|`pagou`|`premio`|`bloqueado`) e `referral_rewards`
+  (1 por indicação; `guardado`|`aplicado`|`cancelado`|`bloqueado`, com cobrança afetada e `due_before`/`due_after`).
+  Vínculo: `referral_attach(código)` (o próprio usuário, via `attachReferral` do cadastro). O resto só pelo servidor:
+  `referral_mark_subscribed`, `referral_on_first_payment`, `referral_cancel_by_payment`, `referral_rewards_claim`/
+  `unclaim`; leitura `my_referrals()` (matriz) e `genix_referrals_overview()` (/genix → Indicações). Mês grátis =
+  **adiar** (o Asaas não aceita cobrança zerada): `applyReferralRewards` (`lib/referral.ts`) move cada cobrança PENDING e
+  o `nextDueDate` N meses, ajusta `current_period_end` e chama `applySubscriptionValues` (preço pelo novo vencimento).
+  Falha no meio do adiamento não devolve o prêmio (evita adiar duas vezes): fica anotado para conferir no /genix.
+  Webhook: pago → `onReferredPaid` + `applyReferralRewards`; `PAYMENT_REFUNDED`/`DELETED`/`CHARGEBACK` → cancela.
 - Migrations em `supabase/migrations` (01→17, já aplicadas). Novas: `18_...` em diante, **aditivas e reversíveis**.
   Nada destrutivo sem autorização. **Nunca rodar `supabase/seed` em produção.**
 
@@ -284,7 +300,7 @@ src/app/api/asaas/webhook/   webhook de pagamento
 src/components/              admin/* (por tela do painel), genix/, vitrine/, marketing/, auth/, ui/ (shadcn)
                              + componentes soltos (site-header, site-footer, business-card, niche-*, plans-comparison...)
 src/content/                 textos: ajuda.ts, landing.ts, planos.ts (o que cada plano inclui)
-src/lib/                     admin, asaas, billing (cobrança do extra), cash, cpf-cnpj, dates, format, legal, messages, niches, onboarding,
+src/lib/                     admin, asaas, billing (cobrança do extra), referral (indicação), referral-public, cash, cpf-cnpj, dates, format, legal, messages, niches, onboarding,
                              plan (servidor), plan-features (ordem dos planos, cadeados), plan-ids, plans-public, plans-server, segments, types, utils;
                              supabase/{client,server,admin,public,middleware} (public = sem cookies, só dados públicos)
 src/middleware.ts            sessão do Supabase e proteção das rotas

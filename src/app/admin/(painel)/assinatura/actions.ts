@@ -156,6 +156,9 @@ export async function startSubscription(input: {
     // final, e o histórico ganha "reaproveitado" (assim desistir desta fatura não anula o desconto já usado)
     if (q.discounted) await claimDiscount(biz.id, q.plan, nextDueDate, ctx.userId);
 
+    // indicação (56): o indicado assinou (situação "assinou" no card de quem indicou)
+    await admin.rpc("referral_mark_subscribed", { bid: biz.id });
+
     // 5) próximas cobranças pelo vencimento (ex.: o desconto acaba antes da 2ª cobrança).
     // Falha aqui não desfaz a assinatura: fica "pendente" para o webhook ou o /genix.
     if (q.discounted) {

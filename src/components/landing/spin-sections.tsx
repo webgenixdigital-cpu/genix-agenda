@@ -79,7 +79,7 @@ export function NeedSection() {
   );
 }
 
-/** Como resolve: 6 cards (dor em marrom + recurso + texto) */
+/** Como resolve: 9 cards (dor em marrom + recurso + texto + etiqueta do plano) */
 export function SolutionSection() {
   const s = LANDING_SOLUTION;
   return (
@@ -91,10 +91,11 @@ export function SolutionSection() {
         </div>
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {s.items.map((f) => (
-            <div key={f.title} className={`lp-reveal ${lpCard}`}>
+            <div key={f.title} className={`lp-reveal ${lpCard} flex flex-col items-start`}>
               <p className="mb-2 text-[13px] font-bold text-primary">{f.from}</p>
               <h3 className="mb-2 text-[21px] font-bold">{f.title}</h3>
-              <p className="text-muted-foreground">{f.text}</p>
+              <p className="mb-4 text-muted-foreground">{f.text}</p>
+              <span className="mt-auto inline-block rounded-full bg-secondary px-2.5 py-1 text-xs font-bold text-primary">{f.plan}</span>
             </div>
           ))}
         </div>

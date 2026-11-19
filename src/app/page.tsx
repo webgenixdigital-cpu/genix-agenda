@@ -11,8 +11,8 @@ import { ImplicationSection, NeedSection, ProblemSection, SolutionSection } from
 import { lpHeadTitle, lpKicker, lpSection, lpWrap } from "@/components/landing/styles";
 import { Testimonials } from "@/components/landing/testimonials";
 
-// Landing page do produto (protótipo aprovado: docs/landing/prototipo-v5.html).
-// Copy em src/content/landing.ts; preços da tabela plans (migrations 28a/28b).
+// Landing page do produto (protótipo aprovado: docs/landing/prototipo-v6.html).
+// Copy em src/content/landing.ts; preços da tabela plans (migrations 28a/28b/52) e lançamento de launch_offer() (53).
 
 export const metadata: Metadata = {
   title: LANDING_SEO.title,
@@ -48,7 +48,7 @@ export default async function Home() {
           </div>
         </section>
 
-        <LandingFaq />
+        <LandingFaq offer={offer} />
         <ClosingCta />
       </main>
       <LandingFooter />

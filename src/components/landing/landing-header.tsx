@@ -4,15 +4,15 @@ import { LANDING_NAV } from "@/content/landing";
 import { cn } from "@/lib/utils";
 import { lpBtnOutline, lpBtnSolid, lpWrap } from "./styles";
 
-/** Barra superior fixa da landing: logo · âncoras (some no celular) · Entrar · Testar grátis */
+/** Barra superior fixa da landing: logo · âncoras (some no celular) · Entrar · Começar grátis */
 export function LandingHeader() {
   return (
     <header className="sticky top-0 z-40 bg-background/90 backdrop-blur-md">
       <div className={`${lpWrap} flex h-[72px] items-center justify-between gap-2`}>
-        <Link href="/" className="flex min-h-11 shrink-0 items-center" data-testid="link-home">
-          {/* telas bem estreitas (< 360 px): só o ícone, para caber ao lado dos botões */}
-          <BrandIcon className="min-[360px]:hidden" />
-          <span className="hidden min-[360px]:contents">
+        <Link href="/" className="flex min-h-11 min-w-11 shrink-0 items-center" data-testid="link-home">
+          {/* telas estreitas (< 400 px): só o ícone, para caber ao lado dos botões */}
+          <BrandIcon className="min-[400px]:hidden" />
+          <span className="hidden min-[400px]:contents">
             <BrandLogo priority className="h-7 md:h-[34px]" />
           </span>
         </Link>

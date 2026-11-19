@@ -1,14 +1,20 @@
 import Link from "next/link";
 import { BrandLogo } from "@/components/brand-logo";
-import { LANDING_CLOSING, LANDING_FAQ, LANDING_FOOTER, LANDING_NAV } from "@/content/landing";
+import { LANDING_CLOSING, LANDING_FAQ, LANDING_FAQ_LAUNCH, LANDING_FOOTER, LANDING_NAV } from "@/content/landing";
 import { LEGAL } from "@/lib/legal";
+import { offerEndLabel, type LaunchOffer } from "@/lib/plans-public";
 import { MicroList } from "./hero";
 import { SpinQuestion } from "./spin-question";
 import { lpBtnGold, lpHeadTitle, lpKicker, lpSection, lpWrap } from "./styles";
 
-/** Perguntas frequentes (acordeão nativo, alinhado à esquerda) */
-export function LandingFaq() {
+/**
+ * Perguntas frequentes (acordeão nativo, alinhado à esquerda).
+ * A do preço de lançamento só entra com o cupom no prazo (launch_offer() já devolve null depois dele).
+ */
+export function LandingFaq({ offer = null }: { offer?: LaunchOffer | null }) {
   const f = LANDING_FAQ;
+  const items = [...f.items];
+  if (offer) items.splice(f.launchIndex, 0, LANDING_FAQ_LAUNCH(offerEndLabel(offer), offer.duration_months));
   return (
     <section id="duvidas" className={`${lpSection} scroll-mt-[72px]`}>
       <div className={lpWrap}>
@@ -17,7 +23,7 @@ export function LandingFaq() {
           <h2 className={lpHeadTitle}>{f.title}</h2>
         </div>
         <div className="mx-auto max-w-[760px]">
-          {f.items.map((item, i) => (
+          {items.map((item, i) => (
             <details key={item.q} className="group border-b py-4">
               <summary
                 className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-4 text-lg font-bold [&::-webkit-details-marker]:hidden"
@@ -47,7 +53,7 @@ export function ClosingCta() {
         <Link href={LANDING_NAV.signup.href} className={lpBtnGold} data-testid="btn-final-teste">
           {c.cta}
         </Link>
-        <MicroList items={c.micro} className="text-stone-300" />
+        <MicroList items={c.micro} className="text-stone-300" checkClassName="text-[#F2C078]" />
       </div>
     </section>
   );

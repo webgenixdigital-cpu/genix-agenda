@@ -22,20 +22,42 @@ export function MicroList({ items, className = "", checkClassName = "text-primar
 }
 
 /**
- * Hero (Situação), fundo escuro com foto opcional + gradiente por cima.
- * Desktop: texto à esquerda e celular à direita; até 899 px, uma coluna centralizada.
+ * Hero (Situação), fundo escuro.
+ * Com a foto de capa: só o texto (metade esquerda no desktop), a foto aparece à direita sem véu;
+ * no celular/tablet o texto fica por cima com um véu escuro mais forte (contraste AA).
+ * Sem a foto: texto à esquerda e celular ilustrado à direita; até 899 px, uma coluna centralizada.
  */
 export function Hero() {
   const h = LANDING_HERO;
+  const photo = !!HERO_IMAGE;
   return (
     <section className="relative flex items-center overflow-hidden bg-foreground py-24 text-[#f3ece4] md:min-h-[min(92vh,860px)] md:py-32">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_75%_30%,#5a3519,#1c1917_70%)]" aria-hidden>
-        {HERO_IMAGE && <Image src={HERO_IMAGE} alt="" fill priority sizes="100vw" className="object-cover" />}
-        <div className="absolute inset-0 bg-[linear-gradient(100deg,rgba(28,25,23,0.94)_0%,rgba(28,25,23,0.82)_45%,rgba(28,25,23,0.45)_100%)]" />
+        {photo ? (
+          <>
+            <Image
+              src={HERO_IMAGE}
+              alt=""
+              fill
+              priority
+              sizes="100vw"
+              className="object-cover object-[78%_center] min-[900px]:object-[70%_center]"
+            />
+            {/* celular/tablet: véu forte por igual; desktop: escuro só até ~55% da largura */}
+            <div className="absolute inset-0 bg-[rgba(28,25,23,0.8)] min-[900px]:hidden" />
+            <div className="absolute inset-0 hidden bg-[linear-gradient(90deg,rgba(28,25,23,0.94)_0%,rgba(28,25,23,0.9)_40%,rgba(28,25,23,0.72)_48%,rgba(28,25,23,0)_55%)] min-[900px]:block" />
+          </>
+        ) : (
+          <div className="absolute inset-0 bg-[linear-gradient(100deg,rgba(28,25,23,0.94)_0%,rgba(28,25,23,0.82)_45%,rgba(28,25,23,0.45)_100%)]" />
+        )}
       </div>
 
-      <div className={`${lpWrap} relative grid items-center gap-12 text-center min-[900px]:grid-cols-[1.05fr_0.95fr] min-[900px]:gap-16 min-[900px]:text-left`}>
-        <div>
+      <div
+        className={`${lpWrap} relative grid items-center gap-12 text-center min-[900px]:text-left ${
+          photo ? "" : "min-[900px]:grid-cols-[1.05fr_0.95fr] min-[900px]:gap-16"
+        }`}
+      >
+        <div className={photo ? "min-[900px]:max-w-[46%]" : undefined}>
           <span className={`${lpKicker} !text-[#F2C078]`}>{h.kicker}</span>
           <h1 className="font-bold text-[length:clamp(36px,5.4vw,60px)] leading-[1.15] tracking-[-0.01em] text-white">
             {h.title[0]}
@@ -45,7 +67,7 @@ export function Hero() {
           <HeroSignupForm />
           <MicroList items={h.micro} className="text-[#cbbfb3] min-[900px]:justify-start" checkClassName="text-[#F2C078]" />
         </div>
-        <PhoneMock />
+        {!photo && <PhoneMock />}
       </div>
     </section>
   );

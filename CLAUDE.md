@@ -183,7 +183,7 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
   (lista de visitas; confere saldo → `SALDO_EXCEDIDO`, validade, horário pela duração somada; data sem serviço é ignorada;
   data com problema é pulada). Depois da venda, em **qualquer** sessão de pacote: `package_visit_options` +
   `package_visit_set_services` (matriz, recepção e o profissional da própria data). Se o item 0 for desmarcado, outro
-  serviço marcado do mesmo pacote vira o principal (única exceção à regra da 31; histórico `package_services`).
+  serviço marcado do mesmo pacote vira o principal (histórico `package_services`; a troca pelo Editar é a 57).
   `sell_package_fixed`/`preview_package_sale` (39/45) continuam no banco, sem uso na tela.
 - **Pagamento pendente (49):** “Escolher depois” no Concluir (`complete_booking(id, 'pendente')`) e na venda de pacote
   (`sell_package_core(..., 'pendente', ...)`): concluído/vendido e usável, sem caixa, `payment_status = 'pending'`
@@ -193,11 +193,22 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
   `reopen_booking` (49) desfaz o lançamento do pago depois conferindo com o evento `payment_registered`. Lista:
   `pending_payments` (Agenda `?pagamentos=1`). Comissão/“Meus ganhos” contam (com aviso); faturamento/contador só o caixa.
   Grátis: sem pendência (não há caixa). Diálogo: `RegisterPaymentDialog` (provider da Agenda, tipo `payment`).
-- **Serviços do agendamento (31):** `booking_items` (item `position 0` = serviço original, nunca sai). Em `bookings`,
+- **Serviços do agendamento (31):** `booking_items` (item `position 0` = serviço principal; só sai pela troca da 57 ou pelo pacote da 48). Em `bookings`,
   `service_name`/`price`/`duration_min`/`end_time` são o **total** (“Corte + Barba”, soma − desconto), mantidos só por
   `recalc_booking`; editar só por `booking_add_item`, `booking_remove_item`, `booking_set_discount` (gatilho
   `guard_booking_totals` barra update direto; as funções ligam `genix.booking_edit`). Caixa = cobrado
   (`price` − itens `paid_by_package`). Limite de desconto do profissional: `businesses.staff_discount_max_pct`.
+- **Trocar o serviço principal (57):** `booking_change_service(id, serviço, item_do_pacote?, desvincular?)`, botão “Trocar
+  serviço” no Editar (`ChangeMainService`, com prévia do término e do valor). Só pending/confirmed (concluído: “Reabra o
+  atendimento”), quem pode editar, todos os planos. Sai o item 0 (ou o combo inteiro dele), entra o novo na posição 0;
+  adicionais e desconto ficam, início igual, `recalc_booking` refaz preço/duração. Confere meia-noite, bloqueio no trecho
+  novo, ocupado (`no_overlap` + gatilho do encaixe sobreposto) e, se ele mesmo for sobreposto, `overlay_slot_issue`;
+  encurtar não confere nada (como remover adicional). Profissional: desconto que passe do limite com o novo valor = recusa.
+  Pacote: item 0 pago pelo pacote só troca por serviço com saldo do **mesmo** pacote; serviço de fora exige desvincular
+  (`PACOTE_DESVINCULAR`; sai do pacote, passa a ser cobrado). Serviço → combo a partir do Profissional; combo nunca pelo
+  pacote. Histórico `service_changed` (de/para, `package: kept|unlinked`); não gera `confirmed`/`rescheduled` (WhatsApp
+  não reenvia a confirmação; véspera e antes do horário leem `bookings.service_name` na hora do envio).
+  `booking_edit_info` traz `main_service_id`, `main_package_id` e `package_options[].package_id`.
 - **Combos (32, Profissional e Equipe):** linha em `services` com `kind = 'combo'` (preço especial, duração = soma) +
   `combo_items`; grava só por `save_combo` (gatilho `guard_service_combo`). Agendar combo: `bookings.service_id` = combo e
   o gatilho do item 0 abre um item por serviço (`add_service_items`, preço proporcional, `combo_group`).

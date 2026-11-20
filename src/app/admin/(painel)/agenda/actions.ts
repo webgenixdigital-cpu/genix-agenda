@@ -724,7 +724,14 @@ export type EditItem = {
   package_item_id?: string | null;
 };
 /** Serviço de um pacote da cliente que pode pagar um adicional (saldo e validade na data) */
-export type EditPackageOption = { id: string; service_id: string; package_name: string; remaining: number };
+export type EditPackageOption = {
+  id: string;
+  service_id: string;
+  package_name: string;
+  remaining: number;
+  /** 57: pacote do serviço (para trocar o principal só dentro do mesmo pacote) */
+  package_id?: string;
+};
 export type EditService = {
   id: string;
   name: string;
@@ -749,6 +756,10 @@ export type BookingEditInfo = {
   items: EditItem[];
   services: EditService[];
   package_options?: EditPackageOption[];
+  /** 57: serviço (ou combo) principal do agendamento */
+  main_service_id?: string | null;
+  /** 57: pacote que paga o serviço principal (sessão de pacote); null = cobrado */
+  main_package_id?: string | null;
 };
 
 /** Conflitos ao aumentar o tempo: a tela oferece "Adicionar sem aumentar o tempo" */
@@ -818,6 +829,43 @@ export async function getBookingEditInfo(id: string): Promise<{ ok: true; info: 
       })),
     },
   };
+}
+
+// ---- Trocar o serviço principal (57_trocar_servico_principal) ----
+const CHANGE_ERRORS: Record<string, string> = {
+  STATUS_INVALIDO: "Só dá para trocar o serviço de agendamentos pendentes ou confirmados. Se já foi concluído, reabra o atendimento para trocar o serviço.",
+  SEM_MUDANCA: "Esse já é o serviço do agendamento.",
+  BLOQUEIO: "Com esse serviço, o atendimento entra num horário bloqueado. Remarque ou escolha outro serviço.",
+  JA_TEM_ENCAIXE: "Com esse serviço, este encaixe bate em outro encaixe sobreposto. Remarque ou escolha outro serviço.",
+  OCUPADO: "Com esse serviço, o atendimento bate no próximo horário da agenda. Remarque ou escolha outro serviço.",
+  LIVRE: "Com esse serviço, este encaixe sobreposto ficaria sem atendimento embaixo. Remarque ou escolha outro serviço.",
+  MEIA_NOITE: "Com esse serviço, o atendimento passaria da meia-noite. Remarque ou escolha outro serviço.",
+  PACOTE_DESVINCULAR: "Esse serviço não é do pacote. Confirme que a sessão sai do pacote e passa a ser cobrada.",
+  JA_NO_AGENDAMENTO: "Esse serviço do pacote já está nesta data. Use “Serviços do pacote nesta data”.",
+};
+
+export async function changeBookingService(
+  id: string,
+  serviceId: string,
+  /** serviço do MESMO pacote que passa a pagar o principal (sessão de pacote) */
+  packageItemId: string | null = null,
+  /** sessão de pacote trocada por serviço de fora: sai do pacote e passa a ser cobrada */
+  unlinkPackage = false
+): Promise<Result> {
+  await getEditorContext();
+  const supabase = createClient();
+  const { error } = await supabase.rpc("booking_change_service", {
+    p_booking: id,
+    p_service: serviceId,
+    p_package_item: packageItemId,
+    p_unlink_package: unlinkPackage,
+  });
+  if (error) {
+    const key = Object.keys(CHANGE_ERRORS).find((k) => error.message.includes(k));
+    return { ok: false, error: key ? CHANGE_ERRORS[key] : editError(error.message) };
+  }
+  refreshEdit();
+  return { ok: true };
 }
 
 export async function addBookingItem(

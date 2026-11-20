@@ -440,15 +440,19 @@ const AJUDA_TEXTOS = {
   },
   "editar-agendamento": {
     titulo: "Editar agendamento",
-    serve: "Acrescenta serviços a um atendimento (ex.: chegou para corte e quer barba também) e aplica desconto.",
+    serve:
+      "Troca o serviço principal, acrescenta serviços a um atendimento (ex.: chegou para corte e quer barba também) e aplica desconto.",
     passos: [
       "Toque em “Editar”.",
+      "Para mudar o serviço principal, toque em “Trocar serviço”, escolha o novo e confira o novo horário de término e o valor.",
       "Em “Adicionar serviço”, escolha o serviço e decida se aumenta o tempo.",
       "Em “Desconto”, escolha R$ ou % e informe o valor.",
     ],
     atencao: [
-      "O serviço original não sai, exceto nas sessões de pacote (veja “Serviços do pacote nesta data”).",
-      "O profissional só dá desconto até o limite definido em Configurações.",
+      "Na troca, o início continua o mesmo, os serviços adicionais e o desconto ficam. Se o novo serviço não couber (horário ocupado, bloqueio ou meia-noite), nada muda: remarque ou escolha outro.",
+      "Sessão de pacote: dá para trocar por outro serviço com saldo no mesmo pacote. Escolher um serviço de fora tira a sessão do pacote (o saldo volta) e ela passa a ser cobrada.",
+      "Só dá para trocar o serviço de agendamentos pendentes ou confirmados. Se já foi concluído, reabra o atendimento.",
+      "O profissional só dá desconto até o limite definido em Configurações. Se a troca deixar o desconto acima desse limite, peça para a matriz ou a recepção.",
     ],
   },
   concluir: {

@@ -21,6 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { PackageVisitServices } from "@/components/admin/agenda/package-visit-services";
 import { ActionTile } from "@/components/admin/agenda/action-tile";
+import { ChangeMainService } from "@/components/admin/agenda/change-main-service";
 import { brl, duration } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -49,7 +50,7 @@ export type ItemGroup = {
   duration: number;
   extends_time: boolean;
   paid_by_package: boolean;
-  /** tem o item 0: não pode ser removido */
+  /** tem o item 0 (serviço principal): não sai, mas pode ser trocado (57) */
   original: boolean;
 };
 
@@ -129,6 +130,8 @@ export function EditBookingDialog({
   customerName: string;
 }) {
   const { info, error, reload } = useBookingEditInfo(bookingId, open);
+  // 57: depois de trocar o principal, os "Serviços do pacote nesta data" recarregam
+  const [swaps, setSwaps] = useState(0);
   const [pending, start] = useTransition();
   const [serviceId, setServiceId] = useState("");
   const [extend, setExtend] = useState(true);
@@ -246,7 +249,7 @@ export function EditBookingDialog({
                       {g.combo && <p className="truncate text-xs text-muted-foreground">{g.parts.join(" + ")}</p>}
                       <p className="text-xs text-muted-foreground">
                         {g.original
-                          ? g.combo ? "combo original" : "serviço original"
+                          ? g.combo ? "combo principal" : "serviço principal"
                           : g.extends_time
                             ? `+ ${duration(g.duration)} no atendimento`
                             : "sem aumentar o tempo"}
@@ -269,10 +272,27 @@ export function EditBookingDialog({
                   </li>
                 ))}
               </ul>
+              {/* 57: trocar o serviço principal (só pendente/confirmado) */}
+              {canEdit ? (
+                <ChangeMainService
+                  bookingId={bookingId}
+                  info={info}
+                  onChanged={async () => {
+                    setSwaps((n) => n + 1);
+                    await reload();
+                  }}
+                />
+              ) : (
+                info.status === "completed" && (
+                  <p className="text-xs text-muted-foreground" data-testid="aviso-reabrir-para-trocar">
+                    Reabra o atendimento para trocar o serviço.
+                  </p>
+                )
+              )}
             </section>
 
             {/* Sessão de pacote: quais serviços do pacote nesta data (48) */}
-            <PackageVisitServices bookingId={bookingId} open={open} onSaved={reload} />
+            <PackageVisitServices key={swaps} bookingId={bookingId} open={open} onSaved={reload} />
 
             {/* Adicionar serviço */}
             {canEdit && (

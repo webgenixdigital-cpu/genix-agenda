@@ -5,7 +5,7 @@ import { ArrowLeft, Cake, MessageCircle, StickyNote } from "lucide-react";
 import { todayInZone } from "@/lib/dates";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminContext } from "@/lib/admin";
-import { brl, whatsappLink } from "@/lib/format";
+import { brl, duration, whatsappLink } from "@/lib/format";
 import { formatPhone } from "@/lib/phone";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { AutoConfirmBadge } from "@/components/admin/auto-confirm-badge";
@@ -58,6 +58,7 @@ const ACTION_LABEL: Record<string, string> = {
   reopened: "Atendimento reaberto",
   payment_registered: "Pagamento registrado",
   package_services: "Serviços do pacote alterados",
+  service_changed: "Serviço trocado",
 };
 
 const METHOD_LABEL: Record<string, string> = { pix: "Pix", dinheiro: "Dinheiro", credito: "Crédito", debito: "Débito" };
@@ -104,6 +105,15 @@ function editDetail(action: string, d: Record<string, unknown> | null) {
     return `: ${pct}${brl(Number(d.amount ?? 0))}${typeof d.reason === "string" && d.reason ? ` · ${d.reason}` : ""}`;
   }
   if (action === "discount_removed") return `: ${brl(Number(d.amount ?? 0))}`;
+  // 57_trocar_servico_principal: "Serviço trocado de X para Y"
+  if (action === "service_changed") {
+    const side = (v: unknown) => {
+      const x = (v ?? {}) as Record<string, unknown>;
+      return `${x.combo ? "combo " : ""}${String(x.service ?? "")} (${brl(Number(x.price ?? 0))} · ${duration(Number(x.duration ?? 0))})`;
+    };
+    const pkg = d.package === "unlinked" ? " · saiu do pacote, passa a ser cobrado" : d.package === "kept" ? " · pelo pacote" : "";
+    return ` de ${side(d.from)} para ${side(d.to)}${pkg}`;
+  }
   // 48_pacote_servicos_por_data
   if (action === "package_services") return `: ${String(d.before ?? "")} → ${String(d.after ?? "")}`;
   // 49_pagamento_depois

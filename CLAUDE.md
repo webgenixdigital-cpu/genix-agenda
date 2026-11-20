@@ -82,7 +82,7 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
   - **Básico** (R$ 28,70/mês | R$ 287,00/ano): Grátis + agendamentos ilimitados, **encaixe e encaixe sobreposto**
     (inclusive no Remarcar), **bloqueios** (almoço, folga fixa, férias, feriados), **fila manual de véspera**,
     recorrência e financeiro (caixa, pagar depois, faturamento, contador). 1 profissional, sem selo.
-  - **Profissional** (R$ 62,70/mês | R$ 627,00/ano): Básico + retornos, pacotes, combos e WhatsApp automático.
+  - **Profissional** (R$ 62,70/mês | R$ 627,00/ano): Básico + retornos, pacotes, combos, metas e WhatsApp automático.
     1 profissional; sem acessos de equipe nem profissional extra.
   - **Equipe** (R$ 121,70/mês | R$ 1.217,00/ano): até 3 profissionais + R$ 18,70/mês (R$ 187,00/ano) por extra; acessos
     da equipe (recepção, profissional, "Meus ganhos"), comissões e salão-parceiro.
@@ -241,6 +241,13 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
   o `nextDueDate` N meses, ajusta `current_period_end` e chama `applySubscriptionValues` (preço pelo novo vencimento).
   Falha no meio do adiamento não devolve o prêmio (evita adiar duas vezes): fica anotado para conferir no /genix.
   Webhook: pago → `onReferredPaid` + `applyReferralRewards`; `PAYMENT_REFUNDED`/`DELETED`/`CHARGEBACK` → cancela.
+- **Metas (58, Profissional e Equipe):** `business_goals` (faturamento, atendimentos, ticket médio, clientes novos; período
+  até 366 dias; `professional_id` só no Equipe). Tela `/admin/metas` (fora do Financeiro): matriz e recepção criam/editam,
+  demo só lê, staff não vê. Escrita só por `save_goal` / `delete_goal` (conferem que a meta é do `p_business`);
+  leitura `goals_with_progress` devolve **só totais** (a recepção continua sem ler `cash_entries`). Faturamento = entradas
+  do caixa pela data do pagamento; atendimentos = concluídos pela data do atendimento; ticket médio = média das entradas
+  ligadas a atendimento; cliente novo = 1º atendimento concluído do espaço no período. Meta de profissional: só entradas de
+  atendimentos dele (sem pacote/produto). Ritmo em dias corridos (`goalPace`, `lib/goals.ts`).
 - Migrations em `supabase/migrations` (01→17, já aplicadas). Novas: `18_...` em diante, **aditivas e reversíveis**.
   Nada destrutivo sem autorização. **Nunca rodar `supabase/seed` em produção.**
 
@@ -292,7 +299,7 @@ src/app/                     páginas públicas: / (landing SPIN do produto: cop
                              rotas: /demo, /demo/sair, /auth/confirm (route.ts)
 src/app/admin/login/         login do painel (page.tsx, login-form.tsx); admin/actions.ts na raiz
 src/app/admin/(painel)/      layout.tsx e page.tsx (Início) na raiz; pastas com page.tsx + actions.ts:
-                             agenda, clientes (+ [id]/page.tsx), lembretes, bloqueios, servicos, financeiro,
+                             agenda, clientes (+ [id]/page.tsx), lembretes, bloqueios, servicos, financeiro, metas,
                              assinatura, configuracoes; profissionais (+ access-actions.ts);
                              ganhos (só page.tsx); onboarding (só actions.ts)
 src/app/genix/               administração da plataforma (page.tsx, actions.ts, field-actions.ts, search-actions.ts...)

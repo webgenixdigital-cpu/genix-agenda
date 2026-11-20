@@ -19,7 +19,8 @@ export const planAllows = (kind: PlanKind, min: MinPlan) => RANK[kind] >= RANK[m
 
 /** Itens do menu com cadeado, conforme o plano */
 export function lockedHrefsFor(kind: PlanKind): string[] {
-  if (!planAllows(kind, "basico")) return ["/admin/bloqueios", "/admin/financeiro", "/admin/lembretes"];
+  if (!planAllows(kind, "basico")) return ["/admin/bloqueios", "/admin/financeiro", "/admin/lembretes", "/admin/metas"];
+  if (!planAllows(kind, "profissional")) return ["/admin/metas"];
   return [];
 }
 
@@ -32,7 +33,8 @@ export type LockedFeatureKey =
   | "pacotes"
   | "combos"
   | "encaixe"
-  | "recorrencia";
+  | "recorrencia"
+  | "metas";
 
 export const LOCKED_FEATURES: Record<
   LockedFeatureKey,
@@ -127,6 +129,16 @@ export const LOCKED_FEATURES: Record<
       "Cancele uma data ou a série inteira",
     ],
     minPlan: "basico",
+  },
+  metas: {
+    title: "Metas",
+    description: "Defina metas de faturamento, atendimentos, ticket médio e clientes novos e veja quanto falta por dia.",
+    bullets: [
+      "Progresso de cada meta, atualizado com o caixa e a agenda",
+      "Quanto falta e quanto precisa por dia até o fim do período",
+      "No plano Equipe, metas por profissional",
+    ],
+    minPlan: "profissional",
   },
 };
 

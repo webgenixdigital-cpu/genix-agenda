@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BellRing, CalendarDays, CalendarOff, CreditCard, ExternalLink, LayoutDashboard,
-  HandCoins, Lock, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Scissors, Settings, UserRound, Users, Wallet,
+  HandCoins, Lock, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Scissors, Settings, Target, UserRound, Users, Wallet,
 } from "lucide-react";
 import { signOut } from "@/app/admin/actions";
 import { BrandIcon, BrandLogo } from "@/components/brand-logo";
@@ -18,7 +18,8 @@ type Role = "owner" | "reception" | "staff" | "viewer";
 const ALL: Role[] = ["owner", "reception", "staff", "viewer"];
 const OWNER: Role[] = ["owner", "viewer"];
 
-const NAV: { href: string; label: string; icon: typeof LayoutDashboard; roles: Role[] }[] = [
+// lock: texto do cadeado quando o recurso não vale para todos os planos pagos
+const NAV: { href: string; label: string; icon: typeof LayoutDashboard; roles: Role[]; lock?: string }[] = [
   { href: "/admin", label: "Início", icon: LayoutDashboard, roles: ALL },
   { href: "/admin/agenda", label: "Agenda", icon: CalendarDays, roles: ALL },
   { href: "/admin/clientes", label: "Clientes", icon: UserRound, roles: ALL },
@@ -27,6 +28,10 @@ const NAV: { href: string; label: string; icon: typeof LayoutDashboard; roles: R
   { href: "/admin/ganhos", label: "Meus ganhos", icon: HandCoins, roles: ["staff"] },
   { href: "/admin/servicos", label: "Serviços", icon: Scissors, roles: OWNER },
   { href: "/admin/profissionais", label: "Equipe", icon: Users, roles: OWNER },
+  {
+    href: "/admin/metas", label: "Metas", icon: Target, roles: ["owner", "reception", "viewer"],
+    lock: "planos Profissional e Equipe",
+  },
   { href: "/admin/financeiro", label: "Financeiro", icon: Wallet, roles: OWNER },
   { href: "/admin/assinatura", label: "Assinatura", icon: CreditCard, roles: ["owner"] },
   { href: "/admin/configuracoes", label: "Configurações", icon: Settings, roles: OWNER },
@@ -116,7 +121,7 @@ function NavContent({
         )}
         onScroll={hideTip}
       >
-        {NAV.filter((i) => i.roles.includes(role)).map(({ href, label, icon: Icon }) => {
+        {NAV.filter((i) => i.roles.includes(role)).map(({ href, label, icon: Icon, lock = "planos pagos" }) => {
           const active = href === "/admin" ? pathname === "/admin" : pathname.startsWith(href);
           const locked = lockedHrefs.includes(href);
           return (
@@ -132,14 +137,14 @@ function NavContent({
                 collapsed ? "justify-center" : "px-3",
                 active ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
               )}
-              {...tipProps(locked ? `${label} (planos pagos)` : label)}
+              {...tipProps(locked ? `${label} (${lock})` : label)}
             >
               <Icon className={cn("h-[18px] w-[18px] shrink-0", active && "text-primary")} />
               <span className={collapsed ? "sr-only" : "flex-1 truncate"}>{label}</span>
               {locked && (
                 <Lock
                   className={cn("text-muted-foreground", collapsed ? "absolute right-1 top-1 h-3 w-3" : "h-3.5 w-3.5")}
-                  aria-label="Recurso dos planos pagos"
+                  aria-label={`Recurso dos ${lock}`}
                 />
               )}
             </Link>

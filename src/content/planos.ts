@@ -50,6 +50,7 @@ export function planFeatureRows(limit: number, included: number): PlanFeatureRow
     { label: "Financeiro: caixa, faturamento e contador", values: { gratis: false, basico: true, profissional: true, equipe: true } },
     { label: "Retornos (hora de voltar)", values: { gratis: false, basico: false, profissional: true, equipe: true } },
     { label: "Pacotes de sessões e combos", values: { gratis: false, basico: false, profissional: true, equipe: true } },
+    { label: "Metas de faturamento, atendimentos e clientes", values: { gratis: false, basico: false, profissional: true, equipe: true } },
     { label: "WhatsApp automático (ativação assistida)", values: { gratis: false, basico: false, profissional: true, equipe: true } },
     { label: "Acessos da equipe, comissões e salão-parceiro", values: { gratis: false, basico: false, profissional: false, equipe: true } },
   ];
@@ -80,7 +81,7 @@ export const PLAN_SUMMARY: Record<PlanKind, { tagline: string; items: (limit: nu
     items: () => [
       "Tudo do Básico",
       "WhatsApp automático (ativação assistida)",
-      "Retornos, pacotes e combos",
+      "Retornos, pacotes, combos e metas",
       "Para fidelizar e vender mais",
     ],
   },

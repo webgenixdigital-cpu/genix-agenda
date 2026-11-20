@@ -29,7 +29,8 @@ const DURATIONS = [10, 15, 20, 30, 40, 45, 50, 60, 75, 90, 105, 120, 150, 180, 2
 
 /** "12345" → "123,45" (digita só números, vírgula automática) */
 export function maskMoney(raw: string) {
-  const digits = raw.replace(/\D/g, "").slice(0, 8);
+  // zeros à esquerda (o "0,00" inicial) não contam no limite de 8 dígitos
+  const digits = raw.replace(/\D/g, "").replace(/^0+/, "").slice(0, 8);
   const cents = Number(digits || "0");
   return (cents / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }

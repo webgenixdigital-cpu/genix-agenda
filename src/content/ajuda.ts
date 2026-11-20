@@ -76,6 +76,24 @@ const AJUDA_TEXTOS = {
     ],
     atencao: ["Recurso dos planos Profissional e Equipe."],
   },
+  metas: {
+    titulo: "Metas",
+    serve:
+      "Mostra onde você quer chegar no período (faturamento, atendimentos, ticket médio ou clientes novos), quanto já fez e quanto precisa por dia até o fim.",
+    passos: [
+      "Toque em “Nova meta”, escolha o que medir e o valor.",
+      "Escolha o período: “Este mês”, “Próximo mês” ou as datas que quiser (até 1 ano).",
+      "No plano Equipe, escolha se a meta é do espaço todo ou de um profissional.",
+      "Acompanhe aqui: “No ritmo” quer dizer que, mantendo o passo, você bate a meta no prazo.",
+    ],
+    atencao: [
+      "Faturamento e ticket médio contam pela data do pagamento, como no Financeiro. Atendimentos contam pela data do atendimento. Quem foi atendido em 30/11 e pagou em 02/12 conta como atendimento em novembro e como dinheiro em dezembro.",
+      "A meta de um profissional não conta venda de pacote nem de produto, só o que entrou pelos atendimentos dele.",
+      "Cliente novo é quem fez o primeiro atendimento no período. Só ter a ficha cadastrada não conta.",
+      "A recepção vê e edita as metas, mas só os totais: os lançamentos do caixa continuam só com a matriz.",
+      "Recurso dos planos Profissional e Equipe.",
+    ],
+  },
   bloqueios: {
     titulo: "Bloqueios",
     serve: "Fecha horários na agenda (férias, folga, almoço, curso) para ninguém marcar neles pela vitrine.",

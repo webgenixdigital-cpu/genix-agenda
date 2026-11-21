@@ -271,7 +271,7 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
   **3 últimos dias do teste** (cota 20/dia); Grátis, Básico, Profissional e o começo do teste veem o cadeado; staff e demo não veem.
   “Pago” **não** é só `plan_kind = equipe`: cortesia Equipe, assinatura de plano Equipe em
   active/past_due ainda tratada como Equipe; conta sem assinatura = bloqueada (contas de teste: cortesia Equipe). Regra em `agentAccess` (`lib/agente/access.ts`) e no banco (`agent_access`,
-  `ai_usage_hit` atômico → `COTA_ESGOTADA`; falha do Gemini devolve o pedido com `ai_usage_refund`; histórico de 10 trocas; limites em
+  `ai_usage_hit` atômico → `COTA_ESGOTADA`; falha do Gemini devolve o pedido com `ai_usage_refund`; refund e `ai_usage_tokens` só service_role, chamados pela rota com o client admin; `agent_access` sem grant para authenticated; histórico de 10 trocas; limites em
   `plans.ai_daily_limit` 500 / `ai_trial_daily_limit` 20; uso em `ai_usage`). Fase 1 só tira dúvidas (instrução em
   `lib/agente/instrucao.ts`: Ajuda + planos do banco); não lê dados do espaço. Plano das próximas fases: `docs/agente-genix-plano.md`.
 - **Metas (58, Profissional e Equipe):** `business_goals` (faturamento, atendimentos, ticket médio, clientes novos; período

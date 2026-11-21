@@ -25,7 +25,10 @@
 --     1 pedido de forma atômica; devolve quantos restam; COTA_ESGOTADA sem
 --     contar;
 --   • ai_usage_refund(bid): devolve 1 pedido quando o Gemini falha;
---   • ai_usage_tokens(bid, n): soma os tokens da resposta (acompanhar custo).
+--   • ai_usage_tokens(bid, n): soma os tokens da resposta (acompanhar custo);
+--   • refund e tokens: SÓ service_role (a rota chama pelo client admin,
+--     depois de conferir o papel); agent_access: sem grant para
+--     authenticated (só por dentro do ai_usage_hit e no SQL Editor).
 -- Reversão comentada no final.
 -- =====================================================================
 
@@ -87,8 +90,10 @@ begin
 end;
 $$;
 
-revoke all on function agent_access(uuid) from public, anon;
-grant execute on function agent_access(uuid) to authenticated;
+-- Sem grant para authenticated: diria o plano de QUALQUER espaço. Só é usada por dentro do
+-- ai_usage_hit (security definer) e pela conferência no SQL Editor; o código usa agentAccess (TS).
+revoke all on function agent_access(uuid) from public, anon, authenticated;
+grant execute on function agent_access(uuid) to service_role;
 
 
 -- =====================================================================
@@ -170,6 +175,9 @@ grant execute on function ai_usage_hit(uuid) to authenticated;
 
 -- =====================================================================
 -- PARTE 4b — Devolver 1 pedido (o Gemini falhou: não conta na cota)
+-- SÓ service_role: a rota /api/agente chama pelo client admin, depois de
+-- conferir o papel e contar o pedido (ai_usage_hit). Pelo navegador,
+-- a matriz/recepção poderia chamar direto e burlar a cota.
 -- =====================================================================
 create or replace function ai_usage_refund(p_business uuid)
 returns void
@@ -178,10 +186,6 @@ as $$
 declare
   v_day date;
 begin
-  if coalesce(member_role_of(p_business) in ('owner', 'reception'), false) = false then
-    raise exception 'SEM_PERMISSAO';
-  end if;
-
   select (now() at time zone coalesce(b.timezone, 'America/Sao_Paulo'))::date into v_day
     from businesses b where b.id = p_business;
 
@@ -190,12 +194,13 @@ begin
 end;
 $$;
 
-revoke all on function ai_usage_refund(uuid) from public, anon;
-grant execute on function ai_usage_refund(uuid) to authenticated;
+revoke all on function ai_usage_refund(uuid) from public, anon, authenticated;
+grant execute on function ai_usage_refund(uuid) to service_role;
 
 
 -- =====================================================================
 -- PARTE 5 — Somar tokens da resposta
+-- SÓ service_role (mesmo motivo do refund: chamado pela rota, client admin)
 -- =====================================================================
 create or replace function ai_usage_tokens(p_business uuid, p_tokens int)
 returns void
@@ -204,9 +209,6 @@ as $$
 declare
   v_day date;
 begin
-  if coalesce(member_role_of(p_business) in ('owner', 'reception'), false) = false then
-    raise exception 'SEM_PERMISSAO';
-  end if;
   if p_tokens is null or p_tokens <= 0 then
     return;
   end if;
@@ -219,8 +221,8 @@ begin
 end;
 $$;
 
-revoke all on function ai_usage_tokens(uuid, int) from public, anon;
-grant execute on function ai_usage_tokens(uuid, int) to authenticated;
+revoke all on function ai_usage_tokens(uuid, int) from public, anon, authenticated;
+grant execute on function ai_usage_tokens(uuid, int) to service_role;
 
 commit;
 

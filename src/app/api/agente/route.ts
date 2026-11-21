@@ -9,6 +9,7 @@ import { montarInstrucao } from "@/lib/agente/instrucao";
 import { todayInZone } from "@/lib/dates";
 import { getPlanContext } from "@/lib/plan";
 import { normalizePlans, PLAN_COLUMNS } from "@/lib/plans-public";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -89,8 +90,18 @@ export async function POST(req: Request) {
     { role: "user", parts: [{ text: body.message }] },
   ];
 
+  // refund e tokens são só service_role (60): o papel já foi conferido acima e o pedido já foi contado no ai_usage_hit
+  // (sem a chave de serviço, a resposta segue; só não devolve a cota nem soma os tokens)
+  let admin: ReturnType<typeof createAdminClient> | null = null;
+  try {
+    admin = createAdminClient();
+  } catch {
+    console.error("[agente] SUPABASE_SERVICE_ROLE_KEY ausente: sem refund/tokens");
+  }
   // falha do Gemini não conta na cota do dia
-  const refund = () => supabase.rpc("ai_usage_refund", { p_business: ctx.business.id }).then(() => undefined);
+  const refund = async () => {
+    if (admin) await admin.rpc("ai_usage_refund", { p_business: ctx.business.id });
+  };
 
   try {
     const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
@@ -107,7 +118,7 @@ export async function POST(req: Request) {
 
     const reply = res.text?.trim();
     const tokens = res.usageMetadata?.totalTokenCount ?? 0;
-    if (tokens > 0) await supabase.rpc("ai_usage_tokens", { p_business: ctx.business.id, p_tokens: tokens });
+    if (tokens > 0 && admin) await admin.rpc("ai_usage_tokens", { p_business: ctx.business.id, p_tokens: tokens });
     if (!reply) {
       await refund();
       return fail(502, "A Nix não conseguiu responder essa. Tente perguntar de outro jeito.");

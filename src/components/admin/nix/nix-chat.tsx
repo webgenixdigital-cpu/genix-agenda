@@ -24,6 +24,32 @@ const SUGESTOES = [
 const br = (iso: string) =>
   new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" }).format(new Date(iso));
 
+/**
+ * Texto da Nix: só **negrito** vira <strong>; listas com "* " / "- " viram "• "; "#" de título sai.
+ * Sem HTML vindo do modelo (React escapa o resto).
+ */
+function NixText({ text }: { text: string }) {
+  const lines = text
+    .split("\n")
+    .map((l) => l.replace(/^\s*#{1,6}\s+/, "").replace(/^(\s*)[*-]\s+/, "$1• "));
+  return (
+    <>
+      {lines.map((line, i) => (
+        <span key={i}>
+          {line.split(/(\*\*[^*]+\*\*)/g).map((part, j) =>
+            part.startsWith("**") && part.endsWith("**") && part.length > 4 ? (
+              <strong key={j}>{part.slice(2, -2)}</strong>
+            ) : (
+              part
+            )
+          )}
+          {i < lines.length - 1 && "\n"}
+        </span>
+      ))}
+    </>
+  );
+}
+
 export function NixChat({ mode, trialEndsAt }: { mode: Mode; trialEndsAt?: string | null }) {
   const [open, setOpen] = useState(false);
   const [msgs, setMsgs] = useState<Msg[]>([]);
@@ -148,7 +174,7 @@ export function NixChat({ mode, trialEndsAt }: { mode: Mode; trialEndsAt?: strin
                       m.role === "user" ? "ml-auto bg-primary text-primary-foreground" : "bg-secondary text-foreground"
                     )}
                   >
-                    {m.text}
+                    {m.role === "model" ? <NixText text={m.text} /> : m.text}
                   </div>
                 ))}
                 {sending && (

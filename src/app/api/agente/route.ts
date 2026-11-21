@@ -1,7 +1,7 @@
 // Nix (assistente) — Fase 1: dúvidas de uso, sem dados do espaço.
 // Acesso: Equipe pago ou últimos 3 dias do teste (lib/agente/access.ts + agent_access no banco, 60).
 // Cota diária: ai_usage_hit (60). Chave e modelo só no servidor (GEMINI_API_KEY, GEMINI_MODEL).
-import { ApiError, GoogleGenAI, type Content } from "@google/genai";
+import { ApiError, GoogleGenAI, ThinkingLevel, type Content } from "@google/genai";
 import { NextResponse } from "next/server";
 import { getAdminContext } from "@/lib/admin";
 import { agentAccess, agentEnabled } from "@/lib/agente/access";
@@ -17,10 +17,13 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 /** Modelo Flash estável (não usar alias -latest); trocar pela variável sem mexer no código */
-const DEFAULT_MODEL = "gemini-3.8-flash";
+const DEFAULT_MODEL = "gemini-3.6-flash";
 
 const MAX_MESSAGE = 1000;
 const MAX_TURN = 2000;
+/** tempo de cada tentativa no Gemini (2 tentativas cabem no maxDuration de 60 s) */
+const ATTEMPT_MS = 25_000;
+
 /** trocas (pergunta + resposta) anteriores enviadas ao modelo */
 const MAX_HISTORY = 10;
 
@@ -103,18 +106,32 @@ export async function POST(req: Request) {
     if (admin) await admin.rpc("ai_usage_refund", { p_business: ctx.business.id });
   };
 
-  try {
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
-    const res = await ai.models.generateContent({
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+  const ask = () =>
+    ai.models.generateContent({
       model: process.env.GEMINI_MODEL || DEFAULT_MODEL,
       contents,
       config: {
         systemInstruction,
         temperature: 0.3,
         maxOutputTokens: 1024,
-        abortSignal: AbortSignal.timeout(45_000),
+        // dúvidas de uso não precisam de raciocínio longo: responde mais rápido e gasta menos
+        thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
+        abortSignal: AbortSignal.timeout(ATTEMPT_MS),
       },
     });
+
+  try {
+    let res: Awaited<ReturnType<typeof ask>>;
+    try {
+      res = await ask();
+    } catch (e) {
+      // travou (tempo esgotado) ou o Google está sobrecarregado/instável: 1 nova tentativa
+      const status = e instanceof ApiError ? e.status : 0;
+      if (status !== 0 && status !== 500 && status !== 503) throw e;
+      console.warn("[agente] gemini nova tentativa", status, e instanceof Error ? e.message : e);
+      res = await ask();
+    }
 
     const reply = res.text?.trim();
     const tokens = res.usageMetadata?.totalTokenCount ?? 0;
@@ -129,7 +146,9 @@ export async function POST(req: Request) {
     const status = e instanceof ApiError ? e.status : 0;
     console.error("[agente] gemini", status, e instanceof Error ? e.message : e);
     await refund();
-    if (status === 429) return fail(429, "A Nix está recebendo muitas perguntas agora. Tente de novo em 1 minuto.");
+    // 429 = limite do Google; 503 = modelo sobrecarregado (pico de uso, passa sozinho)
+    if (status === 429 || status === 503)
+      return fail(429, "A Nix está recebendo muitas perguntas agora. Tente de novo em 1 minuto.");
     return fail(502, "A Nix não conseguiu responder agora. Tente de novo em instantes.");
   }
 }

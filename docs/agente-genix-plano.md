@@ -24,7 +24,7 @@ O que se aproveita da versão 1: a rota `/api/chat-bot`, o componente `SupportCh
 ## 2. Estrutura do app (mapa para o agente)
 
 ### 2.1 Stack
-Next.js 14.2 (App Router, `src/`) · React 18 · TypeScript strict · Tailwind 3 + shadcn 2.3 · Supabase (Postgres + RLS + Auth, `@supabase/ssr`) · Asaas · Resend · Vercel. **Novo:** `@google/genai` (modelo `gemini-2.5-flash`).
+Next.js 14.2 (App Router, `src/`) · React 18 · TypeScript strict · Tailwind 3 + shadcn 2.3 · Supabase (Postgres + RLS + Auth, `@supabase/ssr`) · Asaas · Resend · Vercel. **Novo:** `@google/genai` (modelo Flash estável em `GEMINI_MODEL`; o 2.5 Flash foi descontinuado).
 
 ### 2.2 Telas do painel (`src/app/admin/(painel)/`)
 | Rota | O que é | Papéis | Plano |
@@ -134,7 +134,7 @@ Você é a **Nix**, assistente de gestão do Genix Agenda para `{nome do espaço
 
 ## 4. Banco (novas migrations, aditivas e reversíveis)
 
-### 57_agente_uso.sql (Fase 1)
+### 60_agente_uso.sql (Fase 1; o 57 ficou com “trocar serviço principal” e o 59 com a vitrine)
 ```sql
 create table public.ai_usage (
   business_id uuid not null references businesses(id) on delete cascade,
@@ -170,7 +170,7 @@ Arquivo completo em `supabase/migrations/58_metas.sql`. Resumo:
 
 A tela de Metas (`/admin/metas`, fora do Financeiro para a Recepção poder abrir; planos **Profissional e Equipe**) existe por si só; a Nix só a consulta e propõe metas.
 
-### 59_agente_conversas.sql (opcional, Fase 5)
+### 61_agente_conversas.sql (opcional, Fase 5)
 `ai_conversations` / `ai_messages` para guardar o histórico entre sessões, com retenção de 90 dias. Até lá o histórico vive só na página.
 
 ---
@@ -198,11 +198,11 @@ A tela de Metas (`/admin/metas`, fora do Financeiro para a Recepção poder abri
 | Fase | Branch | Entrega | Banco |
 |---|---|---|---|
 | **0. Metas** | `feat/metas` | Tela `/admin/metas` (Profissional e Equipe; matriz e recepção; meta por profissional no Equipe) | 58 |
-| **1. Base** | `feat/agente-base` | Rota `/api/agente` + `SupportChat` (versão 1 aproveitada), só owner/reception, `agentAccess` (Equipe pago + 3 últimos dias do teste), cadeado + CTA nos outros planos, planos lidos de `plans`, cota diária, `AGENTE_ENABLED`, escondido na demo | 57 |
+| **1. Base** | `feat/agente-base` | Rota `/api/agente` + `NixChat` (escrito do zero: a versão 1 não estava no repositório), só owner/reception, `agentAccess` (Equipe pago + 3 últimos dias do teste), cadeado + CTA nos outros planos, planos lidos de `plans`, cota diária, `AGENTE_ENABLED`, escondido na demo | 60 |
 | **2. Leitura** | `feat/agente-leitura` | Function calling com as ferramentas de leitura; resumo ao abrir; comparação de períodos | — |
 | **3. Ações** | `feat/agente-acoes` | Propostas + cartões de confirmação (caixa, confirmar, pagamento, agendamento) | — |
 | **4. Metas na Nix** | `feat/agente-metas` | Ferramentas `consultar_metas`/`propor_meta` sobre a 58 | — |
-| **5. Memória** | `feat/agente-historico` | Histórico salvo entre sessões | 59 |
+| **5. Memória** | `feat/agente-historico` | Histórico salvo entre sessões | 61 |
 
 Cada fase: `npx tsc --noEmit` + `npm run lint` + `npm run build` + `test:responsivo` no painel (o botão flutuante não pode cobrir alvos nem causar rolagem lateral) + `data-testid` em tudo + ponto de Ajuda "Assistente" em `ajuda.ts`.
 
@@ -324,7 +324,7 @@ for (let rodada = 0; rodada < 5; rodada++) {
 - **Metas × recepção:** a RLS barra `cash_entries` para a recepção, então `goal_progress` é `security definer` e devolve só os totais (realizado × meta), nunca os lançamentos. Efeito: a recepção vê o total faturado do período da meta.
 - **Trava das Metas:** `plan_allows(bid, 'profissional')` no banco, não só na tela.
 - **Ordem:** Metas não dependem da Nix e podem vir antes. O PR de novos planos já está no `main`.
-- **Migrations:** 51–56 já estão em uso; as novas são 57 (uso), 58 (metas) e 59 (conversas).
+- **Migrations:** 57 (trocar serviço) e 59a/59b (vitrine) foram usadas por outros PRs; a Nix fica com 60 (uso) e 61 (conversas). Metas = 58.
 
 ## 8. Decisões
 - ✅ Nome: **Nix**.

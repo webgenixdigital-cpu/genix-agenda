@@ -63,6 +63,9 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
 | `WHATSAPP_SEND_ENABLED` | só servidor | `1` liga os envios automáticos; sem ela nada sai (local fica desligado: o banco é o mesmo da produção) |
 | `WHATSAPP_QUEUE_V2` | só servidor | `1` = fila nova da 42 (confirmação, antes do horário, véspera, aniversário); sem ela ou `0` = caminho antigo, só véspera. É a chave de volta: desligar na Vercel + redeploy, sem SQL. Lógica em `lib/whatsapp/queue.ts` |
 | `PLANS_PREVIEW` | só servidor, **só local** | `1` no `.env.local` + `npm run dev`: tabela de preços, Assinatura e actions tratam os planos novos (`gratis`, `basico_*`, `profissional_*`, `equipe_*`) como ativos mesmo com `active = false`, para testar no sandbox do Asaas antes da parte B (28b, 52b). Nunca liga com `NODE_ENV=production` (`next build`/`start`, Vercel); **não cadastrar na Vercel**. Lógica em `lib/plans-server.ts` |
+| `AGENTE_ENABLED` | só servidor | `1` liga a Nix (assistente, 60); sem ela o botão some e `/api/agente` responde 503. Local pode ligar só com a sua conta de teste (o banco é o da produção) |
+| `GEMINI_API_KEY` | **só servidor** | chave do Google AI Studio num projeto **com faturamento ativo** (nível pago: o Google não usa as conversas para treinar). Sem ela a Nix fica desligada |
+| `GEMINI_MODEL` | só servidor | opcional; modelo Flash **estável** (padrão no `api/agente/route.ts`). Nunca alias `-latest`. Trocar aqui + redeploy |
 
 - Nunca prefixar segredos com `NEXT_PUBLIC_`. Nunca importar `lib/supabase/admin.ts` em componente `"use client"`.
 - No `.env.local`, a chave do Asaas começa com `$`: escrever `ASAAS_API_KEY=\$aact_...` (na Vercel, sem a barra).
@@ -263,6 +266,14 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
   o `nextDueDate` N meses, ajusta `current_period_end` e chama `applySubscriptionValues` (preço pelo novo vencimento).
   Falha no meio do adiamento não devolve o prêmio (evita adiar duas vezes): fica anotado para conferir no /genix.
   Webhook: pago → `onReferredPaid` + `applyReferralRewards`; `PAYMENT_REFUNDED`/`DELETED`/`CHARGEBACK` → cancela.
+- **Nix, assistente (60, Fase 1):** botão flutuante no painel (`components/admin/nix/nix-chat.tsx`) → `/api/agente` (Gemini,
+  `@google/genai` com versão exata). Só **matriz e recepção**; **Equipe pago** (assinatura, cortesia Equipe, antigo Completo) e os
+  **3 últimos dias do teste** (cota 20/dia); Grátis, Básico, Profissional e o começo do teste veem o cadeado; staff e demo não veem.
+  “Pago” **não** é só `plan_kind = equipe`: cortesia Equipe, assinatura de plano Equipe em
+  active/past_due ainda tratada como Equipe; conta sem assinatura = bloqueada (contas de teste: cortesia Equipe). Regra em `agentAccess` (`lib/agente/access.ts`) e no banco (`agent_access`,
+  `ai_usage_hit` atômico → `COTA_ESGOTADA`; falha do Gemini devolve o pedido com `ai_usage_refund`; histórico de 10 trocas; limites em
+  `plans.ai_daily_limit` 500 / `ai_trial_daily_limit` 20; uso em `ai_usage`). Fase 1 só tira dúvidas (instrução em
+  `lib/agente/instrucao.ts`: Ajuda + planos do banco); não lê dados do espaço. Plano das próximas fases: `docs/agente-genix-plano.md`.
 - **Metas (58, Profissional e Equipe):** `business_goals` (faturamento, atendimentos, ticket médio, clientes novos; período
   até 366 dias; `professional_id` só no Equipe). Tela `/admin/metas` (fora do Financeiro): matriz e recepção criam/editam,
   demo só lê, staff não vê. Escrita só por `save_goal` / `delete_goal` (conferem que a meta é do `p_business`);
@@ -326,6 +337,7 @@ src/app/admin/(painel)/      layout.tsx e page.tsx (Início) na raiz; pastas com
                              ganhos (só page.tsx); onboarding (só actions.ts)
 src/app/genix/               administração da plataforma (page.tsx, actions.ts, field-actions.ts, search-actions.ts...)
 src/app/api/asaas/webhook/   webhook de pagamento
+src/app/api/agente/          Nix (assistente): POST com a pergunta → resposta do Gemini (só matriz/recepção, cota no banco)
 src/components/              admin/* (por tela do painel), genix/, vitrine/, marketing/, auth/, ui/ (shadcn)
                              + componentes soltos (site-header, site-footer, business-card, niche-*, plans-comparison...)
 src/content/                 textos: ajuda.ts, landing.ts, planos.ts (o que cada plano inclui)

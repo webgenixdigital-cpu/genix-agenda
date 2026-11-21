@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { LANDING_NAV, LANDING_PLANS } from "@/content/landing";
-import { LAUNCH_TEXT } from "@/content/planos";
+import { LAUNCH_TEXT, PLAN_CARDS, PLAN_NAMES } from "@/content/planos";
 import { useOfferOpen } from "@/components/use-offer-open";
 import { brl } from "@/lib/format";
 import { offerEndLabel, offerPrice, type LaunchOffer, type Plan } from "@/lib/plans-public";
@@ -56,7 +56,6 @@ export function LandingPricing({ plans, offer: serverOffer = null }: { plans: Pl
   const yearly = cycle === "YEARLY";
 
   const find = (kind: Plan["kind"]) => plans.find((p) => p.kind === kind && p.billing_cycle === cycle);
-  const free = plans.find((p) => p.kind === "gratis");
   const basic = find("basico");
   const pro = find("profissional");
   const team = find("equipe");
@@ -107,22 +106,22 @@ export function LandingPricing({ plans, offer: serverOffer = null }: { plans: Pl
       <div className="mx-auto grid max-w-md items-stretch gap-6 md:max-w-4xl md:grid-cols-2 min-[1100px]:max-w-none min-[1100px]:grid-cols-4">
         {/* ---------- GRÁTIS ---------- */}
         <div className={cn(lpCard, "lp-reveal flex flex-col")} data-testid="card-plano-gratis">
-          <h3 className="text-[21px] font-bold">{t.free.name}</h3>
-          <p className="mt-2 text-muted-foreground">{t.free.text}</p>
+          <h3 className="text-[21px] font-bold">{PLAN_NAMES.gratis}</h3>
+          <p className="mt-2 text-muted-foreground">{PLAN_CARDS.gratis.tagline}</p>
           <Price value={t.free.price} />
           <p className={cn(perLine, "text-muted-foreground")}>{t.free.per}</p>
-          <Features items={t.free.items(free?.online_daily_limit ?? 6)} />
+          <Features items={PLAN_CARDS.gratis.items(team.included_professionals)} />
           <Link href={signup} className={lpBtnOutline} data-testid="btn-plano-gratis">{t.cta}</Link>
         </div>
 
         {/* ---------- BÁSICO ---------- */}
         {basic && (
           <div className={cn(lpCard, "lp-reveal flex flex-col")} data-testid="card-plano-basico">
-            <h3 className="text-[21px] font-bold">{t.basic.name}</h3>
-            <p className="mt-2 text-muted-foreground">{t.basic.text}</p>
+            <h3 className="text-[21px] font-bold">{PLAN_NAMES.basico}</h3>
+            <p className="mt-2 text-muted-foreground">{PLAN_CARDS.basico.tagline}</p>
             <Price value={money(basic.base_price)} per={per} />
             <p className={cn(perLine, "text-muted-foreground")}>{perText(basic.base_price, null)}</p>
-            <Features items={t.basic.items} />
+            <Features items={PLAN_CARDS.basico.items(team.included_professionals)} />
             <Link href={signup} className={lpBtnOutline} data-testid="btn-plano-basico">{t.cta}</Link>
           </div>
         )}
@@ -140,8 +139,8 @@ export function LandingPricing({ plans, offer: serverOffer = null }: { plans: Pl
             <span className="absolute -top-[13px] left-6 rounded-full bg-[#F2C078] px-3 py-1 text-xs font-bold text-foreground md:left-8">
               {t.pro.badge}
             </span>
-            <h3 className="text-[21px] font-bold">{t.pro.name}</h3>
-            <p className="mt-2 text-stone-300">{t.pro.text}</p>
+            <h3 className="text-[21px] font-bold">{PLAN_NAMES.profissional}</h3>
+            <p className="mt-2 text-stone-300">{PLAN_CARDS.profissional.tagline}</p>
             <Price
               value={money(proPromo ?? pro.base_price)}
               per={per}
@@ -151,15 +150,15 @@ export function LandingPricing({ plans, offer: serverOffer = null }: { plans: Pl
             <p className={cn(perLine, "text-stone-300")} data-testid={proPromo != null ? "selo-preco-lancamento" : undefined}>
               {perText(pro.base_price, proPromo)}
             </p>
-            <Features items={t.pro.items} dark />
+            <Features items={PLAN_CARDS.profissional.items(team.included_professionals)} dark />
             <Link href={signup} className={lpBtnGold} data-testid="btn-plano-profissional">{t.cta}</Link>
           </div>
         </div>
 
         {/* ---------- EQUIPE ---------- */}
         <div className={cn(lpCard, "lp-reveal flex flex-col")} data-testid="card-plano-equipe">
-          <h3 className="text-[21px] font-bold">{t.team.name}</h3>
-          <p className="mt-2 text-muted-foreground">{t.team.text(team.included_professionals)}</p>
+          <h3 className="text-[21px] font-bold">{PLAN_NAMES.equipe}</h3>
+          <p className="mt-2 text-muted-foreground">{PLAN_CARDS.equipe.tagline}</p>
           <Price
             value={money(teamPromo ?? team.base_price)}
             per={per}
@@ -167,12 +166,13 @@ export function LandingPricing({ plans, offer: serverOffer = null }: { plans: Pl
           />
           {teamPromo != null && <p className={cn(perLine, "text-muted-foreground")}>{perText(team.base_price, teamPromo)}</p>}
           <p className={cn(perLine, "text-muted-foreground")}>{t.team.extra(money(team.extra_professional_price), per)}</p>
-          <Features items={t.team.items} />
+          <Features items={PLAN_CARDS.equipe.items(team.included_professionals)} />
           <Link href={signup} className={lpBtnOutline} data-testid="btn-plano-equipe">{t.cta}</Link>
         </div>
       </div>
 
-      <p className="lp-reveal mx-auto mt-12 max-w-[640px] rounded-[20px] border border-dashed border-[#D9A05B] bg-white p-6 text-center">
+      <p className="mt-10 text-center text-sm text-muted-foreground" data-testid="texto-teste-planos">{t.trialNote}</p>
+      <p className="lp-reveal mx-auto mt-8 max-w-[640px] rounded-[20px] border border-dashed border-[#D9A05B] bg-white p-6 text-center">
         <b>{t.referral[0]}</b>
         {t.referral[1]}
       </p>

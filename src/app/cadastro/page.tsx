@@ -1,3 +1,4 @@
+import { FREE_MONTHS, PLAN_PROMISE, TRIAL_DAYS } from "@/content/planos";
 import Link from "next/link";
 import { BrandLogo } from "@/components/brand-logo";
 import { redirect } from "next/navigation";
@@ -10,10 +11,11 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Criar conta grátis | Genix Agenda" };
 
 const PERKS = [
-  "15 dias do plano Equipe, com todos os recursos liberados",
+  `${TRIAL_DAYS} dias do plano Equipe com tudo liberado, inclusive a vitrine de agendamento online`,
   "Sem cartão de crédito",
   "Passo a passo guiado para deixar tudo pronto",
-  "Depois, assine a partir do Básico ou siga no Grátis (6 meses a partir do cadastro)",
+  `Depois, assine seu plano ou siga no Grátis: agenda interna e cartão de visita por ${FREE_MONTHS} meses`,
+  `${PLAN_PROMISE.vitrineFrom}`,
 ];
 
 export default async function CadastroPage({ searchParams }: { searchParams: { nicho?: string } }) {
@@ -64,7 +66,7 @@ export default async function CadastroPage({ searchParams }: { searchParams: { n
           <h2 className="text-center text-3xl">{mode === "full" ? "Criar conta grátis" : "Falta pouco"}</h2>
           <p className="mb-10 mt-3 text-center leading-relaxed text-muted-foreground">
             {mode === "full"
-              ? "15 dias do plano Equipe, sem cartão."
+              ? `${TRIAL_DAYS} dias do plano Equipe com tudo liberado, sem cartão.`
               : "Sua conta foi criada. Agora conte sobre o seu espaço para concluir."}
           </p>
 

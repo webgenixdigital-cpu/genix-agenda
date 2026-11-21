@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { brl, duration } from "@/lib/format";
 import { getActiveNiches } from "@/lib/niches";
 import { getLaunchOffer, getPublicPlans } from "@/lib/plans-server";
+import { FREE_MONTHS, PLAN_PROMISE, TRIAL_DAYS } from "@/content/planos";
 
 export const revalidate = 3600;
 
@@ -28,7 +29,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!n) return { title: "Página não encontrada" };
   return {
     title: `Agenda online para ${n.name} | Genix Agenda`,
-    description: `Vitrine digital e agenda online para ${n.name.toLowerCase()}. Plano Grátis de 6 meses para 1 profissional; planos Básico, Profissional e Equipe, com 15 dias de teste e sem cartão.`,
+    description: `Vitrine digital e agenda online para ${n.name.toLowerCase()}. Teste ${PLAN_PROMISE.trial}, sem cartão. Grátis por ${FREE_MONTHS} meses com agenda interna e cartão de visita.`,
   };
 }
 
@@ -38,11 +39,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 const STEPS = [
   { title: "Crie sua conta", text: "Em 2 minutos, sem cartão. Os serviços do seu segmento já entram prontos." },
   { title: "Ajuste e divulgue", text: "Confira preços e horários e coloque o link da vitrine na bio do Instagram." },
-  { title: "Receba agendamentos", text: "Os clientes marcam sozinhos e você confirma com um toque no WhatsApp." },
+  { title: "Receba agendamentos", text: "No Profissional, os clientes marcam sozinhos pela vitrine; no Grátis e no Básico, chamam você no WhatsApp pelo seu link." },
 ];
 
 
-const TRUST = ["6 meses no plano Grátis", "15 dias do Equipe para testar", "Sem cartão"];
+const TRUST = [`${TRIAL_DAYS} dias com tudo liberado`, `${FREE_MONTHS} meses no plano Grátis`, "Sem cartão"];
 
 // ---------------------------------------------------------------------
 // PARTE 2 — Página
@@ -198,7 +199,7 @@ export default async function NichoPage({ params }: Props) {
             <div className="text-center">
               <h2 className="text-3xl md:text-[42px]">Comece grátis. Cresça no seu ritmo.</h2>
               <p className="copy mt-4 text-muted-foreground">
-                Toda conta nova ganha 15 dias do plano Equipe. Depois, escolha o seu plano ou siga no Grátis, que vale 6 meses a partir do cadastro.
+                Toda conta nova ganha {PLAN_PROMISE.trial}. {PLAN_PROMISE.afterTrial} {PLAN_PROMISE.vitrineFrom}.
               </p>
             </div>
             <div className="mt-12">

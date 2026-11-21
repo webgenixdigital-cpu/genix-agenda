@@ -2,7 +2,7 @@
 // preços da tabela plans. Rola só dentro da tabela no celular (.scroll-shadow-x).
 import { Check, Minus } from "lucide-react";
 import { FREE_MONTHS, LAUNCH_TEXT, PLAN_ORDER, planFeatureRows, type PlanCell } from "@/content/planos";
-import { PLAN_NAMES, type PlanKind } from "@/lib/plan-features";
+import { PLAN_NAMES, type PlanKind } from "@/content/planos";
 import { brl } from "@/lib/format";
 import { offerEndLabel, offerOpen, type LaunchOffer, type Plan } from "@/lib/plans-public";
 import { cn } from "@/lib/utils";
@@ -24,11 +24,10 @@ export function PlansComparison({
   offer?: LaunchOffer | null;
 }) {
   const offer = offerOpen(rawOffer) ? rawOffer : null;
-  const limit = plans.find((p) => p.kind === "gratis")?.online_daily_limit ?? 6;
   const teamM = plans.find((p) => p.kind === "equipe" && p.billing_cycle === "MONTHLY");
   const teamY = plans.find((p) => p.kind === "equipe" && p.billing_cycle === "YEARLY");
   const included = teamM?.included_professionals ?? 3;
-  const rows = planFeatureRows(limit, included);
+  const rows = planFeatureRows(included);
   const plan = (k: PlanKind, c: Plan["billing_cycle"]) => plans.find((p) => p.kind === k && p.billing_cycle === c);
   const price = (k: PlanKind, c: Plan["billing_cycle"]) => plan(k, c)?.base_price;
   const promo = (k: PlanKind, c: Plan["billing_cycle"]) => {

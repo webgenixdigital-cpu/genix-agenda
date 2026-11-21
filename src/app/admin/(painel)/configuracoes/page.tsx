@@ -20,6 +20,8 @@ import { hoursSummary } from "@/lib/settings-summary";
 import { SettingsAccordion, type SettingsSection } from "@/components/admin/configuracoes/settings-accordion";
 import { getOnboarding } from "@/lib/onboarding";
 import { ReviewOnboardingLink } from "@/components/admin/configuracoes/review-onboarding-link";
+import { VitrinePlanNote } from "@/components/admin/vitrine-plan-note";
+import { LockedFeatureCard } from "@/components/admin/locked-feature";
 
 export const dynamic = "force-dynamic";
 // criar a instância da Evolution espera o primeiro QR (~5 s + rede)
@@ -80,6 +82,8 @@ export default async function ConfiguracoesPage() {
     open_time: h.open_time ?? "",
     close_time: h.close_time ?? "",
   }));
+  // 59: vitrine com agendamento online (e a confirmação automática) só a partir do Profissional
+  const vitrineOnline = allows(plan, "profissional");
   const showWhatsapp = allows(plan, "profissional") && !!waPanel && (waEvolution || waPanel.genix_enabled);
   const waStatus = waPanel?.status === "connected" ? "conectado" : waPanel?.status === "disconnected" ? "desconectado" : "não conectado";
 
@@ -95,9 +99,14 @@ export default async function ConfiguracoesPage() {
       id: "link",
       help: "link-vitrine",
       title: "Link da vitrine",
-      summary: `/v/${b.slug} · ${b.is_published ? "publicada" : "não publicada"}`,
+      summary: `/v/${b.slug} · ${b.is_published ? "publicada" : "não publicada"}${vitrineOnline ? "" : " · cartão de visita"}`,
       description: "O endereço que você divulga no Instagram e no WhatsApp.",
-      content: <LinkForm key={`l-${b.slug}`} initial={{ slug: b.slug, custom_domain: b.custom_domain, is_published: b.is_published }} />,
+      content: (
+        <>
+          {!vitrineOnline && <VitrinePlanNote className="mb-4" />}
+          <LinkForm key={`l-${b.slug}`} initial={{ slug: b.slug, custom_domain: b.custom_domain, is_published: b.is_published }} />
+        </>
+      ),
     },
     {
       id: "horarios",
@@ -111,9 +120,9 @@ export default async function ConfiguracoesPage() {
       id: "confirmacao",
       help: "confirmacao-automatica",
       title: "Confirmação dos agendamentos online",
-      summary: CONFIRM_MODES.find((m) => m.value === confirmMode)?.label ?? "",
+      summary: vitrineOnline ? CONFIRM_MODES.find((m) => m.value === confirmMode)?.label ?? "" : "Profissional e Equipe",
       description: "Decide se o pedido feito na vitrine já entra confirmado ou espera você confirmar.",
-      content: <ConfirmModeForm initial={confirmMode} />,
+      content: vitrineOnline ? <ConfirmModeForm initial={confirmMode} /> : <LockedFeatureCard feature="vitrine" />,
     },
     {
       id: "descontos",

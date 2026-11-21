@@ -13,6 +13,6 @@ export const LEGAL = {
   site: "https://genixagenda.com.br",
   foro: "Poços de Caldas/MG",
   atualizadoEm: "21 de outubro de 2026",
-  /** Termos de Uso: planos Grátis (6 meses), Básico, Profissional e Equipe (52) */
-  termosAtualizadoEm: "18 de novembro de 2026",
+  /** Termos de Uso: planos Grátis (6 meses, depois só consulta), Básico, Profissional e Equipe; vitrine online a partir do Profissional (59) */
+  termosAtualizadoEm: "21 de novembro de 2026",
 };

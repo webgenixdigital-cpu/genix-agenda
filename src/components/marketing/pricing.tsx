@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Check, Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { FREE_MONTHS, LAUNCH_TEXT, PLAN_SUMMARY } from "@/content/planos";
+import { FREE_MONTHS, LAUNCH_TEXT, PLAN_CARDS, PLAN_PROMISE, TRIAL_DAYS } from "@/content/planos";
 import { useOfferOpen } from "@/components/use-offer-open";
 import { brl } from "@/lib/format";
 import { offerEndLabel, offerPrice, type LaunchOffer, type Plan } from "@/lib/plans-public";
@@ -56,7 +56,6 @@ export function Pricing({ plans, offer: serverOffer = null }: { plans: Plan[]; o
   const [pros, setPros] = useState(3);
 
   const find = (kind: Plan["kind"], c: Plan["billing_cycle"]) => plans.find((p) => p.kind === kind && p.billing_cycle === c);
-  const free = plans.find((p) => p.kind === "gratis");
   const basic = find("basico", cycle);
   const pro = find("profissional", cycle);
   const team = find("equipe", cycle);
@@ -65,7 +64,6 @@ export function Pricing({ plans, offer: serverOffer = null }: { plans: Plan[]; o
 
   const yearly = cycle === "YEARLY";
   const per = yearly ? "/ano" : "/mês";
-  const limit = free?.online_daily_limit ?? 6;
   const included = team.included_professionals;
   const extras = Math.max(pros - included, 0);
   const teamTotal = team.base_price + extras * team.extra_professional_price;
@@ -106,9 +104,9 @@ export function Pricing({ plans, offer: serverOffer = null }: { plans: Plan[]; o
         <div className="rounded-3xl border bg-card p-6 md:p-8" data-testid="card-plano-gratis">
           <p className="text-sm font-semibold text-muted-foreground">Grátis</p>
           <PriceLine value="R$ 0" per={`por ${FREE_MONTHS} meses`} />
-          <p className="mt-2 text-sm text-muted-foreground">{PLAN_SUMMARY.gratis.tagline}</p>
+          <p className="mt-2 text-sm text-muted-foreground">{PLAN_CARDS.gratis.tagline}</p>
           <ul className="mx-auto mt-8 w-fit space-y-3">
-            {PLAN_SUMMARY.gratis.items(limit, included).map((f) => (
+            {PLAN_CARDS.gratis.items(included).map((f) => (
               <Item key={f}>{f}</Item>
             ))}
           </ul>
@@ -116,8 +114,7 @@ export function Pricing({ plans, offer: serverOffer = null }: { plans: Plan[]; o
             <Link href="/cadastro">Criar conta grátis</Link>
           </Button>
           <p className="mt-3 text-xs text-muted-foreground">
-            Com o selo “Feito com Genix Agenda” na vitrine. Depois dos {FREE_MONTHS} meses, o painel continua e a vitrine para de
-            receber agendamentos online até você assinar.
+            Com o selo “Feito com Genix Agenda” no cartão de visita. {PLAN_PROMISE.freeOver}
           </p>
         </div>
 
@@ -128,14 +125,14 @@ export function Pricing({ plans, offer: serverOffer = null }: { plans: Plan[]; o
             <PriceLine value={brl(basic.base_price)} per={per} testid="preco-basico" />
             <p className="mt-2 text-sm text-muted-foreground">{equiv(basic.base_price)}</p>
             <ul className="mx-auto mt-8 w-fit space-y-3">
-              <Item strong>Tudo do Grátis, mais:</Item>
-              {PLAN_SUMMARY.basico.items(limit, included).map((f) => (
+              <Item strong>{PLAN_CARDS.basico.items(included)[0]}, mais:</Item>
+              {PLAN_CARDS.basico.items(included).slice(1).map((f) => (
                 <Item key={f}>{f}</Item>
               ))}
             </ul>
-            <p className="mt-6 text-sm text-muted-foreground">{PLAN_SUMMARY.basico.tagline}</p>
+            <p className="mt-6 text-sm text-muted-foreground">{PLAN_CARDS.basico.tagline}</p>
             <Button asChild variant="outline" className="mt-8 h-12 w-full text-base" data-testid="btn-plano-basico">
-              <Link href="/cadastro">Testar 15 dias grátis</Link>
+              <Link href="/cadastro">Testar {TRIAL_DAYS} dias grátis</Link>
             </Button>
           </div>
         )}
@@ -156,14 +153,15 @@ export function Pricing({ plans, offer: serverOffer = null }: { plans: Plan[]; o
           <p className="mt-2 text-sm text-muted-foreground">
             {proPromo != null ? promoNote(pro.base_price, proPromo) : equiv(pro.base_price)}
           </p>
+          <p className="mt-2 text-sm font-semibold">{PLAN_CARDS.profissional.tagline}</p>
           <ul className="mx-auto mt-8 w-fit space-y-3">
-            {PLAN_SUMMARY.profissional.items(limit, included).map((f, i) => (
+            {PLAN_CARDS.profissional.items(included).map((f, i) => (
               <Item key={f} strong={i === 0}>{f}</Item>
             ))}
           </ul>
           <p className="mt-6 text-sm text-muted-foreground">Para 1 profissional. Se a equipe crescer, é só mudar para o Equipe.</p>
           <Button asChild className="mt-8 h-12 w-full text-base active:scale-95" data-testid="btn-plano-profissional">
-            <Link href="/cadastro">Testar 15 dias grátis</Link>
+            <Link href="/cadastro">Testar {TRIAL_DAYS} dias grátis</Link>
           </Button>
         </div>
 
@@ -184,7 +182,7 @@ export function Pricing({ plans, offer: serverOffer = null }: { plans: Plan[]; o
             {teamPromoTotal != null ? promoNote(teamTotal, teamPromoTotal) : equiv(teamTotal)}
           </p>
           <ul className="mx-auto mt-8 w-fit space-y-3">
-            {PLAN_SUMMARY.equipe.items(limit, included).map((f, i) => (
+            {PLAN_CARDS.equipe.items(included).map((f, i) => (
               <Item key={f} strong={i === 0}>{f}</Item>
             ))}
           </ul>
@@ -231,14 +229,13 @@ export function Pricing({ plans, offer: serverOffer = null }: { plans: Plan[]; o
           </div>
 
           <Button asChild className="mt-8 h-12 w-full text-base active:scale-95" data-testid="btn-plano-teste">
-            <Link href="/cadastro">Testar 15 dias grátis</Link>
+            <Link href="/cadastro">Testar {TRIAL_DAYS} dias grátis</Link>
           </Button>
         </div>
       </div>
 
       <p className="copy mt-8 text-sm text-muted-foreground">
-        Toda conta nova começa com 15 dias do plano Equipe, sem cartão. No fim, escolha o seu plano ou siga no Grátis, que vale{" "}
-        {FREE_MONTHS} meses a partir do cadastro.
+        Toda conta nova tem {PLAN_PROMISE.trial}, sem cartão. {PLAN_PROMISE.afterTrial}
       </p>
     </div>
   );

@@ -3,6 +3,8 @@
 // Cada item: título, "Para que serve" (1–2 frases), "Como fazer" (passos curtos) e,
 // quando fizer sentido, "Atenção" (uma ou mais linhas).
 
+import { FREE_MONTHS, PLAN_PROMISE, TRIAL_DAYS, planNote } from "@/content/planos";
+
 export type AjudaItem = {
   titulo: string;
   serve: string;
@@ -62,7 +64,7 @@ const AJUDA_TEXTOS = {
     atencao: [
       "Para mudar o texto da mensagem, toque em “Editar mensagem”.",
       "Essa lista é manual. Para enviar sozinho, veja “WhatsApp automático” em Configurações (planos Profissional e Equipe).",
-      "Recurso dos planos pagos, a partir do Básico.",
+      planNote("lembretes"),
     ],
   },
   retornos: {
@@ -74,7 +76,7 @@ const AJUDA_TEXTOS = {
       "Aqui, em “Hora de voltar” e “Nos próximos 7 dias”, toque em “Chamar para voltar”: o WhatsApp abre com a mensagem pronta.",
       "O cliente vai sozinho para “Já chamados”. Se foi engano, toque em “Voltar para a fila”.",
     ],
-    atencao: ["Recurso dos planos Profissional e Equipe."],
+    atencao: [planNote("retornos")],
   },
   metas: {
     titulo: "Metas",
@@ -91,7 +93,7 @@ const AJUDA_TEXTOS = {
       "A meta de um profissional não conta venda de pacote nem de produto, só o que entrou pelos atendimentos dele.",
       "Cliente novo é quem fez o primeiro atendimento no período. Só ter a ficha cadastrada não conta.",
       "A recepção vê e edita as metas, mas só os totais: os lançamentos do caixa continuam só com a matriz.",
-      "Recurso dos planos Profissional e Equipe.",
+      planNote("metas"),
     ],
   },
   bloqueios: {
@@ -104,7 +106,7 @@ const AJUDA_TEXTOS = {
     ],
     atencao: [
       "Bloqueio não cancela atendimentos já marcados nesses horários; confira a agenda.",
-      "Recurso dos planos pagos, a partir do Básico. Vale para almoço, folga fixa, férias e feriados.",
+      `${planNote("bloqueios")} Vale para almoço, folga fixa, férias e feriados.`,
     ],
   },
   servicos: {
@@ -124,7 +126,7 @@ const AJUDA_TEXTOS = {
       "Escolha os serviços e o preço do combo; o tempo é a soma dos serviços.",
       "Salve: o combo aparece na vitrine e na agenda.",
     ],
-    atencao: ["Só profissionais que fazem todos os serviços do combo podem atender.", "Recurso dos planos Profissional e Equipe."],
+    atencao: ["Só profissionais que fazem todos os serviços do combo podem atender.", planNote("combos")],
   },
   "pacotes-modelos": {
     titulo: "Pacotes",
@@ -134,7 +136,7 @@ const AJUDA_TEXTOS = {
       "Escolha os serviços, quantas sessões de cada, o preço fechado e a validade.",
       "Depois, venda o pacote na ficha do cliente ou no Novo agendamento.",
     ],
-    atencao: ["Mudar um modelo não muda pacotes já vendidos.", "Recurso dos planos Profissional e Equipe."],
+    atencao: ["Mudar um modelo não muda pacotes já vendidos.", planNote("pacotes")],
   },
   equipe: {
     titulo: "Equipe",
@@ -157,14 +159,14 @@ const AJUDA_TEXTOS = {
     atencao: [
       "A recepção vê a agenda de todos, mas não vê financeiro nem configurações.",
       "O profissional vê só a própria agenda e os próprios clientes.",
-      "Recurso do plano Equipe.",
+      planNote("acessos"),
     ],
   },
   comissoes: {
     titulo: "Comissão",
     serve: "Guarda a porcentagem que o profissional recebe de cada atendimento, para calcular o que é dele.",
     passos: ["Abra o profissional em Equipe.", "Preencha a comissão em %.", "Ele acompanha o valor em “Meus ganhos”."],
-    atencao: ["O valor em “Meus ganhos” é uma estimativa; o fechamento oficial é feito por você.", "Recurso do plano Equipe."],
+    atencao: ["O valor em “Meus ganhos” é uma estimativa; o fechamento oficial é feito por você.", planNote("comissoes")],
   },
   "salao-parceiro": {
     titulo: "Salão-parceiro",
@@ -175,7 +177,7 @@ const AJUDA_TEXTOS = {
       "Em Equipe, marque quem é parceiro.",
       "Confira os valores no Financeiro e no relatório do contador.",
     ],
-    atencao: ["O sistema só organiza os valores. Contrato e impostos ficam com você e o seu contador.", "Recurso do plano Equipe."],
+    atencao: ["O sistema só organiza os valores. Contrato e impostos ficam com você e o seu contador.", planNote("parceiro")],
   },
   "financeiro-caixa": {
     titulo: "Caixa",
@@ -185,20 +187,20 @@ const AJUDA_TEXTOS = {
       "Toque em “Novo lançamento” para registrar uma entrada ou despesa avulsa.",
       "Veja os totais por forma de pagamento.",
     ],
-    atencao: ["Atendimento concluído entra sozinho no caixa. Não lance de novo à mão.", "Recurso dos planos pagos, a partir do Básico."],
+    atencao: ["Atendimento concluído entra sozinho no caixa. Não lance de novo à mão.", planNote("financeiro")],
   },
   "faturamento-limites": {
     titulo: "Faturamento e limites",
     serve:
       "Acompanha quanto você faturou nos últimos 12 meses e avisa quando estiver chegando perto do limite do seu enquadramento (ex.: MEI).",
     passos: ["Em Configurações, escolha o enquadramento do seu espaço.", "Aqui, acompanhe o total e a barra até o limite."],
-    atencao: ["É um acompanhamento para te avisar a tempo. Confirme os valores com o seu contador.", "Recurso dos planos pagos, a partir do Básico."],
+    atencao: ["É um acompanhamento para te avisar a tempo. Confirme os valores com o seu contador.", planNote("faturamento")],
   },
   contador: {
     titulo: "Relatório para o contador",
     serve: "Junta num relatório o que o contador costuma pedir: receitas, despesas e, se tiver, a parte dos parceiros.",
     passos: ["Escolha o mês ou o período.", "Imprima ou baixe a planilha.", "Envie para o seu contador."],
-    atencao: ["Recurso dos planos pagos, a partir do Básico."],
+    atencao: [planNote("faturamento")],
   },
   "meus-ganhos": {
     titulo: "Meus ganhos",
@@ -218,7 +220,8 @@ const AJUDA_TEXTOS = {
       "Pague por Pix ou cartão.",
     ],
     atencao: [
-      "O Grátis vale 6 meses a partir do cadastro (os 15 dias de teste do Equipe contam dentro). Depois, o painel e os seus dados continuam, mas a vitrine para de receber agendamentos online até você assinar.",
+      `O Grátis vale ${FREE_MONTHS} meses a partir do cadastro (os ${TRIAL_DAYS} dias de teste do Equipe contam dentro). ${PLAN_PROMISE.freeOver}`,
+      `No Grátis e no Básico, seu link é um cartão de visita com o botão do WhatsApp. ${PLAN_PROMISE.vitrineFrom}.`,
       "Básico e Profissional são para 1 profissional. Para mais gente, escolha o Equipe.",
       "Plano maior no mensal: muda na hora, e o novo valor vale a partir da próxima cobrança.",
       "Plano maior no anual: muda quando você pagar a diferença proporcional aos dias que faltam.",
@@ -266,9 +269,13 @@ const AJUDA_TEXTOS = {
   // ------------------------------------------------------------------ configurações e WhatsApp
   "link-vitrine": {
     titulo: "Link da vitrine",
-    serve: "É o endereço da sua página de agendamento, para colocar no Instagram e mandar para os clientes.",
+    serve: "É o endereço da sua página, para colocar no Instagram e mandar para os clientes.",
     passos: ["Copie o link ou baixe o QR code.", "Coloque na bio do Instagram e no WhatsApp."],
-    atencao: ["Se mudar o endereço, atualize onde já divulgou (Instagram, cartões, QR code impresso)."],
+    atencao: [
+      `No Grátis e no Básico: ${PLAN_PROMISE.card}`,
+      `${PLAN_PROMISE.vitrineUpsell} ${planNote("vitrine")}`,
+      "Se mudar o endereço, atualize onde já divulgou (Instagram, cartões, QR code impresso).",
+    ],
   },
   horarios: {
     titulo: "Horários e agendamento",
@@ -288,7 +295,7 @@ const AJUDA_TEXTOS = {
       "Tudo manual: você confirma cada pedido.",
       "Escolha uma das opções e salve.",
     ],
-    atencao: ["Pedido não confirmado aparece como “pendente” no Início e na Agenda."],
+    atencao: ["Pedido não confirmado aparece como “pendente” no Início e na Agenda.", planNote("confirmacao")],
   },
   descontos: {
     titulo: "Descontos",
@@ -316,7 +323,7 @@ const AJUDA_TEXTOS = {
       "Para não parecer robô, o intervalo entre as mensagens varia (7 a 13 minutos), com no máximo 6 por hora, das 8h às 20h.",
       "Confirmação e lembretes saem só para agendamentos confirmados; a de aniversário não depende de agendamento.",
       "Se duas mensagens caírem perto para o mesmo cliente, a segunda é adiada para não incomodar; só é descartada se passar do prazo — e fica registrada.",
-      "Recurso dos planos Profissional e Equipe, em teste.",
+      `${planNote("whatsapp")} Em teste.`,
     ],
   },
   "msg-confirmacao": {
@@ -375,7 +382,7 @@ const AJUDA_TEXTOS = {
       "O encaixe ignora o horário de funcionamento, mas não passa por cima de bloqueios nem de outro atendimento.",
       "Para marcar por cima de outro atendimento (enquanto o produto age), use o “Encaixe sobreposto”.",
       "No Remarcar, só a matriz e a recepção podem usar.",
-      "Recurso dos planos pagos, a partir do Básico. No Grátis, escolha um dos horários livres da lista.",
+      `${planNote("encaixe")} No Grátis, escolha um dos horários livres da lista.`,
     ],
   },
   "encaixe-sobreposto": {
@@ -394,7 +401,7 @@ const AJUDA_TEXTOS = {
       "Bloqueios continuam valendo, e a vitrine continua vendo esse horário como ocupado.",
       "A matriz e a recepção usam em qualquer agenda; o profissional, só na própria.",
       "Na agenda ele aparece com o selo “Encaixe”, ao lado do outro atendimento. Para mudar o horário, use o Remarcar.",
-      "Recurso dos planos pagos, a partir do Básico.",
+      planNote("encaixe"),
     ],
   },
   remarcar: {
@@ -419,7 +426,7 @@ const AJUDA_TEXTOS = {
       "Marque “Repetir este horário” e escolha a frequência e quantas vezes.",
       "Toque em “Ver datas”, confira e crie.",
     ],
-    atencao: ["Datas com conflito são puladas, sem criar data extra no fim.", "Recurso dos planos pagos, a partir do Básico."],
+    atencao: ["Datas com conflito são puladas, sem criar data extra no fim.", planNote("recorrencia")],
   },
   "vender-pacote": {
     titulo: "Vender pacote",
@@ -429,7 +436,7 @@ const AJUDA_TEXTOS = {
       "Escolha “Livre” (o cliente marca cada sessão depois) ou “Datas fixas”.",
       "Confirme a venda.",
     ],
-    atencao: ["Recurso dos planos Profissional e Equipe."],
+    atencao: [planNote("pacotes")],
   },
   "datas-fixas": {
     titulo: "Datas fixas",
@@ -479,7 +486,7 @@ const AJUDA_TEXTOS = {
     passos: ["Toque em “Concluir”.", "Confira o valor e escolha a forma de pagamento.", "Confirme."],
     atencao: [
       "Sessão de pacote não entra no caixa de novo: já foi paga na venda.",
-      "Depois de concluir, o cliente pode receber o link de avaliação.",
+      `Depois de concluir, você pode mandar ao cliente o link de avaliação. ${planNote("pedidoAvaliacao")}`,
     ],
   },
   "pagamento-pendente": {

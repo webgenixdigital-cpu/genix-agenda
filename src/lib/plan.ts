@@ -102,12 +102,6 @@ export const getPlanContext = cache(async (businessId: string): Promise<PlanCont
 /** Atalho: o plano do espaço chega ao mínimo? */
 export const allows = (plan: Pick<PlanContext, "kind">, min: Exclude<PlanKind, "gratis">) => planAllows(plan.kind, min);
 
-/** Agendamentos online por dia no Grátis (linha 'gratis' de plans; 10 até a migration 28b) */
-export const getFreeDailyLimit = cache(async (): Promise<number> => {
-  const { data, error } = await createClient().rpc("free_daily_limit");
-  return !error && typeof data === "number" ? data : 10;
-});
-
 /** Plano recomendado no fim do teste: 1 profissional ativo → Profissional; 2+ → Equipe */
 export const recommendedKind = (activeProfessionals: number): "profissional" | "equipe" =>
   activeProfessionals <= 1 ? "profissional" : "equipe";

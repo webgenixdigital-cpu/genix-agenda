@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { usePlanFlags } from "@/components/admin/plan-flags";
 import { useRouter } from "next/navigation";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -122,7 +123,8 @@ export function WeekGrid(props: Props) {
     mq.addEventListener("change", update);
     return () => mq.removeEventListener("change", update);
   }, []);
-  const canDrag = props.canEdit && finePointer;
+  const { readOnly } = usePlanFlags();   // 59: Grátis vencido = só consulta
+  const canDrag = props.canEdit && finePointer && !readOnly;
 
   const colorOf = useMemo(
     () => new Map(professionals.map((p, i) => [p.id, PRO_COLORS[i % PRO_COLORS.length]])),

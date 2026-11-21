@@ -1,7 +1,7 @@
 // Planos para as páginas públicas ("/" e /para/[nicho]): leitura, tipos e FAQ.
 // Valores sempre da tabela plans (migrations 28a/28b/52); nada de preço fixo no código.
 import { brl } from "@/lib/format";
-import { FREE_MONTHS } from "@/content/planos";
+import { FREE_MONTHS, PLAN_PROMISE, TRIAL_DAYS } from "@/content/planos";
 
 export type Plan = {
   id: string;
@@ -72,7 +72,6 @@ export const offerPrice = (offer: LaunchOffer | null, plan: Plan | undefined) =>
 
 /** Perguntas frequentes com os valores atuais (sem repetir a tabela) */
 export function planFaq(plans: Plan[]) {
-  const limit = plans.find((p) => p.kind === "gratis")?.online_daily_limit ?? 6;
   const basicM = find(plans, "basico", "MONTHLY");
   const proM = find(plans, "profissional", "MONTHLY");
   const teamM = find(plans, "equipe", "MONTHLY");
@@ -82,11 +81,11 @@ export function planFaq(plans: Plan[]) {
   return [
     {
       q: "Quanto tempo dura o plano Grátis?",
-      a: `${FREE_MONTHS} meses a partir do cadastro (os 15 dias de teste do Equipe contam dentro). Inclui vitrine com link próprio, agenda online com até ${limit} agendamentos online por dia, 1 profissional, ficha dos clientes, confirmação automática e avaliações. Depois dos ${FREE_MONTHS} meses, o painel e os seus dados continuam, mas a vitrine para de receber agendamentos online até você assinar o Básico${basicM ? ` (${brl(basicM.base_price)}/mês)` : ""}. Sem cartão.`,
+      a: `${FREE_MONTHS} meses a partir do cadastro (os ${TRIAL_DAYS} dias de teste do Equipe contam dentro). Inclui a agenda interna, clientes e ficha, 1 profissional e o cartão de visita: seu link com serviços, preços, avaliações e o botão “Agendar pelo WhatsApp”. ${PLAN_PROMISE.freeOver} O Básico custa${basicM ? ` ${brl(basicM.base_price)}/mês` : " pouco"}. Sem cartão.`,
     },
     {
       q: "Qual a diferença entre Básico, Profissional e Equipe?",
-      a: `O Básico${basicM ? ` (${brl(basicM.base_price)}/mês)` : ""} tira o limite da agenda e libera encaixe, bloqueios (almoço, folgas e férias), lembretes de véspera, recorrência e o financeiro com o relatório do contador. O Profissional${proM ? ` (${brl(proM.base_price)}/mês)` : ""} soma retornos, pacotes, combos e o WhatsApp automático. Os dois são para 1 profissional. O Equipe${teamM ? ` (${brl(teamM.base_price)}/mês)` : ""} tem tudo isso para até ${included} profissionais, com acesso individual para recepção e profissionais, comissões e salão-parceiro.`,
+      a: `O Básico${basicM ? ` (${brl(basicM.base_price)}/mês)` : ""} tira o prazo e o selo e libera encaixe, bloqueios (almoço, folgas e férias), lembretes de véspera, recorrência e o financeiro com o relatório do contador; o link continua como cartão de visita. O Profissional${proM ? ` (${brl(proM.base_price)}/mês)` : ""} soma a vitrine com agendamento online 24h, confirmação automática, diretório, pedido de avaliação, retornos, pacotes, combos, metas e o WhatsApp automático. Os dois são para 1 profissional. O Equipe${teamM ? ` (${brl(teamM.base_price)}/mês)` : ""} tem tudo isso para até ${included} profissionais, com acesso individual para recepção e profissionais, comissões e salão-parceiro.`,
     },
     {
       q: "Quanto custa cada profissional a mais no Equipe?",
@@ -95,8 +94,8 @@ export function planFaq(plans: Plan[]) {
         : `O Equipe já inclui ${included} profissionais; a partir daí, cada pessoa ativa tem um valor adicional.`,
     },
     {
-      q: "O que acontece quando o teste de 15 dias acaba?",
-      a: `Você testa o plano Equipe por 15 dias, sem cartão. No fim, escolhe o Básico ou o Profissional (se atende sozinho) ou o Equipe. Se não assinar, a conta passa para o Grátis, que vale até completar ${FREE_MONTHS} meses do cadastro, e nada é apagado.`,
+      q: `O que acontece quando o teste de ${TRIAL_DAYS} dias acaba?`,
+      a: `Você testa o plano Equipe por ${TRIAL_DAYS} dias, com tudo liberado, inclusive a vitrine de agendamento online, sem cartão. No fim, escolhe o Básico ou o Profissional (se atende sozinho) ou o Equipe. Se não assinar, a conta passa para o Grátis (agenda interna e cartão de visita), que vale até completar ${FREE_MONTHS} meses do cadastro, e nada é apagado.`,
     },
     {
       q: "Quais formas de pagamento são aceitas?",

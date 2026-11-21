@@ -73,23 +73,33 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
 - **Freemium — 4 planos** (migrations 28a/28b e **52a/52b**): toda conta nova ganha **15 dias do Equipe**; no fim do teste
   a oferta segue a equipe ativa (1 profissional → Profissional; 2+ → Equipe); sem pagamento, cai no **Grátis** (nada é apagado).
   Ordem: Grátis < Básico < Profissional < Equipe (`plan_rank`/`plan_allows` no banco; `planAllows`/`allows` no código).
+  - **Vitrine só a partir do Profissional (59):** o teste de 15 dias libera tudo, **inclusive a vitrine de agendamento
+    online**. No Grátis e no Básico o link `/v/[slug]` é um **cartão de visita** (serviços e preços sem combos/pacotes,
+    endereço, horários, avaliações já recebidas, botão “Agendar pelo WhatsApp”; `public_plan_info.card_only`), fora do
+    diretório (`/espacos`, `/explorar`) e dentro do sitemap. Regra única no banco: `vitrine_online_allowed(bid)`
+    (= `plan_allows(bid, 'profissional')`; cortesia e teste liberam). O limite de 6/dia do Grátis deixou de existir.
   - **Grátis** (**6 meses**, `subscriptions.free_ends_at`): contas novas = cadastro + 6 meses (o teste fica dentro);
-    contas que existiam antes da 52b = publicação + 6 meses. Inclui vitrine, agenda online com **6 agendamentos
-    online/dia** (`plans.online_daily_limit` da linha `gratis`), **1 profissional**, selo "Feito com Genix Agenda",
-    avaliações, clientes/ficha, confirmação automática, remarcar e editar agendamento. **Fim dos 6 meses**
-    (`free_period_over`): painel, dados e agendamento manual continuam; a **vitrine para de aceitar agendamento online**
-    (mensagem neutra ao cliente, `public_plan_info.online_closed`) e o dono vê aviso para assinar o Básico.
-  - **Básico** (R$ 28,70/mês | R$ 287,00/ano): Grátis + agendamentos ilimitados, **encaixe e encaixe sobreposto**
+    contas que existiam antes da 52b = publicação + 6 meses. Agenda interna, clientes/ficha, remarcar, editar e trocar
+    serviço, **1 profissional**, cartão de visita com o selo "Feito com Genix Agenda", avaliações (moderação em todos os
+    planos). **Fim dos 6 meses** (`free_period_over`): painel **SÓ CONSULTA** — vê agenda, clientes e histórico e pode
+    **cancelar**; não cria, edita, remarca, confirma nem conclui agendamentos, nem cria/edita clientes (gatilho
+    `guard_free_read_only`, erro `PLANO_CONSULTA`; na tela `usePlanFlags().readOnly`). Nada é apagado.
+  - **Básico** (R$ 28,70/mês | R$ 287,00/ano): Grátis sem prazo e sem selo + **encaixe e encaixe sobreposto**
     (inclusive no Remarcar), **bloqueios** (almoço, folga fixa, férias, feriados), **fila manual de véspera**,
-    recorrência e financeiro (caixa, pagar depois, faturamento, contador). 1 profissional, sem selo.
-  - **Profissional** (R$ 62,70/mês | R$ 627,00/ano): Básico + retornos, pacotes, combos, metas e WhatsApp automático.
-    1 profissional; sem acessos de equipe nem profissional extra.
+    recorrência e financeiro (caixa, pagar depois, faturamento, contador). 1 profissional. Link = cartão de visita.
+  - **Profissional** (R$ 62,70/mês | R$ 627,00/ano): Básico + **vitrine com agendamento online 24h, confirmação
+    automática, diretório, pedido de avaliação** (`submit_review`), retornos, pacotes, combos, metas e WhatsApp
+    automático. 1 profissional; sem acessos de equipe nem profissional extra.
   - **Equipe** (R$ 121,70/mês | R$ 1.217,00/ano): até 3 profissionais + R$ 18,70/mês (R$ 187,00/ano) por extra; acessos
-    da equipe (recepção, profissional, "Meus ganhos"), comissões e salão-parceiro.
+    da equipe (recepção, profissional, "Meus ganhos"), comissões e salão-parceiro (o relatório e o registro na
+    conclusão só contam o parceiro no Equipe, 59).
   - **Anual = 10 × mensal** ("2 meses grátis no plano anual"). Assinantes do antigo Completo (`mensal`/`anual`) contam
     como Equipe e mantêm o valor contratado.
-  - Valores vêm da tabela `plans` e da função `subscription_quote` (não fixar no código). Textos do que cada plano
-    inclui: `src/content/planos.ts` (tabela comparativa da Assinatura e cartões da `/` e da `/para`).
+  - Valores vêm da tabela `plans` e da função `subscription_quote` (não fixar no código). **Fonte única do que cada
+    plano inclui: `src/content/planos.ts`** (`FEATURES` com o plano mínimo de cada recurso, `PLAN_CARDS`,
+    `PLAN_PROMISE`, `planFeatureRows`, `planTag`, `planNote`). Leem dele: tabela da Assinatura, cartões da `/` e da
+    `/para`, etiquetas da landing e dos blocos de benefícios, cadeados (`LOCKED_FEATURES.minPlan`), menu
+    (`lockedHrefsFor`), ajuda, FAQ, banners, cadastro, `/espacos`. Mudou o plano de um recurso? Mude lá **e** no banco.
   - Banco: `access_tier` (`completo`|`gratis`) separa pago × grátis (o que é "a partir do Básico" usa ele);
     `plan_kind` diz qual plano; `plan_allows(bid, 'profissional')` trava pacotes, combos e WhatsApp automático;
     `plan_allows(bid, 'basico')` trava encaixe (gatilho `guard_manual_booking_plan`), encaixe sobreposto, `p_fit` do
@@ -129,7 +139,8 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
   - **1 login = 1 espaço** (índice único em `business_members.user_id`). Acessos individuais são recurso do Completo.
 - **Demo pública** (`/demo`) entra no Lumina como `viewer`; ao salvar, o servidor redireciona com `?demo=bloqueado`.
 - **Buscadores (Google, 30):** `sitemap.ts` lista estáticas, nichos ativos (`/para`, `/explorar`) e vitrines publicadas que não são demo nem `businesses.search_hidden`; `robots.ts` bloqueia painel, `/genix`, `/api`, `/auth`, `/demo`, cadastro/senha e `/v/*/avaliar`. `search_hidden` só a Genix muda (`/genix?aba=buscadores`; gatilho no banco); contas novas nascem visíveis. Vitrine oculta/demo e o painel têm `noindex`.
-- **Avaliações** próprias pós-atendimento (link único por atendimento concluído), não Google.
+- **Avaliações** próprias pós-atendimento (link único por atendimento concluído), não Google. O **pedido** (link no
+  WhatsApp e `submit_review`) é do Profissional em diante (59); as já recebidas aparecem em todos os planos.
 - **WhatsApp:** links `wa.me` (fila de um toque) + **lembrete automático beta** (Profissional e Equipe, liberado pela Genix
   por espaço em `/genix?aba=whatsapp`; credenciais só no servidor; camada `lib/whatsapp/provider.ts`; relógio pg_cron →
   `/api/whatsapp/tick`). Provider padrão **Evolution API** (33): o dono conecta pelo QR em Configurações (instância
@@ -157,7 +168,7 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
 - Funções de apoio: `member_role_of`, `my_professional_id`, `sees_whole_agenda`, `can_manage_booking`,
   `is_business_owner`, `access_tier` (`completo`|`gratis`), `plan_kind` (`gratis`|`basico`|`profissional`|`equipe`),
   `plan_rank`, `plan_allows(bid, mínimo)`, `free_period_over`, `plan_max_professionals`, `free_daily_limit`,
-  `can_use_full_features`, `is_platform_admin`.
+  `can_use_full_features`, `is_platform_admin`, `vitrine_online_allowed` (59).
 - **Cortesia (38):** `plan_grants` (1 linha por espaço, `kind` `profissional`|`equipe`, `expires_at` null = vitalícia;
   sem política de escrita, só SQL Editor/service role). `active_plan_grant(bid)` vem antes de tudo em `access_tier`
   e `plan_kind`: teste vencido, webhook e cron não rebaixam. No código, `getPlanContext().grant` (conta sem cobrança).

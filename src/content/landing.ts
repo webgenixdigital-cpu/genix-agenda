@@ -6,13 +6,15 @@
 // e o preço de lançamento de launch_offer() (getLaunchOffer, migration 53).
 // =====================================================================
 
+import { FREE_MONTHS, PLAN_MICRO, PLAN_PROMISE, TRIAL_DAYS, planTag } from "@/content/planos";
+
 /** Trecho de título com palavra grifada em dourado: [antes, grifo, depois] */
 export type Marked = readonly [string, string, string];
 
 export const LANDING_SEO = {
   title: "Genix Agenda | Agenda online e WhatsApp automático para quem atende com hora marcada",
   description:
-    "Vitrine digital, agenda online e WhatsApp automático para salões, barbearias, estética e outros profissionais. Comece grátis: 6 meses no plano Grátis, 15 dias com tudo liberado, sem cartão.",
+    `Vitrine digital, agenda online e WhatsApp automático para salões, barbearias, estética e outros profissionais. Comece grátis: ${PLAN_PROMISE.trial}, sem cartão. Depois, agenda interna grátis por ${FREE_MONTHS} meses.`,
 };
 
 export const LANDING_NAV = {
@@ -28,7 +30,7 @@ export const LANDING_NAV = {
 };
 
 /** Microgarantias do hero e do fechamento */
-const LANDING_MICRO = ["Sem cartão", "6 meses grátis", "15 dias com tudo liberado"];
+const LANDING_MICRO = PLAN_MICRO;
 
 export const LANDING_HERO = {
   kicker: "Genix Agenda · Sua agenda trabalha. Você atende.",
@@ -106,13 +108,7 @@ export const LANDING_NEED = {
   },
 };
 
-/** Etiquetas de plano dos cards (conferidas com plan_allows/plan_kind e as travas do painel) */
-const PLAN_TAG = {
-  all: "Todos os planos",
-  basic: "A partir do Básico",
-  pro: "Profissional e Equipe",
-  team: "Equipe",
-};
+/** Etiquetas de plano dos cards: vêm do catálogo (src/content/planos.ts, FEATURES) */
 
 export const LANDING_SOLUTION = {
   kicker: "Como resolve",
@@ -122,55 +118,61 @@ export const LANDING_SOLUTION = {
       from: "Ajuda a reduzir as faltas",
       title: "WhatsApp automático",
       text: "Do seu número: confirmação do agendamento, lembrete na véspera, lembrete antes do horário e parabéns no aniversário. Com ritmo seguro, das 8h às 20h.",
-      plan: PLAN_TAG.pro,
+      plan: planTag("whatsapp"),
     },
     {
       from: "Acaba com o WhatsApp à noite",
       title: "Vitrine aberta 24h",
       text: "Um link com serviços, fotos e só os horários livres. O cliente escolhe e agenda sozinho, a qualquer hora.",
-      plan: PLAN_TAG.all,
+      plan: planTag("vitrine"),
+    },
+    {
+      from: "Seu link desde o primeiro dia",
+      title: "Cartão de visita",
+      text: "No Grátis e no Básico, seu link mostra serviços, preços, endereço, avaliações e o botão “Agendar pelo WhatsApp”.",
+      plan: planTag("cartao"),
     },
     {
       from: "Acaba com o horário perdido",
       title: "Encaixe e encaixe sobreposto",
       text: "Encaixe um cliente entre horários ou durante a pausa de outro atendimento, como no tempo de ação da química.",
-      plan: PLAN_TAG.basic,
+      plan: planTag("encaixe"),
     },
     {
       from: "Acaba com o cliente fixo esquecido",
       title: "Recorrência",
       text: "O cliente de toda semana ou de cada 15 dias já fica com os próximos horários marcados.",
-      plan: PLAN_TAG.basic,
+      plan: planTag("recorrencia"),
     },
     {
       from: "Acaba com o cliente que some",
       title: "Retornos",
       text: "Uma lista de quem está na hora de voltar, para você chamar com um toque.",
-      plan: PLAN_TAG.pro,
+      plan: planTag("retornos"),
     },
     {
       from: "Aumenta o valor de cada visita",
       title: "Pacotes, planos fechados e combos",
       text: "Venda 4 manicures + 2 pedicures com preço fechado, com datas livres ou já marcadas. O saldo baixa sozinho.",
-      plan: PLAN_TAG.pro,
+      plan: planTag("pacotes"),
     },
     {
       from: "Acaba com as contas misturadas",
       title: "Caixa organizado",
       text: "Entradas e saídas por período, pagamentos pendentes, planilha para baixar e relatório para o contador.",
-      plan: PLAN_TAG.basic,
+      plan: planTag("financeiro"),
     },
     {
       from: "Acaba com a ficha de papel",
       title: "Ficha do cliente",
       text: "Histórico de atendimentos, aniversário e telefone de qualquer país, tudo num lugar só.",
-      plan: PLAN_TAG.all,
+      plan: planTag("agenda"),
     },
     {
       from: "Organiza a equipe",
       title: "Equipe e comissões",
       text: "Acesso para recepção e profissionais, % de comissão por profissional e a estimativa de ganhos de cada um.",
-      plan: PLAN_TAG.team,
+      plan: planTag("comissoes"),
     },
   ],
 };
@@ -203,7 +205,8 @@ export const LANDING_PROOF = {
   ],
 };
 
-/** Planos: só textos. Valores, limite do Grátis, nº de profissionais e preço de lançamento vêm do banco. */
+/** Planos: só a moldura. O que cada plano inclui vem de PLAN_CARDS (src/content/planos.ts);
+ *  valores, nº de profissionais e preço de lançamento vêm do banco. */
 export const LANDING_PLANS = {
   kicker: "Planos",
   title: "Comece grátis. Cresça quando quiser.",
@@ -221,40 +224,17 @@ export const LANDING_PLANS = {
   cta: "Começar grátis",
   yearlyEquivalent: (perMonth: string) => `equivale a ${perMonth}/mês`,
   free: {
-    name: "Grátis",
-    text: "Para conhecer e organizar a agenda.",
     price: "R$ 0",
-    per: "por 6 meses · 15 dias com tudo liberado",
-    items: (limit: number) => [
-      "1 profissional",
-      `${limit} agendamentos online por dia`,
-      "Agenda, ficha do cliente e vitrine",
-      "Avaliações dos clientes",
-    ],
-  },
-  basic: {
-    name: "Básico",
-    text: "Agenda completa para quem atende sozinho.",
-    items: [
-      "Agendamentos online ilimitados",
-      "Encaixe e encaixe sobreposto",
-      "Recorrência e bloqueios",
-      "Lembretes da véspera com um toque",
-      "Caixa e financeiro",
-    ],
+    per: `por ${FREE_MONTHS} meses · depois só consulta`,
   },
   pro: {
     badge: "Mais escolhido",
-    name: "Profissional",
-    text: "Tudo liberado para 1 profissional.",
-    items: ["Tudo do Básico", "WhatsApp automático (ativação assistida)", "Retornos, pacotes e combos", "Planos fechados com datas marcadas"],
   },
   team: {
-    name: "Equipe",
-    text: (included: number) => `Para salões com até ${included} profissionais.`,
     extra: (price: string, per: string) => `+ ${price}${per} por profissional extra`,
-    items: ["Tudo do Profissional", "Acessos para recepção e equipe", "% de comissão por profissional", "Salão-parceiro"],
   },
+  /** linha abaixo dos cartões */
+  trialNote: `Toda conta nova tem ${PLAN_PROMISE.trial}, sem cartão. ${PLAN_PROMISE.afterTrial}`,
   /** [negrito, resto] */
   referral: ["Indique e ganhe:", " a cada espaço indicado que assinar, você ganha 1 mês grátis."] as const,
   roi: ["Uma única falta evitada por mês ", "já paga o plano Básico", "."] as Marked,
@@ -278,8 +258,12 @@ export const LANDING_FAQ = {
       a: "Confirmação do agendamento, lembrete na véspera, lembrete antes do horário (1h, 1h30 ou 2h) e parabéns no aniversário. Você liga só as que quiser. O envio sai do seu número, num ritmo seguro, e a ativação é feita junto com a nossa equipe.",
     },
     {
-      q: "O que acontece depois dos 6 meses grátis?",
-      a: "Você escolhe um plano. Se não assinar, seu painel, seus dados e o agendamento manual continuam funcionando; só a vitrine deixa de receber agendamentos online.",
+      q: `O que acontece depois dos ${FREE_MONTHS} meses grátis?`,
+      a: `Você escolhe um plano. ${PLAN_PROMISE.freeOver}`,
+    },
+    {
+      q: "O cliente consegue agendar sozinho no plano Grátis?",
+      a: `No Grátis e no Básico, seu link é um cartão de visita: o cliente vê serviços, preços e avaliações e chama você pelo botão do WhatsApp. A vitrine com agendamento online 24h vem no Profissional e no Equipe. No teste de ${TRIAL_DAYS} dias ela fica liberada.`,
     },
     {
       q: "É difícil começar?",

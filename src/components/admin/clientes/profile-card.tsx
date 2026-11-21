@@ -2,6 +2,7 @@
 
 import { Ajuda } from "@/components/ajuda";
 import { useState, useTransition } from "react";
+import { ReadOnlyLink, usePlanFlags } from "@/components/admin/plan-flags";
 import { ClipboardList, Loader2, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { updateCustomerProfile } from "@/app/admin/(painel)/clientes/actions";
@@ -33,6 +34,7 @@ export function ProfileCard({
   fields: ProfileField[];
   profile: Record<string, string>;
 }) {
+  const { readOnly } = usePlanFlags();   // 59: Grátis vencido = só consulta
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
   const [values, setValues] = useState<Record<string, string>>({});
@@ -65,9 +67,13 @@ export function ProfileCard({
           </h2>
           <p className="mt-0.5 text-sm text-muted-foreground">{nicheName}</p>
         </div>
-        <Button variant="outline" className="h-10" onClick={openDialog} data-testid="btn-editar-ficha">
-          <Pencil className="mr-1.5 h-4 w-4" /> {filled.length ? "Editar" : "Preencher"}
-        </Button>
+        {readOnly ? (
+          <ReadOnlyLink label={filled.length ? "Editar" : "Preencher"} testid="btn-editar-ficha-travado" />
+        ) : (
+          <Button variant="outline" className="h-10" onClick={openDialog} data-testid="btn-editar-ficha">
+            <Pencil className="mr-1.5 h-4 w-4" /> {filled.length ? "Editar" : "Preencher"}
+          </Button>
+        )}
       </div>
 
       {filled.length === 0 ? (

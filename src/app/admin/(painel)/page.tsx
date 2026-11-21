@@ -14,7 +14,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { getAdminContext } from "@/lib/admin";
-import { getPlanContext, PLAN_NAMES, type PlanContext } from "@/lib/plan";
+import { allows, getPlanContext, PLAN_NAMES, type PlanContext } from "@/lib/plan";
 import { loadHome, type HomeData } from "@/lib/dashboard-data";
 import { OnboardingCard } from "@/components/admin/onboarding-card";
 import { ONBOARDING_COOKIE, readOnboardingPref } from "@/lib/ui-prefs";
@@ -284,11 +284,11 @@ function buildTiles(role: AdminContext["role"], plan: PlanContext, d: HomeData):
     } else if (plan.status === "past_due") {
       tiles.push(tile(name, "pagamento da assinatura em atraso", "alerta"));
     } else if (plan.tier === "gratis" && plan.freeOver) {
-      tiles.push(tile("Grátis encerrado", "vitrine sem agendamento online · assine o Básico", "alerta"));
+      tiles.push(tile("Só consulta", "Grátis encerrado · assine o Básico para agendar", "alerta"));
     } else if (plan.tier === "gratis") {
       tiles.push(
         plan.freeDaysLeft !== null
-          ? tile(plural(plan.freeDaysLeft, "dia", "dias"), "restantes do plano Grátis", plan.freeDaysLeft <= 15 ? "alerta" : "normal")
+          ? tile(plural(plan.freeDaysLeft, "dia", "dias"), "restantes do Grátis · agenda interna", plan.freeDaysLeft <= 15 ? "alerta" : "normal")
           : tile("Grátis", "conheça os planos pagos")
       );
     } else if (plan.status === "active") {
@@ -334,7 +334,7 @@ export default async function Dashboard({ searchParams }: Props) {
 
   // Confirmação automática: aviso para contas antigas
   const biz = business as unknown as { online_confirm_mode?: string; online_confirm_reviewed_at?: string | null };
-  const showConfirmIntro = isOwner && biz.online_confirm_mode === "manual" && !biz.online_confirm_reviewed_at;
+  const showConfirmIntro = isOwner && allows(plan, "profissional") && biz.online_confirm_mode === "manual" && !biz.online_confirm_reviewed_at;
 
   const tiles = buildTiles(role, plan, d);
   const greeting = role === "staff" && d.meName ? firstName(d.meName) : business.name;
@@ -418,7 +418,7 @@ export default async function Dashboard({ searchParams }: Props) {
           )}
         </section>
 
-        <VitrineLinkCard slug={business.slug} />
+        <VitrineLinkCard slug={business.slug} cardOnly={!allows(plan, "profissional")} />
       </div>
     </main>
   );

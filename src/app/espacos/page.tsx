@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, CalendarCheck, MessageCircle, Search, Store, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { FREE_MONTHS, PLAN_PROMISE } from "@/content/planos";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { BusinessCard } from "@/components/business-card";
@@ -257,7 +258,7 @@ export default async function EspacosPage({ searchParams }: Props) {
             <div>
               <h2 className="text-3xl">Você atende com hora marcada?</h2>
               <p className="copy mt-3 text-stone-300">
-                Vitrine e agenda online grátis por 6 meses para 1 profissional. E 15 dias do plano Equipe para testar tudo, sem cartão.
+                Teste {PLAN_PROMISE.trial}, sem cartão. Depois, agenda interna grátis por {FREE_MONTHS} meses.
               </p>
             </div>
             <Button asChild size="lg" className="h-12 shrink-0 px-7 text-base" data-testid="btn-home-profissional">

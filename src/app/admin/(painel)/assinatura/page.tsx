@@ -2,14 +2,14 @@ import { Ajuda } from "@/components/ajuda";
 import { Check, Clock, ExternalLink, Sparkles, XCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { requireRoles } from "@/lib/admin";
-import { getFreeDailyLimit, getPlanContext, PLAN_NAMES, recommendedKind } from "@/lib/plan";
+import { getPlanContext, PLAN_NAMES, recommendedKind } from "@/lib/plan";
 import {
   cycleOfPlanId, isLegacyPlanId, isSoloKind, kindOfPlanId, PAID_KINDS, PAID_PLAN_IDS, paidRank, planIdFor, type PaidKind, type PaidPlanId,
 } from "@/lib/plan-ids";
 import { brl } from "@/lib/format";
 import { availablePaidPlans, getLaunchOffer, getPublicPlans, plansPreview } from "@/lib/plans-server";
 import { offerEndLabel, offerOpen } from "@/lib/plans-public";
-import { LAUNCH_TEXT } from "@/content/planos";
+import { FREE_MONTHS, LAUNCH_TEXT, PLAN_PROMISE } from "@/content/planos";
 import { PlansComparison } from "@/components/plans-comparison";
 import { Button } from "@/components/ui/button";
 import { SubscribeForm, type Discounts, type Quotes } from "@/components/admin/assinatura/subscribe-form";
@@ -59,7 +59,7 @@ export default async function AssinaturaPage() {
   const supabase = createClient();
 
   const ids: PaidPlanId[] = [...PAID_PLAN_IDS];
-  const [quoteRows, { data: sub }, freeLimit, available, { data: changes }, publicPlans, launchOffer, { data: referralsRaw }] = await Promise.all([
+  const [quoteRows, { data: sub }, available, { data: changes }, publicPlans, launchOffer, { data: referralsRaw }] = await Promise.all([
     Promise.all(ids.map((id) => supabase.rpc("subscription_quote", { bid: business.id, p_plan: id }))),
     supabase
       .from("subscriptions")
@@ -68,7 +68,6 @@ export default async function AssinaturaPage() {
       )
       .eq("business_id", business.id)
       .maybeSingle(),
-    getFreeDailyLimit(),
     availablePaidPlans(),
     // histórico da cobrança do profissional extra (29; a RLS mostra só para a matriz)
     supabase
@@ -172,19 +171,19 @@ export default async function AssinaturaPage() {
     StatusIcon = XCircle;
   } else if (plan.trialDaysLeft !== null) {
     statusTitle = "Teste grátis do plano Equipe";
-    statusText = `Termina em ${trialEnd} (${daysLabel(plan.trialDaysLeft)}). Para continuar com tudo, assine o ${PLAN_NAMES[recommended]}. Sem assinatura, sua conta passa para o Grátis, sem perder nada${freeEnd ? `; o Grátis vale até ${freeEnd}` : ""}.`;
+    statusText = `Termina em ${trialEnd} (${daysLabel(plan.trialDaysLeft)}). Para continuar com tudo, inclusive a vitrine de agendamento online, assine o ${PLAN_NAMES[recommended]}. Sem assinatura, sua conta passa para o Grátis (agenda interna e cartão de visita), sem perder nada${freeEnd ? `; o Grátis vale até ${freeEnd}` : ""}.`;
     StatusIcon = Clock;
   } else if (plan.tier === "gratis" && plan.freeOver) {
-    statusTitle = "Período Grátis encerrado";
-    statusText = `Seu Grátis terminou${freeEnd ? ` em ${freeEnd}` : ""}. O painel e os seus dados continuam, e você pode agendar pelo painel, mas a vitrine não está recebendo agendamentos online. Assine o Básico para voltar a receber.`;
+    statusTitle = "Painel só para consulta";
+    statusText = `Seu Grátis terminou${freeEnd ? ` em ${freeEnd}` : ""}. ${PLAN_PROMISE.freeOverPanel} Nada foi apagado.`;
     StatusIcon = XCircle;
   } else if (plan.tier === "gratis") {
     statusTitle = "Plano Grátis";
-    statusText = `Vitrine e agenda online com até ${freeLimit} agendamentos online por dia, para 1 profissional.${
+    statusText = `Agenda interna e cartão de visita com botão do WhatsApp, para 1 profissional, por ${FREE_MONTHS} meses.${
       freeEnd && plan.freeDaysLeft !== null
-        ? ` Vale até ${freeEnd} (${daysLabel(plan.freeDaysLeft)}). Depois, a vitrine para de receber agendamentos online até você assinar.`
+        ? ` Vale até ${freeEnd} (${daysLabel(plan.freeDaysLeft)}). Depois, o painel fica só para consulta até você assinar.`
         : ""
-    }`;
+    } ${PLAN_PROMISE.vitrineFrom}.`;
     StatusIcon = Sparkles;
   }
 

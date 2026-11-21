@@ -14,6 +14,7 @@ import { customerMessage } from "@/lib/messages";
 import type { ProOption } from "@/components/admin/agenda/reschedule-dialog";
 import { ReopenBookingButton } from "@/components/admin/agenda/reopen-booking-button";
 import { useBookingDialogs, type BookingDialogKind } from "@/components/admin/agenda/booking-dialogs";
+import { usePlanFlags } from "@/components/admin/plan-flags";
 import type { BookingStatus } from "@/lib/types";
 
 export type AgendaBooking = {
@@ -79,21 +80,25 @@ export function BookingActions({
   onCancelling?: (hidden: boolean) => void;
 }) {
   const { openBooking } = useBookingDialogs();
+  // 59: Grátis vencido = só consulta (cancelar continua); pedido de avaliação só no Profissional+
+  const { readOnly, reviewRequest } = usePlanFlags();
   const [pending, start] = useTransition();
   const [origin, setOrigin] = useState("");
 
   useEffect(() => setOrigin(window.location.origin), []);
 
-  const reviewUrl = origin ? `${origin}/v/${slug}/avaliar/${b.id}` : undefined;
+  const reviewUrl = origin && reviewRequest ? `${origin}/v/${slug}/avaliar/${b.id}` : undefined;
   const wa = whatsappLink(b.customer_phone, customerMessage(b, businessName, reviewUrl), b.customer_phone_country);
   const open = (kind: BookingDialogKind) => openBooking(kind, b, { businessName, slug, fullAccess, reschedule, onCancelling });
 
   const active = b.status === "pending" || b.status === "confirmed";
+  const editable = active && !readOnly;
+  const askReview = b.status === "completed" && reviewRequest;
 
   return (
     <div className="space-y-2">
       <ActionRow data-testid={`acoes-${b.id}`}>
-        {b.status === "pending" && (
+        {b.status === "pending" && !readOnly && (
           <ActionTile
             variant="primary"
             icon={pending ? <Loader2 className="animate-spin" /> : <Check />}
@@ -111,7 +116,7 @@ export function BookingActions({
           />
         )}
 
-        {b.status === "confirmed" && (
+        {b.status === "confirmed" && !readOnly && (
           <ActionTile
             variant="primary"
             icon={<CheckCheck />}
@@ -122,11 +127,11 @@ export function BookingActions({
           />
         )}
 
-        {active && (
+        {editable && (
           <ActionTile icon={<Pencil />} label="Editar" disabled={pending} onClick={() => open("edit")} data-testid={`btn-editar-${b.id}`} />
         )}
 
-        {reschedule && active && (
+        {reschedule && editable && (
           <ActionTile
             icon={<CalendarClock />}
             label="Remarcar"
@@ -142,8 +147,8 @@ export function BookingActions({
             variant="whatsapp"
             // pendente/confirmado: 5 botões; no celular o WhatsApp fica só no ícone (cabe em 360 px)
             iconOnlyOnMobile={active}
-            icon={b.status === "completed" ? <Star /> : <MessageCircle />}
-            label={b.status === "completed" ? "Avaliação" : "WhatsApp"}
+            icon={askReview ? <Star /> : <MessageCircle />}
+            label={askReview ? "Avaliação" : "WhatsApp"}
           >
             <a href={wa} target="_blank" rel="noopener noreferrer" data-testid={`btn-whatsapp-cliente-${b.id}`} />
           </ActionTile>
@@ -159,7 +164,7 @@ export function BookingActions({
           />
         )}
 
-        {b.status === "completed" && reschedule?.canReopen && (
+        {b.status === "completed" && reschedule?.canReopen && !readOnly && (
           <ReopenBookingButton
             variant="tile"
             bookingId={b.id}

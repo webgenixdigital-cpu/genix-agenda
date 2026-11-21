@@ -1,27 +1,25 @@
 // Planos e recursos (usado no servidor e no navegador).
 // Ordem: Grátis < Básico < Profissional < Equipe (igual a plan_rank/plan_allows no banco, migration 52).
-// minPlan: plano mínimo que libera o recurso (aparece no cadeado).
+// Plano mínimo de cada recurso: src/content/planos.ts (FEATURES, fonte única, migration 59).
+import { FEATURES, PLAN_NAMES, PLAN_RANK, scopeLabel, type FeatureKey, type MinPlan, type PlanKind } from "@/content/planos";
 
-export type PlanKind = "gratis" | "basico" | "profissional" | "equipe";
-export type MinPlan = Exclude<PlanKind, "gratis">;
-
-export const PLAN_NAMES: Record<PlanKind, string> = {
-  gratis: "Grátis",
-  basico: "Básico",
-  profissional: "Profissional",
-  equipe: "Equipe",
-};
-
-const RANK: Record<PlanKind, number> = { gratis: 0, basico: 1, profissional: 2, equipe: 3 };
+export { PLAN_NAMES, type MinPlan, type PlanKind };
 
 /** O plano chega ao mínimo? (mesma regra de plan_allows no banco) */
-export const planAllows = (kind: PlanKind, min: MinPlan) => RANK[kind] >= RANK[min];
+export const planAllows = (kind: PlanKind, min: MinPlan) => PLAN_RANK[kind] >= PLAN_RANK[min];
+
+/** Plano mínimo de um recurso pago (para o cadeado) */
+const minOf = (key: FeatureKey) => FEATURES[key].min as MinPlan;
 
 /** Itens do menu com cadeado, conforme o plano */
 export function lockedHrefsFor(kind: PlanKind): string[] {
-  if (!planAllows(kind, "basico")) return ["/admin/bloqueios", "/admin/financeiro", "/admin/lembretes", "/admin/metas"];
-  if (!planAllows(kind, "profissional")) return ["/admin/metas"];
-  return [];
+  const menu: [string, FeatureKey][] = [
+    ["/admin/bloqueios", "bloqueios"],
+    ["/admin/financeiro", "financeiro"],
+    ["/admin/lembretes", "lembretes"],
+    ["/admin/metas", "metas"],
+  ];
+  return menu.filter(([, key]) => !planAllows(kind, minOf(key))).map(([href]) => href);
 }
 
 export type LockedFeatureKey =
@@ -34,7 +32,8 @@ export type LockedFeatureKey =
   | "combos"
   | "encaixe"
   | "recorrencia"
-  | "metas";
+  | "metas"
+  | "vitrine";
 
 export const LOCKED_FEATURES: Record<
   LockedFeatureKey,
@@ -48,7 +47,7 @@ export const LOCKED_FEATURES: Record<
       "Almoço e folgas fixas toda semana, sem cadastrar dia por dia",
       "Aviso de quem já estava marcado no período",
     ],
-    minPlan: "basico",
+    minPlan: minOf("bloqueios"),
   },
   lembretes: {
     title: "Lembretes de véspera",
@@ -58,7 +57,7 @@ export const LOCKED_FEATURES: Record<
       "Mensagem pronta com nome, serviço e horário",
       "Marque quem já foi lembrado",
     ],
-    minPlan: "basico",
+    minPlan: minOf("lembretes"),
   },
   retornos: {
     title: "Retornos",
@@ -68,7 +67,7 @@ export const LOCKED_FEATURES: Record<
       "Fila “hora de voltar” com os clientes do período",
       "Mensagem pronta no WhatsApp com um toque",
     ],
-    minPlan: "profissional",
+    minPlan: minOf("retornos"),
   },
   financeiro: {
     title: "Financeiro e caixa",
@@ -78,7 +77,7 @@ export const LOCKED_FEATURES: Record<
       "Gráfico dos últimos 6 meses",
       "Entradas por Pix, cartão e dinheiro",
     ],
-    minPlan: "basico",
+    minPlan: minOf("financeiro"),
   },
   faturamento: {
     title: "Faturamento e relatório para o contador",
@@ -88,7 +87,7 @@ export const LOCKED_FEATURES: Record<
       "Alertas ao chegar perto do limite",
       "Relatório para imprimir em PDF ou baixar em planilha",
     ],
-    minPlan: "basico",
+    minPlan: minOf("faturamento"),
   },
   pacotes: {
     title: "Pacotes de sessões",
@@ -98,7 +97,7 @@ export const LOCKED_FEATURES: Record<
       "Saldo de sessões na ficha do cliente",
       "Venda lançada no caixa uma vez só",
     ],
-    minPlan: "profissional",
+    minPlan: minOf("pacotes"),
   },
   combos: {
     title: "Combos de serviços",
@@ -108,7 +107,7 @@ export const LOCKED_FEATURES: Record<
       "Vitrine mostra “de R$ X por R$ Y”",
       "Agendado como um serviço só, com a duração somada",
     ],
-    minPlan: "profissional",
+    minPlan: minOf("combos"),
   },
   encaixe: {
     title: "Encaixe",
@@ -118,7 +117,7 @@ export const LOCKED_FEATURES: Record<
       "Encaixe sobreposto durante a pausa de outro atendimento",
       "Bloqueios e conflitos continuam valendo",
     ],
-    minPlan: "basico",
+    minPlan: minOf("encaixe"),
   },
   recorrencia: {
     title: "Agendamentos recorrentes",
@@ -128,7 +127,7 @@ export const LOCKED_FEATURES: Record<
       "Aviso das datas que já estão ocupadas",
       "Cancele uma data ou a série inteira",
     ],
-    minPlan: "basico",
+    minPlan: minOf("recorrencia"),
   },
   metas: {
     title: "Metas",
@@ -138,17 +137,28 @@ export const LOCKED_FEATURES: Record<
       "Quanto falta e quanto precisa por dia até o fim do período",
       "No plano Equipe, metas por profissional",
     ],
-    minPlan: "profissional",
+    minPlan: minOf("metas"),
+  },
+  vitrine: {
+    title: "Vitrine com agendamento online",
+    description: "O cliente vê os horários livres e agenda sozinho, a qualquer hora, sem você precisar responder mensagem.",
+    bullets: [
+      "Só os horários livres de verdade, 24 horas",
+      "Confirmação automática dos agendamentos online",
+      "Seu espaço no diretório de espaços do Genix Agenda",
+    ],
+    minPlan: minOf("vitrine"),
   },
 };
 
 /** Texto do cadeado: "a partir do Básico", "planos Profissional e Equipe" ou "plano Equipe" */
-export const minPlanLabel = (minPlan: MinPlan) =>
-  minPlan === "equipe" ? "plano Equipe" : minPlan === "profissional" ? "planos Profissional e Equipe" : "planos pagos, a partir do Básico";
+export const minPlanLabel = scopeLabel;
 
 /** Mensagens dos erros de plano que vêm do banco (PLANO_BASICO, PLANO_PROFISSIONAL...) */
 export const PLAN_ERRORS = {
   PLANO_BASICO: "Recurso dos planos pagos, a partir do Básico. Veja em Assinatura.",
   PLANO_PROFISSIONAL: "Recurso dos planos Profissional e Equipe. Veja em Assinatura.",
   PLANO_EQUIPE: "Recurso do plano Equipe. Veja em Assinatura.",
+  /** 59: Grátis vencido = painel só consulta */
+  PLANO_CONSULTA: "Seu Grátis terminou e o painel está só para consulta. Assine o Básico para continuar agendando.",
 } as const;

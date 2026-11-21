@@ -1,16 +1,14 @@
 import Link from "next/link";
 import { AlertTriangle, Gift, Sparkles } from "lucide-react";
 import { PLAN_NAMES, recommendedKind, type PlanContext } from "@/lib/plan";
+import { PLAN_PROMISE } from "@/content/planos";
 import { cn } from "@/lib/utils";
 
 export function PlanBanner({
   plan,
-  freeLimit,
   activePros,
 }: {
   plan: PlanContext;
-  /** agendamentos online por dia no Grátis (vem do banco) */
-  freeLimit: number;
   /** profissionais ativos: define a oferta do fim do teste */
   activePros: number;
 }) {
@@ -33,7 +31,7 @@ export function PlanBanner({
           <Gift className="h-4 w-4 shrink-0 text-primary" />
           <span>
             <strong>Teste grátis do plano Equipe:</strong> {days}.
-            {urgent && ` Para continuar com tudo, assine o ${PLAN_NAMES[offer]}; senão, sua conta passa para o Grátis.`}
+            {urgent && ` Para continuar com tudo, inclusive a vitrine de agendamento online, assine o ${PLAN_NAMES[offer]}; senão, sua conta passa para o Grátis (agenda interna e cartão de visita).`}
           </span>
         </p>
         <Link href="/admin/assinatura" className="font-semibold text-primary underline" data-testid="link-faixa-planos">
@@ -43,7 +41,7 @@ export function PlanBanner({
     );
   }
 
-  // Grátis vencido (52): a vitrine não recebe agendamento online
+  // Grátis vencido (59): painel só consulta
   if (plan.tier === "gratis" && plan.freeOver) {
     return (
       <div
@@ -53,8 +51,7 @@ export function PlanBanner({
         <p className="flex items-center gap-2">
           <AlertTriangle className="h-4 w-4 shrink-0" />
           <span>
-            <strong>Seu período Grátis terminou.</strong> A vitrine não está recebendo agendamentos online. O painel e os
-            seus dados continuam.
+            <strong>{PLAN_PROMISE.freeOverTitle}</strong> {PLAN_PROMISE.freeOverPanel}
           </span>
         </p>
         <Link href="/admin/assinatura" className="font-semibold text-primary underline" data-testid="link-faixa-assinar-basico">
@@ -78,7 +75,7 @@ export function PlanBanner({
         <p className="flex items-center gap-2">
           <Sparkles className="h-4 w-4 shrink-0 text-primary" />
           <span>
-            <strong>Plano Grátis:</strong> até {freeLimit} agendamentos online por dia e 1 profissional
+            <strong>Plano Grátis:</strong> agenda interna e cartão de visita, 1 profissional
             {plan.freeDaysLeft !== null ? ` · ${plan.freeDaysLeft === 1 ? "falta 1 dia" : `faltam ${plan.freeDaysLeft} dias`}` : ""}.
           </span>
         </p>

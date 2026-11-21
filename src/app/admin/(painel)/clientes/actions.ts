@@ -9,6 +9,7 @@ import { loadSaleOptions, type SaleProfessional, type SaleTemplate } from "@/lib
 import type { PlanRule, PlanVisit } from "@/lib/package-plan";
 import { phoneError } from "@/lib/phone";
 import { parseCustomerPhone } from "@/lib/phone-intl";
+import { PLAN_ERRORS } from "@/lib/plan-features";
 
 type Result = { ok: true; id?: string } | { ok: false; error: string };
 
@@ -60,7 +61,7 @@ export async function createCustomer(input: CustomerInput): Promise<Result> {
     .single();
 
   if (error) {
-    return { ok: false, error: error.code === "23505" ? "Já existe um cliente com esse WhatsApp." : "Não foi possível cadastrar." };
+    return { ok: false, error: error.message.includes("PLANO_CONSULTA") ? PLAN_ERRORS.PLANO_CONSULTA : error.code === "23505" ? "Já existe um cliente com esse WhatsApp." : "Não foi possível cadastrar." };
   }
   revalidatePath("/admin/clientes");
   return { ok: true, id: data.id };
@@ -92,7 +93,7 @@ export async function updateCustomer(
     .select("id");
 
   if (error) {
-    return { ok: false, error: error.code === "23505" ? "Outro cliente já usa esse WhatsApp." : "Não foi possível salvar." };
+    return { ok: false, error: error.message.includes("PLANO_CONSULTA") ? PLAN_ERRORS.PLANO_CONSULTA : error.code === "23505" ? "Outro cliente já usa esse WhatsApp." : "Não foi possível salvar." };
   }
   if (!data?.length) return { ok: false, error: "Você não tem permissão para editar este cliente." };
 
@@ -188,6 +189,7 @@ export async function updateCustomerProfile(id: string, values: Record<string, s
 // PARTE 5 — Pacotes (venda e cancelamento passam por funções do banco)
 // ---------------------------------------------------------------------
 const PACKAGE_ERRORS: Record<string, string> = {
+  PLANO_CONSULTA: PLAN_ERRORS.PLANO_CONSULTA,   // 59: Grátis vencido = só consulta
   MODELO_INVALIDO: "Esse modelo de pacote não está mais disponível.",
   CLIENTE_INVALIDO: "Cliente não encontrado.",
   SEM_PERMISSAO: "Somente a matriz e a recepção podem vender ou cancelar pacotes.",

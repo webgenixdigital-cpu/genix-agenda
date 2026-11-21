@@ -5,8 +5,10 @@ import { QRCodeSVG } from "qrcode.react";
 import { Check, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { VitrinePlanNote } from "@/components/admin/vitrine-plan-note";
 
-export function VitrineLinkCard({ slug }: { slug: string }) {
+/** cardOnly (59): Grátis e Básico — o link é um cartão de visita */
+export function VitrineLinkCard({ slug, cardOnly = false }: { slug: string; cardOnly?: boolean }) {
   const [url, setUrl] = useState(`/v/${slug}`);
   const [copied, setCopied] = useState(false);
 
@@ -23,7 +25,7 @@ export function VitrineLinkCard({ slug }: { slug: string }) {
 
   return (
     <div className="rounded-2xl border bg-card p-5">
-      <h2 className="font-sans text-base font-semibold">Link da sua vitrine</h2>
+      <h2 className="font-sans text-base font-semibold">{cardOnly ? "Seu cartão de visita" : "Link da sua vitrine"}</h2>
       <p className="mt-1 text-sm text-muted-foreground">Coloque na bio do Instagram e no status do WhatsApp.</p>
 
       <div className="mt-4 flex justify-center rounded-xl bg-white p-4">
@@ -35,6 +37,7 @@ export function VitrineLinkCard({ slug }: { slug: string }) {
         {copied ? <Check className="mr-2 h-4 w-4" /> : <Copy className="mr-2 h-4 w-4" />}
         {copied ? "Copiado" : "Copiar link"}
       </Button>
+      {cardOnly && <VitrinePlanNote className="mt-4" compact />}
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { getAdminContext, getEditorContext } from "@/lib/admin";
 import { customerSearchFilter } from "@/lib/customer-search";
 import { cleanCountry, phoneError } from "@/lib/phone";
 import { parseCustomerPhone } from "@/lib/phone-intl";
+import { PLAN_ERRORS } from "@/lib/plan-features";
 
 type Result = { ok: true } | { ok: false; error: string };
 type Method = "pix" | "dinheiro" | "credito" | "debito";
@@ -14,6 +15,7 @@ const OVERLAP = "23P01"; // exclusion_violation (trava no_overlap)
 
 // erros do trigger trg_validate_package (19_pacotes.sql)
 const PACKAGE_ERRORS: Record<string, string> = {
+  PLANO_CONSULTA: PLAN_ERRORS.PLANO_CONSULTA,   // 59: Grátis vencido = só consulta
   PACOTE_SEM_SALDO: "Esse pacote não tem mais sessões disponíveis.",
   PACOTE_VENCIDO: "Esse pacote vence antes da data escolhida.",
   PACOTE_INVALIDO: "Esse pacote não pode ser usado aqui (cancelado, de outro cliente ou de outro serviço).",
@@ -87,6 +89,7 @@ export async function completeBooking(id: string, method: Method | "pendente" | 
 // PARTE 2a — Pagamento pendente (49_pagamento_depois.sql)
 // ---------------------------------------------------------------------
 const PAYMENT_ERRORS: Record<string, string> = {
+  PLANO_CONSULTA: PLAN_ERRORS.PLANO_CONSULTA,   // 59: Grátis vencido = só consulta
   SEM_PERMISSAO: "Você não pode registrar o pagamento deste atendimento.",
   PLANO_GRATIS: "Registrar pagamento no caixa é um recurso dos planos pagos, a partir do Básico.",
   NAO_PENDENTE: "Esse pagamento já foi registrado.",
@@ -162,6 +165,7 @@ export async function registerPackagePayment(input: {
 // histórico ganha "reopened". Tudo numa transação, no banco.
 // ---------------------------------------------------------------------
 const REOPEN_ERRORS: Record<string, string> = {
+  PLANO_CONSULTA: PLAN_ERRORS.PLANO_CONSULTA,   // 59: Grátis vencido = só consulta
   SEM_PERMISSAO: "Só a matriz e a recepção podem reabrir um atendimento.",
   PRAZO_SO_DONO: "Esse atendimento foi concluído há mais de 30 dias. Só a matriz pode reabrir.",
   CAIXA_EDITADO:
@@ -277,6 +281,7 @@ export async function createManualBooking(input: {
 // agenda) e o profissional (a própria); 1 por trecho; o banco confere tudo.
 // ---------------------------------------------------------------------
 const OVERLAY_ERRORS: Record<string, string> = {
+  PLANO_CONSULTA: PLAN_ERRORS.PLANO_CONSULTA,   // 59: Grátis vencido = só consulta
   SEM_PERMISSAO: "Encaixe sobreposto: a matriz e a recepção marcam em qualquer agenda; o profissional, só na própria.",
   PROFISSIONAL_INDISPONIVEL: "Esse profissional não está ativo.",
   PROFISSIONAL_NAO_FAZ: "Esse profissional não faz esse serviço.",
@@ -509,6 +514,7 @@ export type SeriesInput = {
 export type SeriesDate = { seq: number; date: string; issue: string | null };
 
 const SERIES_ERRORS: Record<string, string> = {
+  PLANO_CONSULTA: PLAN_ERRORS.PLANO_CONSULTA,   // 59: Grátis vencido = só consulta
   PLANO_GRATIS: "Agendamentos recorrentes são um recurso dos planos pagos, a partir do Básico.",
   SEM_PERMISSAO: "Você só pode agendar na sua própria agenda.",
   FREQUENCIA_INVALIDA: "Escolha a frequência.",
@@ -597,6 +603,7 @@ export async function cancelSeriesFuture(seriesId: string): Promise<{ ok: true; 
 // PARTE 6 — Remarcar (mesmo agendamento; regras em 21_remarcar.sql)
 // ---------------------------------------------------------------------
 const RESCHEDULE_ERRORS: Record<string, string> = {
+  PLANO_CONSULTA: PLAN_ERRORS.PLANO_CONSULTA,   // 59: Grátis vencido = só consulta
   PLANO_BASICO: "Encaixe é um recurso dos planos pagos, a partir do Básico. No Grátis, escolha um horário livre.",
   PASSADO: "Escolha uma data e horário a partir de agora.",
   FECHADO: "O espaço não abre nesse dia.",
@@ -766,6 +773,7 @@ export type BookingEditInfo = {
 export type EditConflict = "BLOQUEIO" | "OCUPADO" | "MEIA_NOITE";
 
 const EDIT_ERRORS: Record<string, string> = {
+  PLANO_CONSULTA: PLAN_ERRORS.PLANO_CONSULTA,   // 59: Grátis vencido = só consulta
   DESCONTO_ACIMA_LIMITE: "Esse desconto passa do limite que o espaço liberou para você.",
   BLOQUEIO: "Com esse serviço, o atendimento entra num horário bloqueado.",
   OCUPADO: "Com esse serviço, o atendimento bate no próximo horário da agenda.",
@@ -833,6 +841,7 @@ export async function getBookingEditInfo(id: string): Promise<{ ok: true; info: 
 
 // ---- Trocar o serviço principal (57_trocar_servico_principal) ----
 const CHANGE_ERRORS: Record<string, string> = {
+  PLANO_CONSULTA: PLAN_ERRORS.PLANO_CONSULTA,   // 59: Grátis vencido = só consulta
   STATUS_INVALIDO: "Só dá para trocar o serviço de agendamentos pendentes ou confirmados. Se já foi concluído, reabra o atendimento para trocar o serviço.",
   SEM_MUDANCA: "Esse já é o serviço do agendamento.",
   BLOQUEIO: "Com esse serviço, o atendimento entra num horário bloqueado. Remarque ou escolha outro serviço.",
@@ -912,6 +921,7 @@ export type PackageVisitOptions = {
 };
 
 const PACKAGE_VISIT_ERRORS: Record<string, string> = {
+  PLANO_CONSULTA: PLAN_ERRORS.PLANO_CONSULTA,   // 59: Grátis vencido = só consulta
   SERVICOS_VAZIOS: "Marque ao menos um serviço. Para não fazer nada nesta data, cancele o agendamento.",
   SERVICOS_INVALIDOS: "Escolha só serviços deste pacote.",
   NAO_E_PACOTE: "Este agendamento não é sessão de pacote.",

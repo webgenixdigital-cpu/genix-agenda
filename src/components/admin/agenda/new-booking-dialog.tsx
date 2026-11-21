@@ -2,6 +2,7 @@
 
 import { Ajuda } from "@/components/ajuda";
 import { useEffect, useRef, useState, useTransition } from "react";
+import { ReadOnlyLink, usePlanFlags } from "@/components/admin/plan-flags";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { CalendarDays, Check, Layers2, Loader2, Lock, Package, Plus, Repeat, UserRound, X } from "lucide-react";
@@ -85,6 +86,7 @@ export function NewBookingDialog({
   initial,
 }: Props) {
   const controlled = openProp !== undefined;
+  const { readOnly } = usePlanFlags();   // 59: Grátis vencido = só consulta
   const [innerOpen, setInnerOpen] = useState(false);
   const open = controlled ? openProp : innerOpen;
   const setOpen = (v: boolean) => (controlled ? onOpenChange?.(v) : setInnerOpen(v));
@@ -413,7 +415,8 @@ export function NewBookingDialog({
 
   return (
     <>
-      {!controlled && (
+      {!controlled && readOnly && <ReadOnlyLink label="Novo agendamento" testid="btn-novo-agendamento-travado" />}
+      {!controlled && !readOnly && (
         <Button className="h-11" onClick={openDialog} data-testid="btn-novo-agendamento">
           <Plus className="mr-1.5 h-4 w-4" /> Novo agendamento
         </Button>

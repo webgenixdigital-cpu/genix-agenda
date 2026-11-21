@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AtSign, Clock, MapPin, MessageCircle, Star } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
@@ -44,7 +45,15 @@ async function loadVitrine(slug: string) {
     supabase.rpc("public_plan_info", { p_slug: slug }),
     supabase.from("combo_items").select("combo_id, service_id, position").eq("business_id", business.id).order("position"),
   ]);
-  const plan = planInfo.data as { blocked_professional_ids?: string[]; tier?: string; kind?: string; online_closed?: boolean } | null;
+  const plan = planInfo.data as {
+    blocked_professional_ids?: string[];
+    tier?: string;
+    kind?: string;
+    online_closed?: boolean;
+    /** 59: Grátis e Básico = cartão de visita (sem agendamento online) */
+    card_only?: boolean;
+    show_badge?: boolean;
+  } | null;
   // extras com cobrança vencida há 15+ dias (29): fora do agendamento online
   const blocked = plan?.blocked_professional_ids ?? [];
 
@@ -74,6 +83,8 @@ async function loadVitrine(slug: string) {
     reviews: reviews.data ?? [],
     blocked,
     onlineClosed: !!plan?.online_closed,
+    cardOnly: !!plan?.card_only,
+    showBadge: !!plan?.show_badge,
   };
 }
 
@@ -97,7 +108,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const [data, hidden] = await Promise.all([loadVitrine(params.slug), hiddenFromSearch(params.slug)]);
   if (!data) return { title: "Página não encontrada" };
   return {
-    title: `${data.business.name} | Agende online`,
+    title: `${data.business.name} | ${data.cardOnly ? "Agende pelo WhatsApp" : "Agende online"}`,
     description: data.business.tagline ?? data.business.description ?? undefined,
     ...(hidden ? { robots: { index: false, follow: false } } : {}),
   };
@@ -110,11 +121,15 @@ export default async function VitrinePage({ params }: Props) {
   const data = await loadVitrine(params.slug);
   if (!data) notFound();
 
-  const { business: b, services, professionals, hours, reviews, blocked, onlineClosed } = data;
+  const { business: b, services: all, professionals, hours, reviews, blocked, onlineClosed, cardOnly, showBadge } = data;
   const wa = whatsappLink(b.whatsapp, b.whatsapp_message ?? undefined);
+  // 59: cartão de visita (Grátis e Básico): sem combos, sem agendamento online; tudo pelo WhatsApp
+  const services = cardOnly ? all.filter((s) => s.kind !== "combo") : all;
+  const online = (s: Service) => !cardOnly && s.bookable_online;
+  const waBook = whatsappLink(b.whatsapp, `Olá! Vi seu link e quero agendar um horário no ${b.name}.`);
   const today = todayWeekday();
   const todayHours = hours.find((h) => h.weekday === today);
-  const onlineServices = services.filter((s) => s.bookable_online);
+  const onlineServices = services.filter(online);
 
   const combos = services.filter((s) => s.kind === "combo");
 
@@ -181,13 +196,19 @@ export default async function VitrinePage({ params }: Props) {
                   Agendar online
                 </BookTrigger>
               )}
-              {wa && (
+              {cardOnly && waBook ? (
+                <Button asChild size="lg" className="h-12 bg-whatsapp px-6 text-base text-white hover:bg-whatsapp-hover active:scale-95">
+                  <a href={waBook} target="_blank" rel="noopener noreferrer" data-testid="btn-agendar-whatsapp-hero">
+                    <MessageCircle className="mr-2 h-5 w-5" /> Agendar pelo WhatsApp
+                  </a>
+                </Button>
+              ) : wa ? (
                 <Button asChild size="lg" className="h-12 bg-whatsapp px-6 text-base text-white hover:bg-whatsapp-hover active:scale-95">
                   <a href={wa} target="_blank" rel="noopener noreferrer" data-testid="btn-whatsapp-hero">
                     <MessageCircle className="mr-2 h-5 w-5" /> Chamar no WhatsApp
                   </a>
                 </Button>
-              )}
+              ) : null}
             </div>
           </div>
         </section>
@@ -282,7 +303,7 @@ export default async function VitrinePage({ params }: Props) {
                             </p>
                           </div>
 
-                          {s.bookable_online ? (
+                          {online(s) ? (
                             <BookTrigger
                               serviceId={s.id}
                               variant="outline"
@@ -420,6 +441,15 @@ export default async function VitrinePage({ params }: Props) {
         </div>
       </main>
 
+      {showBadge && (
+        <p className="pb-28 text-center text-xs text-muted-foreground md:pb-10" data-testid="selo-feito-com-genix">
+          <Link href="/" className="tap-target inline-flex items-center hover:underline" data-testid="link-feito-com-genix">
+            Feito com Genix Agenda
+          </Link>
+        </p>
+      )}
+
+      {!cardOnly && (
       <BookingWizard
         slug={b.slug}
         businessName={b.name}
@@ -429,6 +459,7 @@ export default async function VitrinePage({ params }: Props) {
         hours={hours}
         onlineClosed={onlineClosed}
       />
+      )}
 
       {/* WhatsApp flutuante */}
       {wa && (

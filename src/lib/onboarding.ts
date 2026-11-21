@@ -1,6 +1,8 @@
 // Monta a lista de primeiros passos a partir do que já existe no banco (servidor)
 import { createClient } from "@/lib/supabase/server";
 import type { PlanContext } from "@/lib/plan";
+import { planAllows } from "@/lib/plan-features";
+import { FREE_MONTHS, PLAN_PROMISE } from "@/content/planos";
 
 export type OnboardingAction = "link" | "confirm" | "suggest" | "solo" | "copy";
 
@@ -101,14 +103,25 @@ export function buildOnboarding(business: BusinessLike, plan: PlanContext, count
       actionLabel: "Está ótimo",
       step: "link",
     },
-    {
-      key: "test",
-      title: "Faça um agendamento de teste",
-      why: "Veja pelos olhos do cliente como é agendar. Depois é só cancelar na Agenda.",
-      done: online > 0,
-      href: `/v/${business.slug}`,
-      hrefLabel: "Abrir minha vitrine",
-    },
+    // 59: no Grátis e no Básico o link é um cartão de visita (sem agendamento online)
+    planAllows(plan.kind, "profissional")
+      ? {
+          key: "test",
+          title: "Faça um agendamento de teste",
+          why: "Veja pelos olhos do cliente como é agendar. Depois é só cancelar na Agenda.",
+          done: online > 0,
+          href: `/v/${business.slug}`,
+          hrefLabel: "Abrir minha vitrine",
+        }
+      : {
+          key: "test",
+          title: "Confira seu cartão de visita",
+          why: PLAN_PROMISE.card,
+          done: false,
+          optional: true,
+          href: `/v/${business.slug}`,
+          hrefLabel: "Abrir meu link",
+        },
     {
       key: "share",
       title: "Divulgue seu link",
@@ -123,8 +136,8 @@ export function buildOnboarding(business: BusinessLike, plan: PlanContext, count
       title: "Escolha seu plano",
       why:
         plan.trialDaysLeft !== null
-          ? `Seu teste do plano Equipe termina em ${plan.trialDaysLeft} ${plan.trialDaysLeft === 1 ? "dia" : "dias"}. Depois, você segue no Grátis se quiser.`
-          : "Libere agendamentos ilimitados, bloqueios, financeiro e, no Equipe, os acessos da equipe.",
+          ? `Seu teste do plano Equipe termina em ${plan.trialDaysLeft} ${plan.trialDaysLeft === 1 ? "dia" : "dias"}. Depois, você pode seguir no Grátis por ${FREE_MONTHS} meses (agenda interna e cartão de visita).`
+          : `Básico: agenda sem prazo, encaixe, bloqueios e financeiro. ${PLAN_PROMISE.vitrineFrom}.`,
       done: plan.status === "active",
       optional: true,
       href: "/admin/assinatura",

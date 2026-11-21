@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { ReadOnlyLink, usePlanFlags } from "@/components/admin/plan-flags";
 import { useRouter } from "next/navigation";
 import { Loader2, Pencil, Plus, ShieldAlert, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -25,6 +26,7 @@ type Customer = {
 // ---------------------------------------------------------------------
 export function CustomerDialog({ customer }: { customer?: Customer }) {
   const router = useRouter();
+  const { readOnly } = usePlanFlags();   // 59: Grátis vencido = só consulta
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
   const [f, setF] = useState({ name: "", phone: "", phoneCountry: BR, email: "", notes: "" });
@@ -78,7 +80,9 @@ export function CustomerDialog({ customer }: { customer?: Customer }) {
 
   return (
     <>
-      {customer ? (
+      {readOnly ? (
+        <ReadOnlyLink label={customer ? "Editar" : "Novo cliente"} testid={customer ? "btn-editar-cliente-travado" : "btn-novo-cliente-travado"} />
+      ) : customer ? (
         <Button variant="outline" className="h-11" onClick={openDialog} data-testid="btn-editar-cliente">
           <Pencil className="mr-1.5 h-4 w-4" /> Editar
         </Button>

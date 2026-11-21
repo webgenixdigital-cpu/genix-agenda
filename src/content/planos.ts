@@ -1,21 +1,147 @@
 // =====================================================================
-// O QUE CADA PLANO INCLUI — fonte única dos textos (Assinatura, landing, /para).
-// Preços NÃO ficam aqui: vêm da tabela plans (migrations 28a/52).
-// Sem classes do Tailwind neste arquivo.
-// A regra de verdade (o que o banco libera) está em plan_allows (migration 52)
-// e em src/lib/plan-features.ts. Mudou um recurso de plano? Mude aqui também.
+// PLANOS — FONTE ÚNICA dos textos de "o que cada plano inclui" (migration 59).
+// Lido por: tabela comparativa (Assinatura), cartões de preço da "/" e da /para,
+// etiquetas da landing e dos blocos de benefícios, cadeados (LOCKED_FEATURES),
+// menu (lockedHrefsFor), ajuda (planNote), banners, Termos e textos de prazo.
+//
+// Preços NÃO ficam aqui: vêm da tabela plans (getPublicPlans) e do preço de
+// lançamento de launch_offer() (getLaunchOffer). Nº de profissionais do Equipe:
+// plans.max_professionals/included_professionals.
+//
+// A regra de verdade é o banco: plan_allows(bid, mínimo) e vitrine_online_allowed
+// (59). Mudou o plano mínimo de um recurso? Mude AQUI e no banco.
+// Sem classes do Tailwind neste arquivo (fica fora do content do Tailwind).
 // =====================================================================
-import type { PlanKind } from "@/lib/plan-features";
+
+export type PlanKind = "gratis" | "basico" | "profissional" | "equipe";
+export type MinPlan = Exclude<PlanKind, "gratis">;
 
 export const PLAN_ORDER: readonly PlanKind[] = ["gratis", "basico", "profissional", "equipe"];
 
-/** true = inclui; false = não inclui; texto = inclui com esse limite */
-export type PlanCell = boolean | string;
+export const PLAN_NAMES: Record<PlanKind, string> = {
+  gratis: "Grátis",
+  basico: "Básico",
+  profissional: "Profissional",
+  equipe: "Equipe",
+};
 
-export type PlanFeatureRow = { label: string; values: Record<PlanKind, PlanCell> };
+/** Mesma ordem de plan_rank no banco (migration 52) */
+export const PLAN_RANK: Record<PlanKind, number> = { gratis: 0, basico: 1, profissional: 2, equipe: 3 };
 
 /** Duração do Grátis (meses a partir do cadastro) */
 export const FREE_MONTHS = 6;
+/** Teste do Equipe de toda conta nova */
+export const TRIAL_DAYS = 15;
+
+// ---------------------------------------------------------------------
+// Catálogo de recursos: plano mínimo de cada um
+// ---------------------------------------------------------------------
+export type FeatureKey =
+  | "agenda"
+  | "editar"
+  | "cartao"
+  | "avaliacoes"
+  | "vitrine"
+  | "diretorio"
+  | "confirmacao"
+  | "pedidoAvaliacao"
+  | "semSelo"
+  | "encaixe"
+  | "bloqueios"
+  | "lembretes"
+  | "recorrencia"
+  | "financeiro"
+  | "faturamento"
+  | "retornos"
+  | "pacotes"
+  | "combos"
+  | "metas"
+  | "whatsapp"
+  | "equipe"
+  | "acessos"
+  | "comissoes"
+  | "parceiro";
+
+export type Feature = {
+  /** texto da tabela comparativa */
+  label: string;
+  /** plano mínimo (gratis = todos) */
+  min: PlanKind;
+};
+
+export const FEATURES: Record<FeatureKey, Feature> = {
+  agenda: { label: "Agenda interna, clientes, ficha e histórico", min: "gratis" },
+  editar: { label: "Remarcar, editar e trocar o serviço do agendamento", min: "gratis" },
+  cartao: { label: "Cartão de visita: link com serviços, preços e botão do WhatsApp", min: "gratis" },
+  avaliacoes: { label: "Avaliações dos clientes no seu link", min: "gratis" },
+  semSelo: { label: "Sem o selo “Feito com Genix Agenda”", min: "basico" },
+  encaixe: { label: "Encaixe e encaixe sobreposto", min: "basico" },
+  bloqueios: { label: "Bloqueios: almoço, folgas, férias e feriados", min: "basico" },
+  lembretes: { label: "Lembretes de véspera (fila em um toque)", min: "basico" },
+  recorrencia: { label: "Agendamentos recorrentes", min: "basico" },
+  financeiro: { label: "Financeiro: caixa e pagamentos pendentes", min: "basico" },
+  faturamento: { label: "Faturamento e relatório para o contador", min: "basico" },
+  vitrine: { label: "Vitrine com agendamento online 24h e QR Code", min: "profissional" },
+  diretorio: { label: "Aparece no diretório de espaços do Genix Agenda", min: "profissional" },
+  confirmacao: { label: "Confirmação automática dos agendamentos online", min: "profissional" },
+  pedidoAvaliacao: { label: "Pedido de avaliação depois do atendimento", min: "profissional" },
+  retornos: { label: "Retornos (hora de voltar)", min: "profissional" },
+  pacotes: { label: "Pacotes de sessões", min: "profissional" },
+  combos: { label: "Combos de serviços", min: "profissional" },
+  metas: { label: "Metas de faturamento, atendimentos e clientes", min: "profissional" },
+  whatsapp: { label: "WhatsApp automático (ativação assistida)", min: "profissional" },
+  equipe: { label: "Mais de 1 profissional", min: "equipe" },
+  acessos: { label: "Acessos da equipe e “Meus ganhos”", min: "equipe" },
+  comissoes: { label: "Comissões por profissional", min: "equipe" },
+  parceiro: { label: "Salão-parceiro no faturamento", min: "equipe" },
+};
+
+/** O plano inclui o recurso? (mesma regra de plan_allows) */
+export const featureIn = (key: FeatureKey, kind: PlanKind) => PLAN_RANK[kind] >= PLAN_RANK[FEATURES[key].min];
+
+/** "a partir do Básico" / "planos Profissional e Equipe" / "plano Equipe" (cadeados e ajuda) */
+export const scopeLabel = (min: MinPlan) =>
+  min === "equipe" ? "plano Equipe" : min === "profissional" ? "planos Profissional e Equipe" : "planos pagos, a partir do Básico";
+
+/** Etiqueta curta da landing: "Todos os planos" / "A partir do Básico" / "Profissional e Equipe" / "Equipe" */
+export const planTag = (key: FeatureKey) => {
+  const min = FEATURES[key].min;
+  return min === "gratis" ? "Todos os planos" : min === "basico" ? "A partir do Básico" : min === "profissional" ? "Profissional e Equipe" : "Equipe";
+};
+
+/** Frase da ajuda: "Recurso dos planos Profissional e Equipe." */
+export const planNote = (key: FeatureKey) => {
+  const min = FEATURES[key].min;
+  return min === "gratis" ? "Recurso de todos os planos." : `Recurso dos ${scopeLabel(min)}.`;
+};
+
+// ---------------------------------------------------------------------
+// Promessa e prazos (landing, /para, cadastro, Termos, Assinatura, banners)
+// ---------------------------------------------------------------------
+export const PLAN_PROMISE = {
+  /** "15 dias com tudo liberado, inclusive a vitrine de agendamento online" */
+  trial: `${TRIAL_DAYS} dias com tudo liberado, inclusive a vitrine de agendamento online`,
+  trialShort: `${TRIAL_DAYS} dias com tudo liberado`,
+  /** "Grátis por 6 meses: agenda interna e cartão de visita" */
+  free: `Grátis por ${FREE_MONTHS} meses: agenda interna e cartão de visita`,
+  freeShort: `${FREE_MONTHS} meses grátis`,
+  /** vitrine com agendamento online: só a partir do Profissional */
+  vitrineFrom: "Vitrine com agendamento online a partir do Profissional",
+  /** o que acontece no fim do Grátis */
+  freeOver: `Depois dos ${FREE_MONTHS} meses, sem assinar, o painel fica só para consulta: você vê a agenda, os clientes e o histórico e pode cancelar horários, mas para agendar de novo é preciso assinar o Básico. Nada é apagado.`,
+  /** aviso do painel quando o Grátis acabou: [título, texto] */
+  freeOverTitle: "Seu Grátis terminou.",
+  freeOverPanel: "O painel está só para consulta: você vê tudo e pode cancelar horários. Assine o Básico para continuar agendando.",
+  /** cartão de visita (Grátis e Básico) */
+  card: "Seu link funciona como cartão de visita: serviços, preços, endereço, horários, avaliações e o botão “Agendar pelo WhatsApp”.",
+  /** oferta da vitrine completa */
+  vitrineUpsell: "Com o Profissional, o cliente vê os horários livres e agenda sozinho, 24 horas, e seu espaço aparece no diretório.",
+  /** frase do fim do teste */
+  afterTrial: `No fim do teste, escolha o seu plano ou siga no Grátis, que vale ${FREE_MONTHS} meses a partir do cadastro.`,
+} as const;
+
+/** Microgarantias do hero e do fechamento da landing */
+export const PLAN_MICRO: string[] = ["Sem cartão", PLAN_PROMISE.trialShort, PLAN_PROMISE.freeShort];
 
 /** Cupom de lançamento (migration 53): textos. Preços, prazo e duração vêm do banco (launch_offer/billing_quote). */
 export const LAUNCH_TEXT = {
@@ -31,63 +157,102 @@ export const LAUNCH_TEXT = {
   wasLabel: (full: string) => `Preço normal: ${full}`,
 };
 
-/** Tabela comparativa. limit = agendamentos online por dia no Grátis; included = profissionais no Equipe */
-export function planFeatureRows(limit: number, included: number): PlanFeatureRow[] {
-  const all = (v: PlanCell = true) => ({ gratis: v, basico: v, profissional: v, equipe: v });
+// ---------------------------------------------------------------------
+// Tabela comparativa (Assinatura)
+// ---------------------------------------------------------------------
+/** true = inclui; false = não inclui; texto = inclui com esse limite */
+export type PlanCell = boolean | string;
+export type PlanFeatureRow = { label: string; values: Record<PlanKind, PlanCell> };
+
+/** Ordem das linhas da tabela */
+const TABLE_ORDER: FeatureKey[] = [
+  "agenda",
+  "editar",
+  "cartao",
+  "avaliacoes",
+  "semSelo",
+  "encaixe",
+  "bloqueios",
+  "lembretes",
+  "recorrencia",
+  "financeiro",
+  "faturamento",
+  "vitrine",
+  "diretorio",
+  "confirmacao",
+  "pedidoAvaliacao",
+  "retornos",
+  "pacotes",
+  "combos",
+  "metas",
+  "whatsapp",
+  "acessos",
+  "comissoes",
+  "parceiro",
+];
+
+/** included = profissionais inclusos no Equipe (plans.included_professionals) */
+export function planFeatureRows(included: number): PlanFeatureRow[] {
+  const row = (key: FeatureKey): PlanFeatureRow => ({
+    label: FEATURES[key].label,
+    values: {
+      gratis: featureIn(key, "gratis"),
+      basico: featureIn(key, "basico"),
+      profissional: featureIn(key, "profissional"),
+      equipe: featureIn(key, "equipe"),
+    },
+  });
+  const rows = TABLE_ORDER.map(row);
+  // o cartão de visita vira a vitrine completa a partir do Profissional
+  const card = rows[TABLE_ORDER.indexOf("cartao")];
+  card.values.profissional = "Vitrine completa";
+  card.values.equipe = "Vitrine completa";
   return [
-    { label: "Prazo", values: { gratis: `${FREE_MONTHS} meses`, basico: "Sem prazo", profissional: "Sem prazo", equipe: "Sem prazo" } },
+    {
+      label: "Prazo",
+      values: { gratis: `${FREE_MONTHS} meses, depois só consulta`, basico: "Sem prazo", profissional: "Sem prazo", equipe: "Sem prazo" },
+    },
     { label: "Profissionais", values: { gratis: "1", basico: "1", profissional: "1", equipe: `Até ${included} + extra` } },
-    { label: "Agendamentos online", values: { gratis: `${limit} por dia`, basico: "Ilimitados", profissional: "Ilimitados", equipe: "Ilimitados" } },
-    { label: "Vitrine com link próprio e QR Code", values: all() },
-    { label: "Agenda, clientes, ficha e histórico", values: all() },
-    { label: "Confirmação automática, remarcar e editar agendamento", values: all() },
-    { label: "Avaliações dos clientes", values: all() },
-    { label: "Vitrine sem o selo “Feito com Genix Agenda”", values: { gratis: false, basico: true, profissional: true, equipe: true } },
-    { label: "Encaixe e encaixe sobreposto", values: { gratis: false, basico: true, profissional: true, equipe: true } },
-    { label: "Bloqueios: almoço, folgas, férias e feriados", values: { gratis: false, basico: true, profissional: true, equipe: true } },
-    { label: "Lembretes de véspera (fila em um toque)", values: { gratis: false, basico: true, profissional: true, equipe: true } },
-    { label: "Agendamentos recorrentes", values: { gratis: false, basico: true, profissional: true, equipe: true } },
-    { label: "Financeiro: caixa, faturamento e contador", values: { gratis: false, basico: true, profissional: true, equipe: true } },
-    { label: "Retornos (hora de voltar)", values: { gratis: false, basico: false, profissional: true, equipe: true } },
-    { label: "Pacotes de sessões e combos", values: { gratis: false, basico: false, profissional: true, equipe: true } },
-    { label: "Metas de faturamento, atendimentos e clientes", values: { gratis: false, basico: false, profissional: true, equipe: true } },
-    { label: "WhatsApp automático (ativação assistida)", values: { gratis: false, basico: false, profissional: true, equipe: true } },
-    { label: "Acessos da equipe, comissões e salão-parceiro", values: { gratis: false, basico: false, profissional: false, equipe: true } },
+    ...rows,
   ];
 }
 
-/** Resumo curto de cada plano (cartões de preço) */
-export const PLAN_SUMMARY: Record<PlanKind, { tagline: string; items: (limit: number, included: number) => string[] }> = {
+// ---------------------------------------------------------------------
+// Cartões de preço (landing "/" e /para): mesmo conteúdo nos dois
+// ---------------------------------------------------------------------
+export const PLAN_CARDS: Record<PlanKind, { tagline: string; items: (included: number) => string[] }> = {
   gratis: {
-    tagline: `Para começar: ${FREE_MONTHS} meses sem pagar nada.`,
-    items: (limit) => [
-      `${limit} agendamentos online por dia`,
-      "1 profissional",
-      "Agenda, clientes e confirmação automática",
+    tagline: `Agenda interna por ${FREE_MONTHS} meses, sem pagar nada.`,
+    items: () => [
+      "Agenda, clientes, ficha e histórico",
+      "Cartão de visita com botão do WhatsApp",
       "Remarcar e editar agendamento",
+      "1 profissional",
     ],
   },
   basico: {
-    tagline: "Agenda sem limite para quem atende sozinho.",
+    tagline: "Agenda completa para quem atende sozinho.",
     items: () => [
-      "Agendamentos online ilimitados",
-      "Encaixe e bloqueios (almoço, folgas, férias)",
-      "Lembretes de véspera e recorrência",
-      "Financeiro, faturamento e contador",
+      "Tudo do Grátis, sem prazo e sem o selo",
+      "Encaixe e encaixe sobreposto",
+      "Bloqueios, recorrência e lembretes da véspera",
+      "Caixa, faturamento e contador",
     ],
   },
   profissional: {
-    tagline: "Tudo liberado para quem atende sozinho.",
+    tagline: "Vitrine completa: o cliente agenda sozinho, 24h.",
     items: () => [
       "Tudo do Básico",
+      "Vitrine com agendamento online 24h",
+      "Confirmação automática e diretório",
       "WhatsApp automático (ativação assistida)",
       "Retornos, pacotes, combos e metas",
-      "Para fidelizar e vender mais",
+      "Pedido de avaliação",
     ],
   },
   equipe: {
     tagline: "Para salões e equipes.",
-    items: (_limit, included) => [
+    items: (included) => [
       "Tudo do Profissional",
       `Até ${included} profissionais inclusos`,
       "Acessos para recepção e profissionais",

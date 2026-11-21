@@ -8,12 +8,13 @@ import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/admin/actions";
 import { Button } from "@/components/ui/button";
 import { getAdminContext } from "@/lib/admin";
-import { getFreeDailyLimit, getPlanContext, hasTeamFeatures, allows } from "@/lib/plan";
+import { getPlanContext, hasTeamFeatures, allows } from "@/lib/plan";
 import { lockedHrefsFor } from "@/lib/plan-features";
 import { SIDEBAR_COOKIE } from "@/lib/ui-prefs";
 import { AdminSidebar } from "@/components/admin/admin-sidebar";
 import { DemoBanner } from "@/components/admin/demo-banner";
 import { PlanBanner } from "@/components/admin/plan-banner";
+import { PlanFlagsProvider } from "@/components/admin/plan-flags";
 import { EmailConfirmedToast, EmailVerifyBanner } from "@/components/admin/email-verify-banner";
 
 export const dynamic = "force-dynamic";
@@ -34,16 +35,13 @@ export default async function PainelLayout({ children }: { children: React.React
   const bid = ctx.business.id;
   const [plan, freeInfo, waStatus, overdue] = await Promise.all([
     getPlanContext(bid),
-    // faixa do plano (matriz): limite do Grátis e oferta do fim do teste pelo tamanho da equipe
+    // faixa do plano (matriz): oferta do fim do teste pelo tamanho da equipe
     isOwner
-      ? Promise.all([
-          getFreeDailyLimit(),
-          createClient()
-            .from("professionals")
-            .select("id", { count: "exact", head: true })
-            .eq("business_id", bid)
-            .eq("active", true),
-        ])
+      ? createClient()
+          .from("professionals")
+          .select("id", { count: "exact", head: true })
+          .eq("business_id", bid)
+          .eq("active", true)
       : null,
     // WhatsApp automático ligado mas desconectado: aviso só para a matriz
     isOwner ? createClient().rpc("whatsapp_panel_status", { p_business: bid }) : null,
@@ -62,11 +60,9 @@ export default async function PainelLayout({ children }: { children: React.React
       : null,
   ]);
 
-  let freeLimit = 10;
   let activePros = 1;
   if (isOwner && !plan.internal && plan.status !== "active" && freeInfo) {
-    freeLimit = freeInfo[0];
-    activePros = freeInfo[1].count ?? 1;
+    activePros = freeInfo.count ?? 1;
   }
 
   let waDisconnected = false;
@@ -116,7 +112,7 @@ export default async function PainelLayout({ children }: { children: React.React
         />
         <div className="min-w-0 flex-1">
           {!isDemo && !plan.internal && !ctx.emailVerified && <EmailVerifyBanner email={ctx.email} />}
-          {isOwner && <PlanBanner plan={plan} freeLimit={freeLimit} activePros={activePros} />}
+          {isOwner && <PlanBanner plan={plan} activePros={activePros} />}
           {overdueExtra && (
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 md:px-8" data-testid="aviso-extra-em-aberto">
               <AlertTriangle className="h-4 w-4 shrink-0" />
@@ -144,7 +140,7 @@ export default async function PainelLayout({ children }: { children: React.React
           <Suspense fallback={null}>
             <EmailConfirmedToast />
           </Suspense>
-          {children}
+          <PlanFlagsProvider value={{ readOnly: plan.freeOver, reviewRequest: allows(plan, "profissional") }}>{children}</PlanFlagsProvider>
         </div>
       </div>
     </>

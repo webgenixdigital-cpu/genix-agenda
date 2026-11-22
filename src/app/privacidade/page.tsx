@@ -52,6 +52,10 @@ export default function PrivacidadePage() {
           <li>Hospedagem e banco de dados (Vercel e Supabase), que podem armazenar dados fora do Brasil, com garantias contratuais.</li>
           <li>Envio de e-mails transacionais (Resend).</li>
           <li>Processamento de pagamentos da assinatura (Asaas).</li>
+          <li>
+            Assistente de IA do painel, a Nix (Google Gemini, contratado no nível pago, sem uso das conversas para treinar
+            modelos): recebe as perguntas digitadas no assistente e o texto de ajuda do sistema.
+          </li>
         </ul>
         <p>Também podemos compartilhar dados quando exigido por lei ou por ordem de autoridade competente.</p>
       </section>

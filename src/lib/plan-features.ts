@@ -33,7 +33,8 @@ export type LockedFeatureKey =
   | "encaixe"
   | "recorrencia"
   | "metas"
-  | "vitrine";
+  | "vitrine"
+  | "nix";
 
 export const LOCKED_FEATURES: Record<
   LockedFeatureKey,
@@ -148,6 +149,16 @@ export const LOCKED_FEATURES: Record<
       "Seu espaço no diretório de espaços do Genix Agenda",
     ],
     minPlan: minOf("vitrine"),
+  },
+  nix: {
+    title: "Nix, sua assistente",
+    description: "Tire dúvidas do sistema conversando, a qualquer hora, sem procurar em menus.",
+    bullets: [
+      "Passo a passo de qualquer tela do Genix Agenda",
+      "Explica planos e recursos do jeito do seu espaço",
+      "Em breve: resumo do dia e ajuda com a agenda e o caixa",
+    ],
+    minPlan: minOf("nix"),
   },
 };
 

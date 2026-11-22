@@ -16,6 +16,8 @@ import { DemoBanner } from "@/components/admin/demo-banner";
 import { PlanBanner } from "@/components/admin/plan-banner";
 import { PlanFlagsProvider } from "@/components/admin/plan-flags";
 import { EmailConfirmedToast, EmailVerifyBanner } from "@/components/admin/email-verify-banner";
+import { NixChat } from "@/components/admin/nix/nix-chat";
+import { agentAccess } from "@/lib/agente/access";
 
 export const dynamic = "force-dynamic";
 
@@ -70,6 +72,9 @@ export default async function PainelLayout({ children }: { children: React.React
     const w = waStatus.data as { genix_enabled: boolean; auto_enabled: boolean; status: string } | null;
     waDisconnected = !!w?.genix_enabled && w.auto_enabled && w.status === "disconnected";
   }
+
+  // Nix (assistente, 60): Equipe pago ou 3 últimos dias do teste; cadeado nos outros planos
+  const nix = agentAccess(ctx, plan);
 
   const overdueExtra: { invoice_url: string | null } | null =
     isOwner && !plan.internal && overdue ? overdue.data : null;
@@ -140,9 +145,15 @@ export default async function PainelLayout({ children }: { children: React.React
           <Suspense fallback={null}>
             <EmailConfirmedToast />
           </Suspense>
-          <PlanFlagsProvider value={{ readOnly: plan.freeOver, reviewRequest: allows(plan, "profissional") }}>{children}</PlanFlagsProvider>
+          <PlanFlagsProvider value={{ readOnly: plan.freeOver, reviewRequest: allows(plan, "profissional") }}>
+            {/* espaço no fim da página para o botão da Nix não cobrir o último item */}
+            {nix.kind === "oculto" ? children : <div className="pb-20">{children}</div>}
+          </PlanFlagsProvider>
         </div>
       </div>
+      {nix.kind !== "oculto" && (
+        <NixChat mode={nix.kind} trialEndsAt={nix.kind === "teste" ? nix.trialEndsAt : null} />
+      )}
     </>
   );
 }

@@ -78,6 +78,21 @@ const AJUDA_TEXTOS = {
     ],
     atencao: [planNote("retornos")],
   },
+  nix: {
+    titulo: "Nix, a assistente",
+    serve: "Responde dúvidas sobre o uso do Genix Agenda numa conversa: como fazer, onde fica cada coisa e o que cada plano inclui.",
+    passos: [
+      "Toque no botão redondo no canto de baixo da tela.",
+      "Escreva a dúvida (ou toque numa sugestão) e envie.",
+      "A conversa fica aberta enquanto você está na página; ao recarregar, começa de novo.",
+    ],
+    atencao: [
+      "Por enquanto a Nix não vê a agenda, os clientes nem o caixa do seu espaço: ela explica como fazer.",
+      "A conversa é processada pelo Google Gemini. Não envie senhas, cartões nem dados pessoais de clientes.",
+      "A Nix pode errar. Na dúvida, confira no ponto de Ajuda (?) de cada tela.",
+      "Recurso do plano Equipe (matriz e recepção). No teste de 15 dias, fica liberada nos 3 últimos dias, com limite de perguntas por dia.",
+    ],
+  },
   metas: {
     titulo: "Metas",
     serve:

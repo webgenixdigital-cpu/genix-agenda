@@ -60,7 +60,8 @@ export type FeatureKey =
   | "equipe"
   | "acessos"
   | "comissoes"
-  | "parceiro";
+  | "parceiro"
+  | "nix";
 
 export type Feature = {
   /** texto da tabela comparativa */
@@ -94,6 +95,7 @@ export const FEATURES: Record<FeatureKey, Feature> = {
   acessos: { label: "Acessos da equipe e “Meus ganhos”", min: "equipe" },
   comissoes: { label: "Comissões por profissional", min: "equipe" },
   parceiro: { label: "Salão-parceiro no faturamento", min: "equipe" },
+  nix: { label: "Nix, assistente que tira dúvidas do sistema", min: "equipe" },
 };
 
 /** O plano inclui o recurso? (mesma regra de plan_allows) */
@@ -189,6 +191,7 @@ const TABLE_ORDER: FeatureKey[] = [
   "acessos",
   "comissoes",
   "parceiro",
+  "nix",
 ];
 
 /** included = profissionais inclusos no Equipe (plans.included_professionals) */

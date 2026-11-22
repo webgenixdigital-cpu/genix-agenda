@@ -383,7 +383,8 @@ export default async function Dashboard({ searchParams }: Props) {
         ))}
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_300px]">
+      {/* grid-cols-1 = minmax(0, 1fr): no celular a coluna não cresce com nome/serviço comprido (rolagem lateral) */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_300px]">
         {/* Agenda de hoje */}
         <section className="rounded-2xl border bg-card">
           <div className="flex items-center justify-between border-b p-5">

@@ -24,6 +24,7 @@ import { StatusBadge } from "@/components/admin/status-badge";
 import { VitrineLinkCard } from "@/components/admin/vitrine-link-card";
 import { ConfirmIntroCard } from "@/components/admin/confirm-intro-card";
 import { HomeTile, type HomeTileTone } from "@/components/admin/inicio/home-tile";
+import { ReferralHomeCard } from "@/components/admin/inicio/referral-home-card";
 import { Button } from "@/components/ui/button";
 import type { AdminContext } from "@/lib/admin";
 import type { BookingStatus } from "@/lib/types";
@@ -336,6 +337,10 @@ export default async function Dashboard({ searchParams }: Props) {
   const biz = business as unknown as { online_confirm_mode?: string; online_confirm_reviewed_at?: string | null };
   const showConfirmIntro = isOwner && allows(plan, "profissional") && biz.online_confirm_mode === "manual" && !biz.online_confirm_reviewed_at;
 
+  // Indique e ganhe (56): só a matriz, em todos os planos (inclusive Grátis, teste e só consulta).
+  // Sem código (não deveria existir: coluna not null) o card não aparece; nada é gerado aqui.
+  const referralCode = isOwner ? (business as unknown as { referral_code?: string | null }).referral_code : null;
+
   const tiles = buildTiles(role, plan, d);
   const greeting = role === "staff" && d.meName ? firstName(d.meName) : business.name;
 
@@ -375,6 +380,8 @@ export default async function Dashboard({ searchParams }: Props) {
           <span className="text-sm font-semibold underline">Ver agenda</span>
         </Link>
       )}
+
+      {referralCode && <ReferralHomeCard code={referralCode} />}
 
       {/* Quadros */}
       <section aria-label="Resumo" className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4 xl:grid-cols-4" data-testid="quadros-inicio">

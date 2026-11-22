@@ -159,6 +159,16 @@ export const LAUNCH_TEXT = {
   wasLabel: (full: string) => `Preço normal: ${full}`,
 };
 
+/** Indique e ganhe (migration 56): textos do card do Início. A regra fica no banco e em lib/referral.ts. */
+export const REFERRAL_TEXT = {
+  homeTitle: "Indique e economize na próxima mensalidade!",
+  homeBody: "Quando o espaço indicado pagar a 1ª mensalidade, você recebe desconto ou até 1 mês grátis, dependendo do plano assinado!",
+  copy: "Copiar link de indicação",
+  copied: "Link copiado!",
+  copyFailed: "Não foi possível copiar. Selecione o link abaixo e copie:",
+  howItWorks: "Como funciona",
+} as const;
+
 // ---------------------------------------------------------------------
 // Tabela comparativa (Assinatura)
 // ---------------------------------------------------------------------

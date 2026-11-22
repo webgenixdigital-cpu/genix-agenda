@@ -47,7 +47,7 @@ export function ReferralCard({
   const share = `https://wa.me/?text=${encodeURIComponent(referralShareText(businessName, link))}`;
 
   return (
-    <section className="space-y-4 rounded-2xl border bg-card p-5" data-testid="card-indique-e-ganhe">
+    <section id="indicacao" className="scroll-mt-20 space-y-4 rounded-2xl border bg-card p-5" data-testid="card-indique-e-ganhe">
       <div className="flex items-start gap-3">
         <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#F2C078]/40 text-[#7a4520]">
           <Gift className="h-5 w-5" />

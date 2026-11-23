@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Clock, Layers2, Package, Repeat } from "lucide-react";
+import { attendeeName, attendeeText, tutorLine } from "@/lib/pets";
 import { toast } from "sonner";
 import { rescheduleBooking } from "@/app/admin/(painel)/agenda/actions";
 import { BookingActions, type RescheduleProps } from "@/components/admin/agenda/booking-actions";
@@ -441,10 +442,11 @@ export function WeekGrid(props: Props) {
           {selected && (
             <>
               <DialogHeader>
-                <DialogTitle className="font-heading text-2xl">{selected.customer_name}</DialogTitle>
+                <DialogTitle className="font-heading text-2xl">{attendeeName(selected)}</DialogTitle>
                 <DialogDescription>
                   {format(parseISO(selected.booking_date), "EEEE, dd/MM", { locale: ptBR })} ·{" "}
                   {selected.start_time.slice(0, 5)}–{selected.end_time.slice(0, 5)}
+                  {tutorLine(selected) && <> · {tutorLine(selected)}</>}
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-1 text-sm" data-testid="detalhe-agendamento">
@@ -540,16 +542,17 @@ function BookingBlock(props: {
       onPointerUp={props.onPointerUp}
       onPointerCancel={props.onPointerCancel}
       onClick={props.onClick}
-      aria-label={`${b.start_time.slice(0, 5)} a ${b.end_time.slice(0, 5)}, ${b.customer_name}, ${b.service_name}, ${b.professional_name}${b.overlay ? ", encaixe sobreposto" : ""}`}
+      aria-label={`${b.start_time.slice(0, 5)} a ${b.end_time.slice(0, 5)}, ${attendeeText(b)}, ${b.service_name}, ${b.professional_name}${b.overlay ? ", encaixe sobreposto" : ""}`}
       data-testid={`bloco-agendamento-${b.id}`}
     >
       <p className="truncate font-semibold">
         {b.overlay && <Layers2 className="mr-0.5 inline h-3 w-3" aria-hidden />}
-        {b.start_time.slice(0, 5)}–{b.end_time.slice(0, 5)} {compact && <span className="font-normal">{b.customer_name}</span>}
+        {b.start_time.slice(0, 5)}–{b.end_time.slice(0, 5)} {compact && <span className="font-normal">{attendeeName(b)}</span>}
       </p>
       {!compact && (
         <>
-          <p className="truncate font-medium">{b.customer_name}</p>
+          <p className="truncate font-medium">{attendeeName(b)}</p>
+          {tutorLine(b) && <p className="truncate opacity-80">{tutorLine(b)}</p>}
           <p className="truncate opacity-80">{b.service_name}</p>
           <div className="mt-0.5 flex flex-wrap gap-1">
             {b.overlay && (

@@ -47,6 +47,8 @@ export type AgendaBooking = {
   payment_status?: "pending" | "paid" | null;
   /** 50: encaixe sobreposto (por cima de outro atendimento do mesmo profissional) */
   overlay?: boolean;
+  /** 64: banho e tosa — nome do pet atendido (o tutor segue em customer_name) */
+  pet_name?: string | null;
 };
 
 /** Dados para o botão "Remarcar" (opcional: sem ele, o botão não aparece) */

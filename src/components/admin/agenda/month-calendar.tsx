@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { CalendarPlus, ChevronLeft, ChevronRight, Clock, Layers, Layers2, Package, Repeat, X } from "lucide-react";
+import { attendeeName } from "@/lib/pets";
 import { BlockNotice, BookingCard } from "@/components/admin/agenda/booking-card";
 import { NewBookingDialog } from "@/components/admin/agenda/new-booking-dialog";
 import { CancelledToggle, ProfessionalFilter, useAgendaNav } from "@/components/admin/agenda/agenda-toolbar";
@@ -204,7 +205,7 @@ export function MonthCalendar(props: Props) {
                     data-testid={`item-mes-${b.id}`}
                   >
                     <span className="font-semibold">{b.start_time.slice(0, 5)}</span>
-                    <span className="truncate">{b.customer_name}</span>
+                    <span className="truncate">{attendeeName(b)}</span>
                     <span className="ml-auto flex shrink-0 gap-0.5 text-primary">
                       {b.service_id && comboIds.has(b.service_id) && <Layers className="h-3 w-3" aria-label="Combo" />}
                       {b.customer_package_id && <Package className="h-3 w-3" aria-label="Pacote" />}

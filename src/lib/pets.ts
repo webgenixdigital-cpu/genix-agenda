@@ -64,3 +64,12 @@ export const PET_COLUMNS =
 
 export const labelOf = (list: readonly { value: string; label: string }[], v: string | null) =>
   list.find((i) => i.value === v)?.label ?? "";
+
+/** 64: no banho e tosa quem é atendido é o pet; o tutor aparece junto para identificar */
+export type WithPet = { customer_name: string; pet_name?: string | null };
+/** Nome em destaque: o pet (se houver) ou o cliente */
+export const attendeeName = (b: WithPet) => b.pet_name || b.customer_name;
+/** Linha de apoio: "Tutor: Fulano" quando o destaque é o pet */
+export const tutorLine = (b: WithPet) => (b.pet_name ? `Tutor: ${b.customer_name}` : null);
+/** Texto corrido: "Thor (tutor Fulano)" ou só o cliente */
+export const attendeeText = (b: WithPet) => (b.pet_name ? `${b.pet_name} (tutor ${b.customer_name})` : b.customer_name);

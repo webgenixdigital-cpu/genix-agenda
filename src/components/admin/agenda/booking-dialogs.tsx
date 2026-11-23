@@ -14,6 +14,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCheck, Loader2, Plus } from "lucide-react";
+import { attendeeText } from "@/lib/pets";
 import { toast } from "sonner";
 import { cancelSeriesFuture, completeBooking, updateBookingStatus } from "@/app/admin/(painel)/agenda/actions";
 import { Ajuda } from "@/components/ajuda";
@@ -199,7 +200,7 @@ function CompleteDialog({ active, open, onClose }: { active: Active; open: boole
               Concluir atendimento <Ajuda id="concluir" className="-ml-2" />
             </DialogTitle>
             <DialogDescription>
-              {b.customer_name}
+              {attendeeText(b)}
               {askMethod ? ". Como foi o pagamento?" : ""}
             </DialogDescription>
           </DialogHeader>

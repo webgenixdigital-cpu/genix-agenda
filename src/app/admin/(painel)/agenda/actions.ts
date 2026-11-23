@@ -7,6 +7,7 @@ import { customerSearchFilter } from "@/lib/customer-search";
 import { cleanCountry, phoneError } from "@/lib/phone";
 import { parseCustomerPhone } from "@/lib/phone-intl";
 import { PLAN_ERRORS } from "@/lib/plan-features";
+import { PET_NICHE_ID } from "@/lib/pets";
 
 type Result = { ok: true } | { ok: false; error: string };
 type Method = "pix" | "dinheiro" | "credito" | "debito";
@@ -29,6 +30,62 @@ const PACKAGE_ERRORS: Record<string, string> = {
 };
 const packageError = (message?: string) =>
   PACKAGE_ERRORS[Object.keys(PACKAGE_ERRORS).find((k) => message?.includes(k)) ?? ""];
+
+// ---------------------------------------------------------------------
+// PARTE 0 — 64_atendimento_por_pet: no nicho "Banho e tosa" cada agendamento é de 1 pet.
+// O tutor continua sendo o cliente (o gatilho liga pelo WhatsApp); o pet entra
+// depois de criado o agendamento. O banco confere pet ↔ tutor ↔ pacote.
+// ---------------------------------------------------------------------
+/** petId = pet já cadastrado do tutor; newPetName = cadastra o pet junto (tutor novo ou pet novo) */
+export type PetChoice = { petId?: string | null; newPetName?: string };
+
+type Supa = ReturnType<typeof createClient>;
+type Biz = { id: string; subcategory: string | null };
+
+const isPetBusiness = (b: Biz) => b.subcategory === PET_NICHE_ID;
+
+/** Antes de criar: no nicho pet, exige o pet e confere se o pacote é dele */
+async function checkPetChoice(supabase: Supa, business: Biz, pet: PetChoice, packageId?: string | null) {
+  if (!isPetBusiness(business)) return null;
+  const newName = pet.newPetName?.trim() ?? "";
+  if (!pet.petId && !newName) return "Escolha o pet que vai ser atendido.";
+  if (!pet.petId && newName.length > 60) return "Nome do pet: no máximo 60 caracteres.";
+  if (packageId) {
+    const { data: p } = await supabase
+      .from("customer_packages").select("pet_id").eq("id", packageId).eq("business_id", business.id).maybeSingle();
+    if (p?.pet_id && p.pet_id !== (pet.petId ?? null)) return "Esse pacote é de outro pet.";
+  }
+  return null;
+}
+
+/** Depois de criar: liga o pet (cadastra se for novo) aos agendamentos */
+async function attachPet(supabase: Supa, business: Biz, bookingIds: string[], pet: PetChoice) {
+  if (!isPetBusiness(business) || bookingIds.length === 0) return null;
+  let petId = pet.petId ?? null;
+  if (!petId) {
+    const { data: b } = await supabase
+      .from("bookings").select("customer_id").eq("id", bookingIds[0]).eq("business_id", business.id).maybeSingle();
+    if (!b?.customer_id) return "Agendamento criado, mas não achei o tutor para cadastrar o pet. Edite pela ficha do cliente.";
+    const { data: created, error } = await supabase
+      .from("pets")
+      .insert({ business_id: business.id, customer_id: b.customer_id, name: pet.newPetName!.trim() })
+      .select("id").single();
+    if (error || !created) return "Agendamento criado, mas não foi possível cadastrar o pet.";
+    petId = created.id as string;
+  }
+  const { error } = await supabase
+    .from("bookings").update({ pet_id: petId }).in("id", bookingIds).eq("business_id", business.id);
+  if (error) return `Agendamento criado, mas não foi possível ligar o pet (${petError(error.message) ?? "tente pela agenda"}).`;
+  return null;
+}
+
+const PET_ERRORS: Record<string, string> = {
+  "Este pet é de outro tutor": "este pet é de outro tutor",
+  "Este pacote é de outro pet": "o pacote é de outro pet",
+  "Pet não pertence a este espaço": "pet de outro espaço",
+};
+const petError = (message?: string) =>
+  PET_ERRORS[Object.keys(PET_ERRORS).find((k) => message?.includes(k)) ?? ""];
 
 function refresh() {
   revalidatePath("/admin/agenda");
@@ -206,9 +263,12 @@ export async function createManualBooking(input: {
   customerPhoneCountry?: string;
   notes?: string;
   packageId?: string | null;
-}): Promise<Result> {
+} & PetChoice): Promise<Result> {
   const { business } = await getEditorContext();
   const supabase = createClient();
+
+  const petErr = await checkPetChoice(supabase, business, input, input.packageId);
+  if (petErr) return { ok: false, error: petErr };
 
   const name = input.customerName.trim();
   const parsedPhone = parseCustomerPhone(input.customerPhone, input.customerPhoneCountry);
@@ -240,7 +300,7 @@ export async function createManualBooking(input: {
   });
   if (blocked) return { ok: false, error: "Esse horário está bloqueado na agenda desse profissional." };
 
-  const { error } = await supabase.from("bookings").insert({
+  const { data: created, error } = await supabase.from("bookings").insert({
     business_id: business.id,
     service_id: service.id,
     professional_id: pro.id,
@@ -259,7 +319,7 @@ export async function createManualBooking(input: {
     source: "manual",
     // o banco valida cliente, serviço, validade e saldo (trg_validate_package)
     customer_package_id: input.packageId || null,
-  });
+  }).select("id").single();
 
   if (error) {
     return {
@@ -270,9 +330,10 @@ export async function createManualBooking(input: {
         : packageError(error.message) ?? "Não foi possível salvar o agendamento.",
     };
   }
+  const attachErr = await attachPet(supabase, business, created ? [created.id as string] : [], input);
   refresh();
   if (input.packageId) revalidatePath("/admin/clientes");
-  return { ok: true };
+  return attachErr ? { ok: false, error: attachErr } : { ok: true };
 }
 
 // ---------------------------------------------------------------------
@@ -355,7 +416,7 @@ export async function createOverlayBooking(input: {
   customerPhoneCountry?: string;
   notes?: string;
   packageId?: string | null;
-}): Promise<Result> {
+} & PetChoice): Promise<Result> {
   const { business } = await getEditorContext();
   const name = input.customerName.trim();
   const parsedPhone = parseCustomerPhone(input.customerPhone, input.customerPhoneCountry);
@@ -366,7 +427,9 @@ export async function createOverlayBooking(input: {
   }
 
   const supabase = createClient();
-  const { error } = await supabase.rpc("create_overlay_booking", {
+  const petErr = await checkPetChoice(supabase, business, input, input.packageId);
+  if (petErr) return { ok: false, error: petErr };
+  const { data: overlayId, error } = await supabase.rpc("create_overlay_booking", {
     p_business: business.id,
     p_service: input.serviceId,
     p_professional: input.professionalId,
@@ -379,9 +442,10 @@ export async function createOverlayBooking(input: {
     p_package: input.packageId || null,
   });
   if (error) return { ok: false, error: overlayError(error.message) };
+  const attachErr = await attachPet(supabase, business, overlayId ? [overlayId as string] : [], input);
   refresh();
   if (input.packageId) revalidatePath("/admin/clientes");
-  return { ok: true };
+  return attachErr ? { ok: false, error: attachErr } : { ok: true };
 }
 
 export async function rescheduleOverlay(input: {
@@ -418,14 +482,18 @@ export type CustomerPackage = {
   id: string;
   name: string;
   expires_at: string | null;
+  /** 64: pacote de um pet (null = do tutor / outros nichos) */
+  petId: string | null;
   items: { serviceId: string; serviceName: string; remaining: number }[];
 };
+
+export type LookupPet = { id: string; name: string; size: string | null };
 
 /** Cliente exato pelo país + número (RLS: o profissional só acha quem já atendeu) */
 export async function lookupCustomer(
   phone: string,
   phoneCountry?: string
-): Promise<{ name: string; packages: CustomerPackage[] } | null> {
+): Promise<{ name: string; packages: CustomerPackage[]; pets: LookupPet[] } | null> {
   const { business } = await getAdminContext();
   const parsedPhone = parseCustomerPhone(phone, phoneCountry);
   if (!parsedPhone) return null;
@@ -451,11 +519,27 @@ export async function lookupCustomer(
     remaining: number; expires_at: string | null;
   }[]) {
     const p = packages.get(r.customer_package_id) ??
-      { id: r.customer_package_id, name: r.package_name, expires_at: r.expires_at, items: [] };
+      { id: r.customer_package_id, name: r.package_name, expires_at: r.expires_at, petId: null, items: [] };
     p.items.push({ serviceId: r.service_id, serviceName: r.service_name, remaining: r.remaining });
     packages.set(r.customer_package_id, p);
   }
-  return { name: customer.name as string, packages: Array.from(packages.values()) };
+  // 64: pets ativos do tutor e o pet de cada pacote (nicho "Banho e tosa")
+  let pets: LookupPet[] = [];
+  if (isPetBusiness(business)) {
+    const ids = Array.from(packages.keys());
+    const [{ data: petRows }, { data: pkgPets }] = await Promise.all([
+      supabase.from("pets").select("id, name, size").eq("customer_id", customer.id).eq("active", true).order("created_at"),
+      ids.length
+        ? supabase.from("customer_packages").select("id, pet_id").in("id", ids)
+        : Promise.resolve({ data: [] as { id: string; pet_id: string | null }[] }),
+    ]);
+    pets = (petRows ?? []) as LookupPet[];
+    for (const r of pkgPets ?? []) {
+      const p = packages.get(r.id);
+      if (p) p.petId = r.pet_id;
+    }
+  }
+  return { name: customer.name as string, packages: Array.from(packages.values()), pets };
 }
 
 export type ManualSlot = { time: string; professionalIds: string[] };
@@ -562,10 +646,12 @@ export async function previewSeries(
 }
 
 export async function createSeries(
-  input: SeriesInput
+  input: SeriesInput & PetChoice
 ): Promise<{ ok: true; created: number; skipped: SeriesDate[] } | { ok: false; error: string }> {
   const { business } = await getEditorContext();
   const supabase = createClient();
+  const petErr = await checkPetChoice(supabase, business, input, input.packageId);
+  if (petErr) return { ok: false, error: petErr };
   const { data, error } = await supabase.rpc("create_booking_series", {
     ...seriesArgs(input, business.id),
     p_customer_name: input.customerName.trim(),
@@ -580,6 +666,11 @@ export async function createSeries(
   }
 
   const rows = (data ?? []) as { seq: number; occurs_on: string; booking_id: string | null; issue: string | null }[];
+  const attachErr = await attachPet(supabase, business, rows.flatMap((r) => (r.booking_id ? [r.booking_id] : [])), input);
+  if (attachErr) {
+    refresh();
+    return { ok: false, error: attachErr };
+  }
   refresh();
   if (input.packageId) revalidatePath("/admin/clientes");
   return {

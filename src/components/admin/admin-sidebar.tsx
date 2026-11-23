@@ -4,7 +4,7 @@ import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  BellRing, CalendarDays, CalendarOff, CreditCard, ExternalLink, LayoutDashboard,
+  BellRing, CalendarDays, CalendarOff, Car, CreditCard, ExternalLink, LayoutDashboard,
   HandCoins, Lock, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Scissors, Settings, Target, UserRound, Users, Wallet,
 } from "lucide-react";
 import { signOut } from "@/app/admin/actions";
@@ -19,11 +19,13 @@ const ALL: Role[] = ["owner", "reception", "staff", "viewer"];
 const OWNER: Role[] = ["owner", "viewer"];
 
 // lock: texto do cadeado quando o recurso não vale para todos os planos pagos
-const NAV: { href: string; label: string; icon: typeof LayoutDashboard; roles: Role[]; lock?: string }[] = [
+// pet: só no nicho "Banho e tosa" (4b)
+const NAV: { href: string; label: string; icon: typeof LayoutDashboard; roles: Role[]; lock?: string; pet?: boolean }[] = [
   { href: "/admin", label: "Início", icon: LayoutDashboard, roles: ALL },
   { href: "/admin/agenda", label: "Agenda", icon: CalendarDays, roles: ALL },
   { href: "/admin/clientes", label: "Clientes", icon: UserRound, roles: ALL },
   { href: "/admin/lembretes", label: "Lembretes", icon: BellRing, roles: ALL },
+  { href: "/admin/leva-e-traz", label: "Leva e traz", icon: Car, roles: ["owner", "reception", "viewer"], pet: true },
   { href: "/admin/bloqueios", label: "Bloqueios", icon: CalendarOff, roles: ALL },
   { href: "/admin/ganhos", label: "Meus ganhos", icon: HandCoins, roles: ["staff"] },
   { href: "/admin/servicos", label: "Serviços", icon: Scissors, roles: OWNER },
@@ -44,12 +46,12 @@ const ROLE_LABEL: Record<Role, string> = {
   viewer: "Demonstração",
 };
 
-type Props = { businessName: string; slug: string; email: string; lockedHrefs?: string[]; role?: Role };
+type Props = { businessName: string; slug: string; email: string; lockedHrefs?: string[]; role?: Role; petMode?: boolean };
 
 const ITEM = "flex h-11 items-center gap-3 rounded-lg text-sm font-medium transition-colors";
 
 function NavContent({
-  businessName, slug, email, lockedHrefs = [], role = "owner", onNavigate, collapsed = false, onToggle,
+  businessName, slug, email, lockedHrefs = [], role = "owner", petMode = false, onNavigate, collapsed = false, onToggle,
 }: Props & { onNavigate?: () => void; collapsed?: boolean; onToggle?: () => void }) {
   const pathname = usePathname();
   const toggleLabel = collapsed ? "Expandir menu" : "Recolher menu";
@@ -121,7 +123,7 @@ function NavContent({
         )}
         onScroll={hideTip}
       >
-        {NAV.filter((i) => i.roles.includes(role)).map(({ href, label, icon: Icon, lock = "planos pagos" }) => {
+        {NAV.filter((i) => i.roles.includes(role) && (!i.pet || petMode)).map(({ href, label, icon: Icon, lock = "planos pagos" }) => {
           const active = href === "/admin" ? pathname === "/admin" : pathname.startsWith(href);
           const locked = lockedHrefs.includes(href);
           return (

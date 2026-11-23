@@ -81,3 +81,21 @@ export const TRANSPORT_LABEL: Record<"nenhum" | "busca" | "entrega" | "busca_ent
   entrega: "Entrega",
   busca_entrega: "Busca e entrega",
 };
+
+/** 4b: status de cada parada (igual ao check de transport_routes.status na 63) */
+export const ROUTE_STATUSES = ["aguardando", "a_caminho", "coletado", "na_loja", "saiu_entrega", "entregue", "cancelado"] as const;
+export type RouteStatus = (typeof ROUTE_STATUSES)[number];
+export const ROUTE_STATUS_LABEL: Record<RouteStatus, string> = {
+  aguardando: "Aguardando",
+  a_caminho: "A caminho",
+  coletado: "Pet coletado",
+  na_loja: "Na loja",
+  saiu_entrega: "Saiu para entrega",
+  entregue: "Entregue",
+  cancelado: "Cancelado",
+};
+/** Status que fazem sentido em cada tipo de parada (na ordem do dia) */
+export const ROUTE_FLOW: Record<"busca" | "entrega", RouteStatus[]> = {
+  busca: ["aguardando", "a_caminho", "coletado", "na_loja", "cancelado"],
+  entrega: ["aguardando", "saiu_entrega", "entregue", "cancelado"],
+};

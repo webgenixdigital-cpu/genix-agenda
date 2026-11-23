@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { CalendarPlus, ChevronLeft, ChevronRight, Clock, Layers, Layers2, Package, Repeat, X } from "lucide-react";
+import { CalendarPlus, Car, ChevronLeft, ChevronRight, Clock, Layers, Layers2, Package, Repeat, X } from "lucide-react";
 import { attendeeName } from "@/lib/pets";
 import { BlockNotice, BookingCard } from "@/components/admin/agenda/booking-card";
 import { NewBookingDialog } from "@/components/admin/agenda/new-booking-dialog";
@@ -209,6 +209,7 @@ export function MonthCalendar(props: Props) {
                     <span className="ml-auto flex shrink-0 gap-0.5 text-primary">
                       {b.service_id && comboIds.has(b.service_id) && <Layers className="h-3 w-3" aria-label="Combo" />}
                       {b.customer_package_id && <Package className="h-3 w-3" aria-label="Pacote" />}
+                      {b.transport && b.transport !== "nenhum" && <Car className="h-3 w-3" aria-label="Leva e traz" />}
                       {b.series_id && <Repeat className="h-3 w-3" aria-label="Recorrente" />}
                       {b.overlay && <Layers2 className="h-3 w-3 shrink-0" aria-label="Encaixe sobreposto" data-testid={`selo-encaixe-${b.id}`} />}
                       {b.status === "completed" && b.payment_status === "pending" && (

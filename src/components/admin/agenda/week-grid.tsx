@@ -5,8 +5,8 @@ import { usePlanFlags } from "@/components/admin/plan-flags";
 import { useRouter } from "next/navigation";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Clock, Layers2, Package, Repeat } from "lucide-react";
-import { attendeeName, attendeeText, tutorLine } from "@/lib/pets";
+import { Car, Clock, Layers2, Package, Repeat } from "lucide-react";
+import { TRANSPORT_LABEL, attendeeName, attendeeText, tutorLine } from "@/lib/pets";
 import { toast } from "sonner";
 import { rescheduleBooking } from "@/app/admin/(painel)/agenda/actions";
 import { BookingActions, type RescheduleProps } from "@/components/admin/agenda/booking-actions";
@@ -558,6 +558,11 @@ function BookingBlock(props: {
             {b.overlay && (
               <Badge icon={<Layers2 className="h-3 w-3" />} testId={`selo-encaixe-${b.id}`}>
                 Encaixe
+              </Badge>
+            )}
+            {b.transport && b.transport !== "nenhum" && (
+              <Badge icon={<Car className="h-3 w-3" />} testId={`selo-leva-traz-${b.id}`}>
+                {TRANSPORT_LABEL[b.transport]}
               </Badge>
             )}
             {b.customer_package_id && (

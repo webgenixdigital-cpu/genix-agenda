@@ -114,6 +114,7 @@ export default async function PainelLayout({ children }: { children: React.React
           email={isDemo ? "Conta de demonstração" : ctx.email}
           lockedHrefs={lockedHrefsFor(plan.kind)}
           role={ctx.role}
+          petMode={ctx.business.subcategory === PET_NICHE_ID}
           initialCollapsed={sidebarCollapsed}
           belowDemoBanner={isDemo}
         />

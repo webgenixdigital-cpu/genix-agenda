@@ -594,6 +594,16 @@ const AJUDA_TEXTOS = {
       "Arquivar tira o pet da lista sem apagar o histórico. Excluir apaga de vez e só a matriz pode.",
     ],
   },
+  "leva-e-traz": {
+    titulo: "Leva e traz",
+    serve: "Mostra as buscas e entregas de pets do dia, com endereço do tutor, motorista e status.",
+    passos: [
+      "Marque o leva e traz no novo agendamento do pet.",
+      "Aqui, escolha o motorista de cada parada e use as setas para montar a ordem da rota.",
+      "O status muda pela lista ou pelo app do motorista e atualiza sozinho.",
+    ],
+    atencao: ["A taxa do leva e traz é cobrada à parte: ela não entra no total do atendimento nem no caixa."],
+  },
 } satisfies Record<string, AjudaItem>;
 
 export type AjudaId = keyof typeof AJUDA_TEXTOS;

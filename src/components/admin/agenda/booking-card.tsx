@@ -59,9 +59,13 @@ export function BookingCard({
               <p className="font-semibold">{attendeeName(b)}</p>
             )}
             {b.transport && b.transport !== "nenhum" && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-xs font-medium" data-testid={`selo-leva-traz-${b.id}`}>
+              <Link
+                href={`/admin/leva-e-traz?data=${b.booking_date}`}
+                className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-xs font-medium hover:underline"
+                data-testid={`selo-leva-traz-${b.id}`}
+              >
                 <Car className="h-3 w-3" aria-hidden /> {TRANSPORT_LABEL[b.transport]}
-              </span>
+              </Link>
             )}
             {tutorLine(b) && <span className="w-full text-xs text-muted-foreground" data-testid={`tutor-${b.id}`}>{tutorLine(b)}</span>}
             <StatusBadge status={b.status} />

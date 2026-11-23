@@ -15,6 +15,9 @@ import type { ProOption } from "@/components/admin/agenda/reschedule-dialog";
 import { ReopenBookingButton } from "@/components/admin/agenda/reopen-booking-button";
 import { useBookingDialogs, type BookingDialogKind } from "@/components/admin/agenda/booking-dialogs";
 import { usePlanFlags } from "@/components/admin/plan-flags";
+import { useNicheFlags } from "@/components/admin/niche-flags";
+import { BookingTransportButton } from "@/components/admin/leva-e-traz/booking-transport-button";
+import { attendeeText } from "@/lib/pets";
 import type { BookingStatus } from "@/lib/types";
 import { vitrineUrl } from "@/lib/vitrine-url";
 
@@ -87,6 +90,7 @@ export function BookingActions({
   const { openBooking } = useBookingDialogs();
   // 59: Grátis vencido = só consulta (cancelar continua); pedido de avaliação só no Profissional+
   const { readOnly, reviewRequest } = usePlanFlags();
+  const { petMode } = useNicheFlags();
   const [pending, start] = useTransition();
   const [origin, setOrigin] = useState("");
 
@@ -190,6 +194,11 @@ export function BookingActions({
           />
         )}
       </ActionRow>
+
+      {/* 4b: leva e traz do pet (banho e tosa; matriz e recepção) */}
+      {petMode && editable && reschedule?.canChooseProfessional && (
+        <BookingTransportButton bookingId={b.id} current={b.transport} who={attendeeText(b)} />
+      )}
 
       {/* linha própria, só quando existir */}
       {b.series_id && active && (

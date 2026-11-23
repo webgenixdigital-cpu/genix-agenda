@@ -7,7 +7,14 @@ import { Check, Copy, Gift } from "lucide-react";
 import { toast } from "sonner";
 import { Ajuda } from "@/components/ajuda";
 import { Button } from "@/components/ui/button";
-import { referralLink, referralShareText, referralStatusLabel, type ReferralItem } from "@/lib/referral-public";
+import { REFERRAL_TEXT } from "@/content/planos";
+import {
+  referralLink,
+  referralShareText,
+  referralStatusLabel,
+  type ReferralItem,
+  type ReferralRewards,
+} from "@/lib/referral-public";
 import { cn } from "@/lib/utils";
 
 const br = (iso: string) =>
@@ -16,6 +23,13 @@ const br = (iso: string) =>
   );
 
 const months = (n: number) => (n === 1 ? "1 mês grátis" : `${n} meses grátis`);
+const money = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+/** “1 mês grátis e R$ 28,70 de crédito” (o que já saiu) */
+function earned(r: ReferralRewards) {
+  const parts = [r.meses_aplicados > 0 ? months(r.meses_aplicados) : "", r.credito_aplicado > 0 ? `${money(r.credito_aplicado)} de crédito` : ""];
+  return parts.filter(Boolean).join(" e ");
+}
 
 export function ReferralCard({
   code,
@@ -25,7 +39,7 @@ export function ReferralCard({
 }: {
   code: string;
   businessName: string;
-  rewards: { guardado: number; aplicado: number };
+  rewards: ReferralRewards;
   items: ReferralItem[];
 }) {
   // o link usa o domínio aberto agora (no servidor ainda não sabemos)
@@ -57,10 +71,7 @@ export function ReferralCard({
             Indique e ganhe
             <Ajuda id="indicacao" className="-my-2 -ml-1" />
           </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Quando um espaço que você indicou pagar a 1ª mensalidade ou anuidade, você ganha 1 mês grátis. Sem limite de
-            indicações.
-          </p>
+          <p className="mt-1 text-sm text-muted-foreground">{REFERRAL_TEXT.rule} Sem limite de indicações.</p>
         </div>
       </div>
 
@@ -83,11 +94,14 @@ export function ReferralCard({
 
       {(rewards.guardado > 0 || rewards.aplicado > 0) && (
         <p className="rounded-xl bg-[#F2C078]/25 px-3 py-2 text-sm" data-testid="resumo-premios">
-          {rewards.aplicado > 0 && <>Você já ganhou <strong>{months(rewards.aplicado)}</strong>. </>}
+          {earned(rewards) && <>Você já ganhou <strong>{earned(rewards)}</strong>. </>}
           {rewards.guardado > 0 && (
             <>
-              <strong>{months(rewards.guardado)}</strong> {rewards.guardado === 1 ? "guardado" : "guardados"}: entra
-              {rewards.guardado === 1 ? "" : "m"} logo depois do pagamento da sua assinatura.
+              <strong>
+                {rewards.guardado} {rewards.guardado === 1 ? "prêmio guardado" : "prêmios guardados"}
+              </strong>
+              : {rewards.guardado === 1 ? "entra" : "entram"} na sua próxima cobrança, logo depois do pagamento da sua assinatura
+              ou quando a cobrança for gerada.
             </>
           )}
         </p>

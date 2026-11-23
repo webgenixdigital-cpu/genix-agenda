@@ -125,10 +125,15 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
     (`businesses.referral_code`, fixo), copiar, WhatsApp com mensagem pronta e a lista (nome do espaço, data, situação:
     cadastrou / assinou / pagou / prêmio). Vínculo **só no cadastro** (até 2 h, sem assinatura; cookie `genix_ind` de
     30 dias gravado no middleware). Autoindicação barrada (mesmo dono, e-mail, WhatsApp; CPF/CNPJ conferido no Asaas no
-    pagamento). Prêmio: o indicado **paga** a 1ª cobrança de um plano pago → quem indicou ganha **1 mês grátis** (mensal:
-    a próxima cobrança vai 1 mês para frente; anual: renovação 1 mês depois). 1 prêmio por indicado; sem limite;
+    pagamento). Prêmio: o indicado **paga** a 1ª cobrança de um plano pago → quem indicou ganha um **crédito
+    proporcional** (61): o MENOR valor entre a mensalidade paga de fato pelo indicado (com cupom; anual = pago ÷ 12,
+    para baixo no centavo) e a mensalidade de quem indicou (preço do vencimento da cobrança; anual = renovação ÷ 12).
+    Crédito ≥ mensalidade, ou cobrança que ficaria abaixo de R$ 5 → **1 mês grátis** (adia 1 mês, como na 56); menor →
+    reduz a próxima cobrança pendente; cobrança ainda não gerada → guarda e aplica no `PAYMENT_CREATED`. Prêmios gerados
+    antes da 61 (`kind = 'mes'`) continuam 1 mês grátis. 1 prêmio por indicado; 1 crédito por cobrança; sem limite;
     acumulam e saem **em sequência**; quem não tem assinatura paga guarda até a 1ª cobrança paga; estorno da 1ª cobrança
     do indicado antes do uso cancela. Com o cupom (#50): a data final do desconto não muda, o preço segue o vencimento.
+    Textos: `REFERRAL_TEXT` em `src/content/planos.ts` (Início, Assinatura, landing, Ajuda, Termos).
 - **Sem área da saúde nesta fase:** nada de prontuário, anamnese, alergias, medicamentos, gestação, dados clínicos.
   O segmento `psicologia_terapias` existe no banco mas **não é oferecido**. Campos de ficha técnica nunca de saúde.
   Os Termos/Privacidade publicados afirmam isso.
@@ -266,6 +271,16 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
   o `nextDueDate` N meses, ajusta `current_period_end` e chama `applySubscriptionValues` (preço pelo novo vencimento).
   Falha no meio do adiamento não devolve o prêmio (evita adiar duas vezes): fica anotado para conferir no /genix.
   Webhook: pago → `onReferredPaid` + `applyReferralRewards`; `PAYMENT_REFUNDED`/`DELETED`/`CHARGEBACK` → cancela.
+- **Crédito proporcional (61):** `referral_rewards.kind` (`mes` = regra da 56 | `credito`), `referred_monthly`,
+  `applied_as` (`reducao`|`adiamento`), `credit_amount`, `payment_value_before/after`. `referral_on_first_payment` com
+  5 parâmetros (`p_value` = valor pago; a de 4 parâmetros fica até o deploy e pode sair numa migration futura);
+  `referral_rewards_claim` só pega `mes`; créditos saem um por vez (`referral_credit_claim`, `skip locked`), a redução é
+  gravada ANTES do Asaas (`referral_credit_reserve_payment`, índice único = **1 crédito por cobrança**) e desfeita se o
+  Asaas recusar (`referral_credit_release`). Conta pura em `lib/referral-credit.ts` (`decideCredit`,
+  `expectedPaymentValue`). **Valor esperado de uma cobrança = preço do vencimento − créditos ligados a ela**
+  (`referral_credit_for_payments` → `referralCreditsFor`): usado em `applySubscriptionValues` e na rede de segurança do
+  `PAYMENT_CREATED`, que depois chama `applyReferralRewards` (crédito guardado entra na cobrança nova). Valor sempre
+  absoluto: sincronizar, trocar de plano ou adiar não apagam nem duplicam o crédito; nunca abaixo de R$ 5.
 - **Nix, assistente (60, Fase 1):** botão flutuante no painel (`components/admin/nix/nix-chat.tsx`) → `/api/agente` (Gemini,
   `@google/genai` com versão exata). Só **matriz e recepção**; **Equipe pago** (assinatura, cortesia Equipe, antigo Completo) e os
   **3 últimos dias do teste** (cota 20/dia); Grátis, Básico, Profissional e o começo do teste veem o cadeado; staff e demo não veem.

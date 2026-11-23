@@ -3,7 +3,7 @@
 // Cada item: título, "Para que serve" (1–2 frases), "Como fazer" (passos curtos) e,
 // quando fizer sentido, "Atenção" (uma ou mais linhas).
 
-import { FREE_MONTHS, PLAN_PROMISE, TRIAL_DAYS, planNote } from "@/content/planos";
+import { FREE_MONTHS, PLAN_PROMISE, REFERRAL_TEXT, TRIAL_DAYS, planNote } from "@/content/planos";
 
 export type AjudaItem = {
   titulo: string;
@@ -246,18 +246,21 @@ const AJUDA_TEXTOS = {
   },
   indicacao: {
     titulo: "Indique e ganhe",
-    serve: "Indique o Genix Agenda para outros espaços e ganhe 1 mês grátis da sua assinatura para cada um que assinar e pagar.",
+    serve: "Indique o Genix Agenda para outros espaços e ganhe um crédito na sua assinatura, até 1 mês grátis, para cada um que assinar e pagar.",
     passos: [
       "Copie o seu link ou toque em “Compartilhar no WhatsApp”. A mensagem já vai pronta.",
       "A pessoa cria a conta pelo seu link. O link fica guardado no aparelho dela por 30 dias, então ela pode olhar o site antes.",
-      "Quando ela pagar a 1ª mensalidade ou anuidade de qualquer plano pago, o seu mês grátis é liberado. Se você assina, a sua próxima cobrança vai 1 mês para frente. No anual, a renovação fica 1 mês depois.",
+      REFERRAL_TEXT.rule,
+      REFERRAL_TEXT.howMuch,
     ],
     atencao: [
       "Vale só para contas novas, criadas pelo seu link. Não dá para vincular depois do cadastro.",
-      "Cada espaço indicado gera 1 mês grátis, uma única vez, mesmo se cancelar e assinar de novo.",
-      "Se você ainda não assina, os meses ficam guardados e entram logo depois do pagamento da sua 1ª assinatura. Vários meses saem em sequência.",
-      "Não vale indicar a si mesmo (mesmo e-mail, WhatsApp ou CPF/CNPJ). Se o pagamento do indicado for estornado antes de você usar, o prêmio é cancelado.",
-      "O prêmio é em meses de assinatura, não em dinheiro. O preço de lançamento continua até a mesma data.",
+      REFERRAL_TEXT.fullMonth,
+      "Cada espaço indicado gera 1 crédito, uma única vez, mesmo se cancelar e assinar de novo. Cada cobrança recebe 1 crédito; os outros ficam para as cobranças seguintes.",
+      "Se você ainda não assina, os créditos ficam guardados e entram depois do pagamento da sua 1ª assinatura. Se a sua próxima cobrança ainda não foi gerada, o crédito entra quando ela for gerada (cerca de 40 dias antes do vencimento).",
+      "Não vale indicar a si mesmo (mesmo e-mail, WhatsApp ou CPF/CNPJ). Se o pagamento do indicado for estornado antes de você usar, o crédito é cancelado.",
+      "O crédito é desconto na assinatura, não em dinheiro. O preço de lançamento continua até a mesma data.",
+      REFERRAL_TEXT.legacy,
     ],
   },
   "preco-lancamento": {

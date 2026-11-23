@@ -12,7 +12,7 @@ export const LEGAL = {
   emailPrivacidade: "privacidade@genixagenda.com.br",
   site: "https://genixagenda.com.br",
   foro: "Poços de Caldas/MG",
-  atualizadoEm: "21 de novembro de 2026",
+  atualizadoEm: "22 de novembro de 2026",
   /** Termos de Uso: planos Grátis (6 meses, depois só consulta), Básico, Profissional e Equipe; vitrine online a partir do Profissional (59) */
   termosAtualizadoEm: "21 de novembro de 2026",
 };

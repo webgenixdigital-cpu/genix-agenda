@@ -159,10 +159,26 @@ export const LAUNCH_TEXT = {
   wasLabel: (full: string) => `Preço normal: ${full}`,
 };
 
-/** Indique e ganhe (migration 56): textos do card do Início. A regra fica no banco e em lib/referral.ts. */
+/**
+ * Indique e ganhe (56; crédito proporcional, 61): fonte única dos textos (Início, Assinatura, landing,
+ * Ajuda, Termos). A regra fica no banco e em lib/referral.ts + lib/referral-credit.ts.
+ */
 export const REFERRAL_TEXT = {
   homeTitle: "Indique e economize na próxima mensalidade!",
   homeBody: "Quando o espaço indicado pagar a 1ª mensalidade, você recebe desconto ou até 1 mês grátis, dependendo do plano assinado!",
+  /** frase da regra (card da Assinatura e Ajuda) */
+  rule:
+    "Quando um espaço que você indicou pagar a 1ª mensalidade ou anuidade, você ganha um crédito do valor da mensalidade dele, até o valor da sua: a sua próxima cobrança fica menor ou, se o crédito cobrir tudo, sai 1 mês grátis.",
+  /** linha da landing, depois de “Indique e ganhe:” */
+  landing: " a cada espaço indicado que assinar, você ganha um crédito na sua mensalidade, até 1 mês grátis.",
+  /** como o valor é calculado (Ajuda e Termos) */
+  howMuch:
+    "O crédito é o menor valor entre a mensalidade que o espaço indicado pagou (no anual, o valor pago dividido por 12) e a sua mensalidade (no anual, a renovação dividida por 12).",
+  /** quando vira 1 mês grátis em vez de desconto */
+  fullMonth:
+    "Se o crédito for igual ou maior que a sua mensalidade, ou se a cobrança ficaria abaixo de R$ 5,00, a sua próxima cobrança vai 1 mês para frente (no anual, a renovação fica 1 mês depois).",
+  /** prêmios gerados antes da regra do crédito */
+  legacy: "Indicações que já tinham gerado prêmio antes desta regra continuam valendo 1 mês grátis.",
   copy: "Copiar link de indicação",
   copied: "Link copiado!",
   copyFailed: "Não foi possível copiar. Selecione o link abaixo e copie:",

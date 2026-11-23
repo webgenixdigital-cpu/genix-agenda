@@ -21,6 +21,7 @@ import { asaas, AsaasError, type AsaasPayment, type AsaasSubscription } from "@/
 import { todayISO } from "@/lib/dates";
 import { brl } from "@/lib/format";
 import { isSoloKind, kindOfPlanId } from "@/lib/plan-ids";
+import { expectedPaymentValue } from "@/lib/referral-credit";
 
 /** menor cobrança avulsa aceita pelo Asaas (R$) */
 export const MIN_CHARGE = 5;
@@ -164,27 +165,34 @@ export async function applySubscriptionValues(
 
   // cobranças já geradas (o Asaas gera 40 dias antes): cada uma pelo seu vencimento
   const list = await asaas<{ data: AsaasPayment[] }>(`/subscriptions/${id}/payments?status=PENDING&limit=50`);
+  // menos o crédito de indicação ligado a cada uma (61): o valor gravado é sempre o absoluto,
+  // então sincronizar, trocar de plano ou adiar nunca apagam nem duplicam o crédito
+  const pending = (list.data ?? []).filter((p) => p.status === "PENDING");
+  const credits = await referralCreditsFor(pending.map((p) => p.id));
   let changedPayments = 0;
-  for (const p of list.data ?? []) {
-    if (p.status !== "PENDING") continue;
+  for (const p of pending) {
     const qp = await billingQuote(businessId, { plan: opts.plan, ref: p.dueDate });
     if (!qp) throw new Error("Não foi possível calcular o valor da cobrança.");
+    const credit = credits[p.id] ?? 0;
+    const value = expectedPaymentValue(qp.total, credit);
     const old = Number(p.value ?? 0);
-    if (sameValue(old, qp.total) && !opts.description) continue;
+    if (sameValue(old, value) && !opts.description) continue;
     await asaas(`/payments/${p.id}`, {
       method: "POST",
-      body: { value: qp.total, ...(opts.description ? { description: opts.description } : {}) },
+      body: { value, ...(opts.description ? { description: opts.description } : {}) },
     });
-    if (!sameValue(old, qp.total)) {
+    if (!sameValue(old, value)) {
       changedPayments++;
       await logDiscount(businessId, {
         event: "valor",
         plan: qp.plan,
         old,
-        value: qp.total,
+        value,
         due: p.dueDate,
         actor: opts.actor,
-        note: `${opts.reason}: cobrança ${qp.discounted ? "com desconto" : "com preço cheio"}`,
+        note:
+          `${opts.reason}: cobrança ${qp.discounted ? "com desconto" : "com preço cheio"}` +
+          (credit > 0 ? ` e crédito de indicação de ${brl(credit)}` : ""),
       });
     }
   }
@@ -192,6 +200,16 @@ export async function applySubscriptionValues(
   // virada: o próximo vencimento já é depois do fim do desconto
   if (!next.discounted) await closeDiscountIfOver(businessId, next, previous, opts.actor);
   return { next, previous, changedPayments };
+}
+
+/** créditos de indicação (61) ligados a cada cobrança: { payment_id: valor } */
+export async function referralCreditsFor(paymentIds: string[]): Promise<Record<string, number>> {
+  if (paymentIds.length === 0) return {};
+  const { data, error } = await createAdminClient().rpc("referral_credit_for_payments", { p_payment_ids: paymentIds });
+  if (error) throw new Error("Não foi possível ler os créditos de indicação.");
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries((data ?? {}) as Record<string, unknown>)) out[k] = Number(v);
+  return out;
 }
 
 type DiscountEvent = {

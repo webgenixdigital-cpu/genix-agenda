@@ -22,11 +22,31 @@ export type ReferralItem = {
   status: "cadastrou" | "assinou" | "pagou" | "premio";
   reward: "guardado" | "aplicado" | "cancelado" | "bloqueado" | null;
   due_after: string | null;
+  /** 61: 'mes' (1 mês grátis, regra antiga) | 'credito'; como saiu; valor do crédito usado */
+  kind?: "mes" | "credito" | null;
+  applied_as?: "reducao" | "adiamento" | null;
+  credit_amount?: number | string | null;
 };
 
+/** resumo dos prêmios de quem indicou (my_referrals) */
+export type ReferralRewards = {
+  guardado: number;
+  aplicado: number;
+  /** meses grátis usados (regra antiga + créditos que cobriram a mensalidade) */
+  meses_aplicados: number;
+  /** soma dos créditos que reduziram cobranças (R$) */
+  credito_aplicado: number;
+};
+
+const money = (v: number | string) => Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
 export function referralStatusLabel(i: ReferralItem) {
-  if (i.reward === "aplicado") return "Prêmio concedido · usado";
-  if (i.reward === "guardado") return "Prêmio concedido · guardado";
+  if (i.reward === "aplicado") {
+    if (i.applied_as === "reducao" && i.credit_amount != null) return `Crédito de ${money(i.credit_amount)} · usado`;
+    if (i.kind === "credito" || i.kind === "mes") return "1 mês grátis · usado";
+    return "Prêmio concedido · usado";
+  }
+  if (i.reward === "guardado") return i.kind === "credito" ? "Crédito guardado" : "Prêmio concedido · guardado";
   if (i.reward === "cancelado") return "Prêmio cancelado (estorno)";
   if (i.reward === "bloqueado") return "Pagou · sem prêmio";
   if (i.status === "pagou") return "Pagou";

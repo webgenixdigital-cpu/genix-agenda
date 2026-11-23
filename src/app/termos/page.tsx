@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { LegalPage } from "@/components/legal-page";
 import { LEGAL } from "@/lib/legal";
+import { REFERRAL_TEXT } from "@/content/planos";
 
 export const metadata = { title: "Termos de Uso | Genix Agenda" };
 
@@ -43,16 +44,20 @@ export default function TermosPage() {
           <li>Alterações de preço serão comunicadas com antecedência e só valem para o período seguinte.</li>
           <li>
             <strong>Indique e ganhe:</strong> cada conta tem um link de indicação. Quando um espaço novo, cadastrado por esse link,
-            paga a primeira cobrança de um plano pago, quem indicou ganha 1 mês grátis da própria assinatura: a próxima
-            cobrança é adiada em 1 mês (no plano anual, a renovação fica 1 mês depois). Regras:
+            paga a primeira cobrança de um plano pago, quem indicou ganha um crédito na própria assinatura. Regras:
             <ul>
+              <li>{REFERRAL_TEXT.howMuch}</li>
+              <li>o crédito reduz o valor da próxima cobrança de quem indicou (no plano anual, a renovação);</li>
+              <li>{REFERRAL_TEXT.fullMonth}</li>
+              <li>se a próxima cobrança ainda não foi gerada, o crédito fica guardado e é aplicado quando ela for gerada. Cada cobrança recebe no máximo 1 crédito; os demais ficam para as cobranças seguintes;</li>
               <li>a indicação só vale no cadastro da conta nova e não pode ser feita depois;</li>
               <li>cada espaço indicado gera no máximo 1 prêmio, mesmo que cancele e assine de novo;</li>
               <li>não há limite de indicações. Vários prêmios se acumulam e são usados em sequência;</li>
               <li>para quem ainda não tem assinatura paga, os prêmios ficam guardados e são usados após o pagamento da primeira assinatura;</li>
               <li>não vale indicar a si mesmo (mesmo dono, e-mail, WhatsApp ou CPF/CNPJ);</li>
               <li>se a primeira cobrança do espaço indicado for estornada ou cancelada antes do uso, o prêmio é cancelado;</li>
-              <li>o prêmio é em meses de assinatura, não pode ser trocado por dinheiro e não muda a data final de descontos promocionais em vigor.</li>
+              <li>o prêmio é desconto na assinatura, não pode ser trocado por dinheiro e não muda a data final de descontos promocionais em vigor;</li>
+              <li>prêmios gerados antes desta regra continuam valendo 1 mês grátis.</li>
             </ul>
           </li>
         </ul>

@@ -295,6 +295,22 @@ const AJUDA_TEXTOS = {
       "Se mudar o endereço, atualize onde já divulgou (Instagram, cartões, QR code impresso).",
     ],
   },
+  "vitrine-carrinho": {
+    titulo: "Pedido pelo WhatsApp",
+    serve:
+      "No cartão de visita, o cliente escolhe um ou mais serviços e manda o pedido já montado no seu WhatsApp, com os serviços, o total estimado e a duração.",
+    passos: [
+      "O cliente toca em “Adicionar” nos serviços que quer.",
+      "Aparece uma barra com o total. Ele pode escrever o nome e toca em “Pedir pelo WhatsApp”.",
+      "A mensagem chega no seu WhatsApp. Você responde com o horário que tem livre para a soma dos serviços.",
+    ],
+    atencao: [
+      "O cartão não consulta a sua agenda: o horário é sempre combinado na conversa.",
+      "Serviço com preço R$ 0,00 aparece como “Valor a combinar” e não entra no total.",
+      "Nada do pedido fica salvo no sistema. Quando marcar, lance o atendimento na Agenda.",
+      `${PLAN_PROMISE.vitrineUpsell} ${planNote("vitrine")}`,
+    ],
+  },
   horarios: {
     titulo: "Horários e agendamento",
     serve: "Diz em que dias e horários você atende e com quanto tempo de antecedência o cliente pode marcar.",

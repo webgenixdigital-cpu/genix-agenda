@@ -6,7 +6,9 @@ import { createClient } from "@/lib/supabase/server";
 import { SiteHeader } from "@/components/site-header";
 import { BookTrigger } from "@/components/vitrine/book-trigger";
 import { BookingWizard } from "@/components/vitrine/booking-wizard";
+import { CardCartProvider, CardServiceToggle } from "@/components/vitrine/card-cart";
 import { Button } from "@/components/ui/button";
+import { hasPrice } from "@/lib/cart-message";
 import { brl, duration, hhmm, whatsappLink, WEEKDAYS } from "@/lib/format";
 import type { Business, BusinessHour, Professional, Service } from "@/lib/types";
 import { IMAGE_SIZES } from "@/lib/images";
@@ -140,7 +142,7 @@ export default async function VitrinePage({ params }: Props) {
     return acc;
   }, {});
 
-  return (
+  const page = (
     <>
       <SiteHeader />
 
@@ -298,12 +300,20 @@ export default async function VitrinePage({ params }: Props) {
                             <p className="font-semibold">{s.name}</p>
                             {s.description && <p className="mt-0.5 text-sm text-muted-foreground">{s.description}</p>}
                             <p className="mt-1.5 text-sm">
-                              <strong>{brl(s.price)}</strong>
+                              {cardOnly && !hasPrice(s.price) ? (
+                                <span className="text-muted-foreground">Valor a combinar</span>
+                              ) : (
+                                <strong>{brl(s.price)}</strong>
+                              )}
                               <span className="text-muted-foreground"> / {duration(s.duration_min)}</span>
                             </p>
                           </div>
 
-                          {online(s) ? (
+                          {cardOnly && b.whatsapp ? (
+                            <CardServiceToggle
+                              item={{ id: s.id, name: s.name, price: Number(s.price), duration_min: s.duration_min }}
+                            />
+                          ) : online(s) ? (
                             <BookTrigger
                               serviceId={s.id}
                               variant="outline"
@@ -461,8 +471,8 @@ export default async function VitrinePage({ params }: Props) {
       />
       )}
 
-      {/* WhatsApp flutuante */}
-      {wa && (
+      {/* WhatsApp flutuante (no cartão, quem desenha é o CardCartProvider) */}
+      {!cardOnly && wa && (
         <a
           href={wa}
           target="_blank"
@@ -475,5 +485,14 @@ export default async function VitrinePage({ params }: Props) {
         </a>
       )}
     </>
+  );
+
+  // 59 + carrinho: no cartão a cliente monta o pedido (vários serviços) e manda pelo WhatsApp
+  return cardOnly ? (
+    <CardCartProvider whatsapp={b.whatsapp} floatingHref={wa}>
+      {page}
+    </CardCartProvider>
+  ) : (
+    page
   );
 }

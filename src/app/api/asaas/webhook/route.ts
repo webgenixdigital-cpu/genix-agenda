@@ -5,8 +5,9 @@ import { timingSafeEqual } from "crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { asaas, type AsaasSubscription } from "@/lib/asaas";
-import { applySubscriptionValues, billingQuote, syncSubscriptionBilling } from "@/lib/billing";
+import { applySubscriptionValues, billingQuote, referralCreditsFor, syncSubscriptionBilling } from "@/lib/billing";
 import { applyReferralRewards, cancelReferralByPayment, onReferredPaid } from "@/lib/referral";
+import { expectedPaymentValue } from "@/lib/referral-credit";
 
 export const dynamic = "force-dynamic";
 
@@ -37,6 +38,15 @@ function tokenOk(received: string | null) {
   const b = Buffer.from(expected);
   return a.length === b.length && timingSafeEqual(a, b);
 }
+
+/** resumo do prêmio de indicação usado (resultado gravado em asaas_webhook_events) */
+const referralSummary = (u: { applied: number; credits: number }) =>
+  [
+    u.applied > 0 ? `${u.applied} ${u.applied === 1 ? "mês grátis" : "meses grátis"}` : "",
+    u.credits > 0 ? `${u.credits} ${u.credits === 1 ? "crédito" : "créditos"} na cobrança` : "",
+  ]
+    .filter(Boolean)
+    .join(" + ");
 
 const PAID = ["PAYMENT_CONFIRMED", "PAYMENT_RECEIVED", "PAYMENT_RECEIVED_IN_CASH"];
 // estorno ou remoção de uma cobrança paga (indicação, 56)
@@ -212,13 +222,15 @@ export async function POST(request: NextRequest) {
         await syncSubscriptionBilling(sub.business_id, { reason: "sincronia" });
       }
 
-      // Indique e ganhe (56): 1ª cobrança paga de um espaço indicado → prêmio de quem indicou;
-      // quem pagou tem prêmios guardados → usa todos agora (próxima cobrança N meses para frente)
+      // Indique e ganhe (56/61): 1ª cobrança paga de um espaço indicado → prêmio de quem indicou
+      // (crédito pelo valor pago de fato); quem pagou tem prêmios guardados → usa agora
       const { data: paid } = await admin.from("subscriptions").select("plan_id").eq("business_id", sub.business_id).maybeSingle();
-      if (body.payment?.id) await onReferredPaid(sub.business_id, body.payment.id, paid?.plan_id ?? null, body.payment.customer);
+      if (body.payment?.id) {
+        await onReferredPaid(sub.business_id, body.payment.id, paid?.plan_id ?? null, body.payment.customer, body.payment.value);
+      }
       const used = await applyReferralRewards(sub.business_id, "cobrança paga");
-      if (used.applied > 0) {
-        return finish(`ativada; ${used.applied} ${used.applied === 1 ? "mês grátis" : "meses grátis"} por indicação`, sub.business_id);
+      if (used.applied > 0 || used.credits > 0) {
+        return finish(`ativada; indicação: ${referralSummary(used)}`, sub.business_id);
       }
       return finish(`ativada até ${s.nextDueDate}`, sub.business_id);
     }
@@ -231,24 +243,32 @@ export async function POST(request: NextRequest) {
         .eq("business_id", sub.business_id);
 
       // Rede de segurança (29): valor da cobrança diferente do esperado PARA O
-      // VENCIMENTO DELA (cupom, 53) → corrige a assinatura e as cobranças em aberto
+      // VENCIMENTO DELA (cupom, 53), já sem o crédito de indicação ligado a ela (61)
+      // → corrige a assinatura e as cobranças em aberto
       const value = body.payment.value;
+      let result = "fatura registrada";
       if (typeof value === "number" && (body.payment.status ?? "PENDING") === "PENDING") {
         const q = await billingQuote(sub.business_id, { ref: body.payment.dueDate ?? null });
-        const differs = !!q && Math.round(q.total * 100) !== Math.round(value * 100);
+        const credit = (await referralCreditsFor([body.payment.id]))[body.payment.id] ?? 0;
+        const expected = q ? expectedPaymentValue(q.total, credit) : null;
+        const differs = expected !== null && Math.round(expected * 100) !== Math.round(value * 100);
         if (differs && !sub.billing_auto) {
           await admin
             .from("subscriptions")
-            .update({ billing_sync_status: "pendente", billing_sync_error: `Cobrança criada com ${value}; esperado ${q!.total}.` })
+            .update({ billing_sync_status: "pendente", billing_sync_error: `Cobrança criada com ${value}; esperado ${expected}.` })
             .eq("business_id", sub.business_id);
           return finish("fatura registrada; valor diferente (correção manual)", sub.business_id);
         }
         if (differs || sub.billing_sync_status === "pendente") {
           const r = await syncSubscriptionBilling(sub.business_id, { reason: "webhook" });
-          return finish(`fatura registrada; valor ${r.status === "ok" ? "corrigido" : "a sincronizar"}`, sub.business_id);
+          result = `fatura registrada; valor ${r.status === "ok" ? "corrigido" : "a sincronizar"}`;
         }
       }
-      return finish("fatura registrada", sub.business_id);
+
+      // Indicação (61): crédito guardado esperando a cobrança ser gerada → entra nela agora
+      const used = await applyReferralRewards(sub.business_id, "cobrança gerada");
+      if (used.applied > 0 || used.credits > 0) result += `; indicação: ${referralSummary(used)}`;
+      return finish(result, sub.business_id);
     }
 
     // Cobrança vencida → atraso (só se já era assinante ativo)

@@ -6,7 +6,7 @@
 // e o preço de lançamento de launch_offer() (getLaunchOffer, migration 53).
 // =====================================================================
 
-import { FREE_MONTHS, PLAN_MICRO, PLAN_PROMISE, TRIAL_DAYS, planTag } from "@/content/planos";
+import { FREE_MONTHS, PLAN_MICRO, PLAN_PROMISE, REFERRAL_TEXT, TRIAL_DAYS, planTag } from "@/content/planos";
 
 /** Trecho de título com palavra grifada em dourado: [antes, grifo, depois] */
 export type Marked = readonly [string, string, string];
@@ -236,7 +236,7 @@ export const LANDING_PLANS = {
   /** linha abaixo dos cartões */
   trialNote: `Toda conta nova tem ${PLAN_PROMISE.trial}, sem cartão. ${PLAN_PROMISE.afterTrial}`,
   /** [negrito, resto] */
-  referral: ["Indique e ganhe:", " a cada espaço indicado que assinar, você ganha 1 mês grátis."] as const,
+  referral: ["Indique e ganhe:", REFERRAL_TEXT.landing] as const,
   roi: ["Uma única falta evitada por mês ", "já paga o plano Básico", "."] as Marked,
 };
 

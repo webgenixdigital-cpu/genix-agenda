@@ -17,7 +17,7 @@ import { CancelSubscriptionButton } from "@/components/admin/assinatura/cancel-b
 import { CancelPlanChangeButton, ChangePlanButton } from "@/components/admin/assinatura/change-plan";
 import { BillingSummary, type BillingChange } from "@/components/admin/assinatura/billing-summary";
 import { ReferralCard } from "@/components/admin/assinatura/referral-card";
-import type { ReferralItem } from "@/lib/referral-public";
+import type { ReferralItem, ReferralRewards } from "@/lib/referral-public";
 
 export const dynamic = "force-dynamic";
 
@@ -84,7 +84,7 @@ export default async function AssinaturaPage() {
     role === "owner" ? supabase.rpc("my_referrals") : Promise.resolve({ data: null }),
   ]);
   const referrals = referralsRaw as
-    | { code: string | null; rewards: { guardado: number; aplicado: number }; items: ReferralItem[] }
+    | { code: string | null; rewards: Partial<Record<keyof ReferralRewards, number | string>>; items: ReferralItem[] }
     | null;
   // valor esperado da próxima cobrança (plano da renovação + extras de agora)
   const renewalPlan = sub?.scheduled_plan_id ?? sub?.plan_id ?? null;
@@ -433,7 +433,13 @@ export default async function AssinaturaPage() {
         <ReferralCard
           code={referrals.code}
           businessName={business.name}
-          rewards={{ guardado: Number(referrals.rewards.guardado), aplicado: Number(referrals.rewards.aplicado) }}
+          rewards={{
+            guardado: Number(referrals.rewards.guardado ?? 0),
+            aplicado: Number(referrals.rewards.aplicado ?? 0),
+            // antes da 61 a função não manda estes campos: tudo o que foi aplicado era mês grátis
+            meses_aplicados: Number(referrals.rewards.meses_aplicados ?? referrals.rewards.aplicado ?? 0),
+            credito_aplicado: Number(referrals.rewards.credito_aplicado ?? 0),
+          }}
           items={referrals.items ?? []}
         />
       )}

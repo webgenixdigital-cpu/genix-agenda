@@ -1,4 +1,4 @@
-// /genix → Indicações (migration 56): todas as indicações e prêmios, para auditoria. Só leitura.
+// /genix → Indicações (migrations 56 e 61): todas as indicações e prêmios, para auditoria. Só leitura.
 import { cn } from "@/lib/utils";
 
 export type GenixReferral = {
@@ -21,7 +21,28 @@ export type GenixReferral = {
   due_before: string | null;
   due_after: string | null;
   canceled_at: string | null;
+  /** 61: 'mes' (1 mês grátis, regra antiga) | 'credito' */
+  reward_kind?: string | null;
+  referred_monthly?: number | string | null;
+  applied_as?: "reducao" | "adiamento" | null;
+  credit_amount?: number | string | null;
+  payment_value_before?: number | string | null;
+  payment_value_after?: number | string | null;
 };
+
+const money = (v: number | string | null | undefined) =>
+  v == null ? "—" : Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+/** o que o prêmio virou (61): mês grátis antigo, crédito guardado, redução ou adiamento */
+function rewardDetail(r: GenixReferral) {
+  if (r.reward_kind !== "credito") return "1 mês grátis (regra antiga)";
+  const base = `crédito até ${money(r.referred_monthly)}`;
+  if (r.applied_as === "reducao") {
+    return `${base} · usado ${money(r.credit_amount)}: cobrança ${money(r.payment_value_before)} → ${money(r.payment_value_after)}`;
+  }
+  if (r.applied_as === "adiamento") return `${base} · virou 1 mês grátis (mensalidade ${money(r.credit_amount)})`;
+  return base;
+}
 
 const br = (iso: string | null) =>
   iso
@@ -69,10 +90,11 @@ export function ReferralsManager({ rows }: { rows: GenixReferral[] }) {
             </p>
             {r.reward_status && (
               <p className="text-xs">
-                {REWARD[r.reward_status] ?? r.reward_status} em {br(r.granted_at)}
-                {r.reward_status === "aplicado" && r.due_before
+                {REWARD[r.reward_status] ?? r.reward_status} em {br(r.granted_at)} · {rewardDetail(r)}
+                {r.reward_status === "aplicado" && r.due_before && r.applied_as !== "reducao"
                   ? ` · cobrança ${r.applied_payment_id ?? "(próxima a gerar)"}: ${br(r.due_before)} → ${br(r.due_after)}`
                   : ""}
+                {r.applied_as === "reducao" ? ` · cobrança ${r.applied_payment_id} de ${br(r.due_before)}` : ""}
                 {r.canceled_at ? ` · cancelado ${br(r.canceled_at)}` : ""}
                 {r.reward_note ? ` · ${r.reward_note}` : ""}
               </p>

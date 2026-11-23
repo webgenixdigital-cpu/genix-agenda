@@ -73,3 +73,11 @@ export const attendeeName = (b: WithPet) => b.pet_name || b.customer_name;
 export const tutorLine = (b: WithPet) => (b.pet_name ? `Tutor: ${b.customer_name}` : null);
 /** Texto corrido: "Thor (tutor Fulano)" ou só o cliente */
 export const attendeeText = (b: WithPet) => (b.pet_name ? `${b.pet_name} (tutor ${b.customer_name})` : b.customer_name);
+
+/** 4a: leva e traz */
+export const TRANSPORT_LABEL: Record<"nenhum" | "busca" | "entrega" | "busca_entrega", string> = {
+  nenhum: "Sem leva e traz",
+  busca: "Busca",
+  entrega: "Entrega",
+  busca_entrega: "Busca e entrega",
+};

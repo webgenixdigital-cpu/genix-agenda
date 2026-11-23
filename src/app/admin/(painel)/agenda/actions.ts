@@ -36,8 +36,23 @@ const packageError = (message?: string) =>
 // O tutor continua sendo o cliente (o gatilho liga pelo WhatsApp); o pet entra
 // depois de criado o agendamento. O banco confere pet ↔ tutor ↔ pacote.
 // ---------------------------------------------------------------------
-/** petId = pet já cadastrado do tutor; newPetName = cadastra o pet junto (tutor novo ou pet novo) */
-export type PetChoice = { petId?: string | null; newPetName?: string };
+/** petId = pet já cadastrado do tutor; newPetName = cadastra o pet junto (tutor novo ou pet novo).
+ *  transport (4a): leva e traz; a taxa fica registrada e é cobrada à parte (não entra no total). */
+export type PetChoice = {
+  petId?: string | null;
+  newPetName?: string;
+  transport?: Transport;
+  /** "15,00" */
+  transportFee?: string;
+  transportAddress?: string;
+  transportAddressRef?: string;
+};
+export type Transport = "nenhum" | "busca" | "entrega" | "busca_entrega";
+const TRANSPORTS: Transport[] = ["nenhum", "busca", "entrega", "busca_entrega"];
+const feeNumber = (raw?: string) => {
+  const n = Number((raw ?? "").replace(/\./g, "").replace(",", "."));
+  return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : NaN;
+};
 
 type Supa = ReturnType<typeof createClient>;
 type Biz = { id: string; subcategory: string | null };
@@ -45,8 +60,17 @@ type Biz = { id: string; subcategory: string | null };
 const isPetBusiness = (b: Biz) => b.subcategory === PET_NICHE_ID;
 
 /** Antes de criar: no nicho pet, exige o pet e confere se o pacote é dele */
-async function checkPetChoice(supabase: Supa, business: Biz, pet: PetChoice, packageId?: string | null) {
+async function checkPetChoice(supabase: Supa, business: Biz, pet: PetChoice, packageId?: string | null, role?: string) {
   if (!isPetBusiness(business)) return null;
+  const transport = pet.transport ?? "nenhum";
+  if (!TRANSPORTS.includes(transport)) return "Escolha o leva e traz.";
+  if (transport !== "nenhum") {
+    if (role !== "owner" && role !== "reception") return "Só a matriz e a recepção marcam leva e traz.";
+    if ((pet.transportAddress ?? "").trim().length < 5) return "Informe o endereço do tutor para o leva e traz.";
+    if ((pet.transportAddress ?? "").length > 200 || (pet.transportAddressRef ?? "").length > 120) return "Endereço muito longo.";
+    const fee = feeNumber(pet.transportFee || "0");
+    if (Number.isNaN(fee) || fee > 9999) return "Taxa do leva e traz inválida.";
+  }
   const newName = pet.newPetName?.trim() ?? "";
   if (!pet.petId && !newName) return "Escolha o pet que vai ser atendido.";
   if (!pet.petId && newName.length > 60) return "Nome do pet: no máximo 60 caracteres.";
@@ -76,7 +100,33 @@ async function attachPet(supabase: Supa, business: Biz, bookingIds: string[], pe
   const { error } = await supabase
     .from("bookings").update({ pet_id: petId }).in("id", bookingIds).eq("business_id", business.id);
   if (error) return `Agendamento criado, mas não foi possível ligar o pet (${petError(error.message) ?? "tente pela agenda"}).`;
-  return null;
+  return attachTransport(supabase, business, bookingIds, pet);
+}
+
+/** 4a: leva e traz — grava no agendamento, atualiza o endereço do tutor e cria as paradas (sem motorista) */
+async function attachTransport(supabase: Supa, business: Biz, bookingIds: string[], pet: PetChoice) {
+  const transport = pet.transport ?? "nenhum";
+  if (transport === "nenhum" || bookingIds.length === 0) return null;
+  const fail = "Agendamento criado, mas o leva e traz não foi salvo. Marque de novo pela tela Leva e traz.";
+
+  const { data: first } = await supabase
+    .from("bookings").select("customer_id").eq("id", bookingIds[0]).eq("business_id", business.id).maybeSingle();
+  if (first?.customer_id) {
+    await supabase.from("customers").update({
+      address: pet.transportAddress!.trim(),
+      address_ref: pet.transportAddressRef?.trim() || null,
+    }).eq("id", first.customer_id).eq("business_id", business.id);
+  }
+
+  const { error: upErr } = await supabase
+    .from("bookings").update({ transport, transport_fee: feeNumber(pet.transportFee || "0") })
+    .in("id", bookingIds).eq("business_id", business.id);
+  if (upErr) return fail;
+
+  const kinds = transport === "busca_entrega" ? ["busca", "entrega"] : [transport];
+  const rows = bookingIds.flatMap((id) => kinds.map((kind) => ({ business_id: business.id, booking_id: id, kind })));
+  const { error: routeErr } = await supabase.from("transport_routes").insert(rows);
+  return routeErr ? fail : null;
 }
 
 const PET_ERRORS: Record<string, string> = {
@@ -264,10 +314,10 @@ export async function createManualBooking(input: {
   notes?: string;
   packageId?: string | null;
 } & PetChoice): Promise<Result> {
-  const { business } = await getEditorContext();
+  const { business, role } = await getEditorContext();
   const supabase = createClient();
 
-  const petErr = await checkPetChoice(supabase, business, input, input.packageId);
+  const petErr = await checkPetChoice(supabase, business, input, input.packageId, role);
   if (petErr) return { ok: false, error: petErr };
 
   const name = input.customerName.trim();
@@ -417,7 +467,7 @@ export async function createOverlayBooking(input: {
   notes?: string;
   packageId?: string | null;
 } & PetChoice): Promise<Result> {
-  const { business } = await getEditorContext();
+  const { business, role } = await getEditorContext();
   const name = input.customerName.trim();
   const parsedPhone = parseCustomerPhone(input.customerPhone, input.customerPhoneCountry);
   if (name.length < 2) return { ok: false, error: "Informe o nome do cliente." };
@@ -427,7 +477,7 @@ export async function createOverlayBooking(input: {
   }
 
   const supabase = createClient();
-  const petErr = await checkPetChoice(supabase, business, input, input.packageId);
+  const petErr = await checkPetChoice(supabase, business, input, input.packageId, role);
   if (petErr) return { ok: false, error: petErr };
   const { data: overlayId, error } = await supabase.rpc("create_overlay_booking", {
     p_business: business.id,
@@ -493,7 +543,7 @@ export type LookupPet = { id: string; name: string; size: string | null };
 export async function lookupCustomer(
   phone: string,
   phoneCountry?: string
-): Promise<{ name: string; packages: CustomerPackage[]; pets: LookupPet[] } | null> {
+): Promise<{ name: string; packages: CustomerPackage[]; pets: LookupPet[]; address: string | null; addressRef: string | null } | null> {
   const { business } = await getAdminContext();
   const parsedPhone = parseCustomerPhone(phone, phoneCountry);
   if (!parsedPhone) return null;
@@ -525,7 +575,12 @@ export async function lookupCustomer(
   }
   // 64: pets ativos do tutor e o pet de cada pacote (nicho "Banho e tosa")
   let pets: LookupPet[] = [];
+  let address: string | null = null;
+  let addressRef: string | null = null;
   if (isPetBusiness(business)) {
+    const { data: addr } = await supabase.from("customers").select("address, address_ref").eq("id", customer.id).maybeSingle();
+    address = (addr?.address as string | null) ?? null;
+    addressRef = (addr?.address_ref as string | null) ?? null;
     const ids = Array.from(packages.keys());
     const [{ data: petRows }, { data: pkgPets }] = await Promise.all([
       supabase.from("pets").select("id, name, size").eq("customer_id", customer.id).eq("active", true).order("created_at"),
@@ -539,7 +594,7 @@ export async function lookupCustomer(
       if (p) p.petId = r.pet_id;
     }
   }
-  return { name: customer.name as string, packages: Array.from(packages.values()), pets };
+  return { name: customer.name as string, packages: Array.from(packages.values()), pets, address, addressRef };
 }
 
 export type ManualSlot = { time: string; professionalIds: string[] };
@@ -648,9 +703,9 @@ export async function previewSeries(
 export async function createSeries(
   input: SeriesInput & PetChoice
 ): Promise<{ ok: true; created: number; skipped: SeriesDate[] } | { ok: false; error: string }> {
-  const { business } = await getEditorContext();
+  const { business, role } = await getEditorContext();
   const supabase = createClient();
-  const petErr = await checkPetChoice(supabase, business, input, input.packageId);
+  const petErr = await checkPetChoice(supabase, business, input, input.packageId, role);
   if (petErr) return { ok: false, error: petErr };
   const { data, error } = await supabase.rpc("create_booking_series", {
     ...seriesArgs(input, business.id),

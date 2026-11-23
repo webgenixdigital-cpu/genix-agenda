@@ -15,6 +15,7 @@ import { ProfileCard, type ProfileField } from "@/components/admin/clientes/prof
 import { PackagesCard, type CustomerPackage } from "@/components/admin/clientes/packages-card";
 import { AutoReminderToggle } from "@/components/admin/clientes/auto-reminder-toggle";
 import { PetsCard } from "@/components/admin/clientes/pets-card";
+import { TutorAddressCard } from "@/components/admin/clientes/tutor-address-card";
 import { PET_COLUMNS, PET_NICHE_ID, type Pet } from "@/lib/pets";
 import { EditBookingButton } from "@/components/admin/agenda/edit-booking-dialog";
 import { ReopenBookingButton } from "@/components/admin/agenda/reopen-booking-button";
@@ -182,9 +183,12 @@ export default async function ClientePage({ params }: Props) {
   ]);
   // 63: pets do tutor (só no nicho "Banho e tosa")
   const isPet = business.subcategory === PET_NICHE_ID;
-  const { data: pets } = isPet
-    ? await supabase.from("pets").select(PET_COLUMNS).eq("customer_id", c.id).order("created_at")
-    : { data: [] };
+  const [{ data: pets }, { data: tutorAddress }] = isPet
+    ? await Promise.all([
+        supabase.from("pets").select(PET_COLUMNS).eq("customer_id", c.id).order("created_at"),
+        supabase.from("customers").select("address, address_ref, alt_contact").eq("id", c.id).maybeSingle(),
+      ])
+    : [{ data: [] }, { data: null }];
   const { data: events } = list.length
     ? await supabase
         .from("booking_events")
@@ -381,6 +385,12 @@ export default async function ClientePage({ params }: Props) {
 
       {/* Pets (63): só espaços de banho e tosa */}
       {isPet && <PetsCard customerId={c.id} pets={(pets ?? []) as Pet[]} canDelete={role === "owner"} />}
+      {isPet && (
+        <TutorAddressCard
+          customerId={c.id}
+          initial={(tutorAddress as { address: string | null; address_ref: string | null; alt_contact: string | null } | null) ?? { address: null, address_ref: null, alt_contact: null }}
+        />
+      )}
 
       {/* Pacotes: no Grátis e no Básico só aparece se já houver pacote vendido */}
       {(allows(plan, "profissional") || packages.length > 0) && (

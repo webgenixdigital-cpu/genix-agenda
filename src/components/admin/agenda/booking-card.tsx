@@ -1,8 +1,8 @@
 // Cartão de um agendamento (lista do Dia e lista do dia no Mês) + aviso de bloqueio.
 // Sem "use client": serve na página (servidor) e no calendário (cliente).
 import Link from "next/link";
-import { CalendarOff, Globe, Layers2, Package, PawPrint, Phone, Repeat, StickyNote } from "lucide-react";
-import { attendeeName, tutorLine } from "@/lib/pets";
+import { CalendarOff, Car, Globe, Layers2, Package, PawPrint, Phone, Repeat, StickyNote } from "lucide-react";
+import { TRANSPORT_LABEL, attendeeName, tutorLine } from "@/lib/pets";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { AutoConfirmBadge } from "@/components/admin/auto-confirm-badge";
 import { PaymentPendingBadge } from "@/components/admin/payment-pending-badge";
@@ -57,6 +57,11 @@ export function BookingCard({
               </Link>
             ) : (
               <p className="font-semibold">{attendeeName(b)}</p>
+            )}
+            {b.transport && b.transport !== "nenhum" && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-xs font-medium" data-testid={`selo-leva-traz-${b.id}`}>
+                <Car className="h-3 w-3" aria-hidden /> {TRANSPORT_LABEL[b.transport]}
+              </span>
             )}
             {tutorLine(b) && <span className="w-full text-xs text-muted-foreground" data-testid={`tutor-${b.id}`}>{tutorLine(b)}</span>}
             <StatusBadge status={b.status} />

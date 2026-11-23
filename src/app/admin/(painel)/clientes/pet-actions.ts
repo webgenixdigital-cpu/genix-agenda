@@ -106,3 +106,33 @@ export async function deletePet(customerId: string, petId: string): Promise<Resu
   revalidatePath(`/admin/clientes/${customerId}`);
   return { ok: true };
 }
+
+// ---------------------------------------------------------------------
+// PARTE 3 — Endereço do tutor para o leva e traz (4a)
+// ---------------------------------------------------------------------
+export async function updateTutorAddress(
+  customerId: string,
+  input: { address: string; addressRef: string; altContact: string }
+): Promise<Result> {
+  const { business, role } = await getEditorContext();
+  if (business.subcategory !== PET_NICHE_ID) return { ok: false, error: "Disponível só para banho e tosa." };
+  if (role !== "owner" && role !== "reception" && role !== "staff") return { ok: false, error: "Sem permissão para editar o endereço." };
+  if (input.address.length > 200 || input.addressRef.length > 120 || input.altContact.length > 120) {
+    return { ok: false, error: "Texto muito longo." };
+  }
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("customers")
+    .update({
+      address: input.address.trim() || null,
+      address_ref: input.addressRef.trim() || null,
+      alt_contact: input.altContact.trim() || null,
+    })
+    .eq("id", customerId)
+    .eq("business_id", business.id)
+    .select("id")
+    .maybeSingle();
+  if (error || !data) return { ok: false, error: "Não foi possível salvar o endereço." };
+  revalidatePath(`/admin/clientes/${customerId}`);
+  return { ok: true };
+}

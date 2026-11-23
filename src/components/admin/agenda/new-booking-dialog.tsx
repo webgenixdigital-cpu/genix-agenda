@@ -6,7 +6,7 @@ import { ReadOnlyLink, usePlanFlags } from "@/components/admin/plan-flags";
 import { useNicheFlags } from "@/components/admin/niche-flags";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarDays, Check, Layers2, Loader2, Lock, Package, PawPrint, Plus, Repeat, UserRound, X } from "lucide-react";
+import { CalendarDays, Car, Check, Layers2, Loader2, Lock, Package, PawPrint, Plus, Repeat, UserRound, X } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
 import {
@@ -19,6 +19,7 @@ import {
   type CustomerPackage,
   type LookupPet,
   type ManualSlot,
+  type Transport,
   type SeriesDate,
   type SeriesFrequency,
   type SeriesInput,
@@ -65,6 +66,13 @@ type Props = {
 type Preview = { dates: SeriesDate[]; packageFit: number | null; packageExpires: string | null };
 /** cliente achado pelo WhatsApp: null = ainda não procurou; found false = cliente novo */
 type Lookup = { found: boolean; packages: CustomerPackage[]; pets: LookupPet[] } | null;
+
+const TRANSPORT_OPTIONS: { value: Transport; label: string }[] = [
+  { value: "nenhum", label: "Não" },
+  { value: "busca", label: "Só busca" },
+  { value: "entrega", label: "Só entrega" },
+  { value: "busca_entrega", label: "Busca e entrega" },
+];
 
 const shortDate = (iso: string) => format(parseISO(iso), "EEE, dd/MM/yyyy", { locale: ptBR });
 const br = (iso: string) => iso.split("-").reverse().join("/");
@@ -123,6 +131,8 @@ export function NewBookingDialog({
       if (r) {
         setName(r.name);
         setLookup({ found: true, packages: r.packages, pets: r.pets });
+        setAddress(r.address ?? "");
+        setAddressRef(r.addressRef ?? "");
         // 1 pet só: já vem escolhido
         if (r.pets.length === 1) {
           setPetId(r.pets[0].id);
@@ -142,7 +152,21 @@ export function NewBookingDialog({
   /** pets já agendados nesta abertura (para "agendar o próximo pet") */
   const [donePets, setDonePets] = useState<string[]>([]);
   const pets = lookup?.pets ?? [];
-  const petChoice = petMode ? { petId, newPetName: petId ? "" : newPetName } : {};
+  // 4a: leva e traz (matriz e recepção); a taxa é cobrada à parte
+  const [transport, setTransport] = useState<Transport>("nenhum");
+  const [fee, setFee] = useState("");
+  const [address, setAddress] = useState("");
+  const [addressRef, setAddressRef] = useState("");
+  const canTransport = petMode && !!canSellPackages;
+  const petChoice = petMode
+    ? {
+        petId,
+        newPetName: petId ? "" : newPetName,
+        ...(canTransport && transport !== "nenhum"
+          ? { transport, transportFee: fee, transportAddress: address, transportAddressRef: addressRef }
+          : {}),
+      }
+    : {};
   const petLabel = petId ? pets.find((p) => p.id === petId)?.name ?? "" : newPetName.trim();
 
   // trocou de tutor: pet de outro tutor sai
@@ -352,6 +376,10 @@ export function NewBookingDialog({
     setPetId(null);
     setNewPetName("");
     setDonePets([]);
+    setTransport("nenhum");
+    setFee("");
+    setAddress("");
+    setAddressRef("");
     setPackageId(null);
     setPackageChoosing(null);
     setServiceId("");
@@ -390,7 +418,11 @@ export function NewBookingDialog({
 
   function validPet() {
     if (!petMode) return true;
-    const msg = !petId && !newPetName.trim() ? "Escolha o pet que vai ser atendido." : null;
+    const msg = !petId && !newPetName.trim()
+      ? "Escolha o pet que vai ser atendido."
+      : canTransport && transport !== "nenhum" && address.trim().length < 5
+        ? "Informe o endereço do tutor para o leva e traz."
+        : null;
     if (msg) setError(msg);
     return !msg;
   }
@@ -602,6 +634,56 @@ export function NewBookingDialog({
                       data-testid="input-pet-novo"
                     />
                     <p className="text-xs text-muted-foreground">O pet é cadastrado ao salvar. Complete porte e pelagem depois, na ficha do tutor.</p>
+                  </div>
+                )}
+              </section>
+            )}
+
+            {/* 1c. Leva e traz (4a): matriz e recepção */}
+            {canTransport && phoneOk && lookup && (
+              <section className="space-y-2" aria-labelledby="nb-sec-transporte" data-testid="opcoes-leva-traz">
+                <h3 id="nb-sec-transporte" className="flex items-center gap-1.5 text-sm font-semibold">
+                  <Car className="h-4 w-4 text-primary" /> Leva e traz
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  {TRANSPORT_OPTIONS.map((o) => (
+                    <button
+                      key={o.value}
+                      type="button"
+                      aria-pressed={transport === o.value}
+                      onClick={() => setTransport(o.value)}
+                      className={cn(
+                        "min-h-11 rounded-full border px-4 text-sm font-medium",
+                        transport === o.value ? "border-primary bg-primary text-primary-foreground" : "bg-white",
+                      )}
+                      data-testid={`btn-leva-traz-${o.value}`}
+                    >
+                      {o.label}
+                    </button>
+                  ))}
+                </div>
+                {transport !== "nenhum" && (
+                  <div className="space-y-3 rounded-xl border bg-secondary/30 p-3">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="nb-endereco">Endereço do tutor</Label>
+                      <Input id="nb-endereco" className="h-11" maxLength={200} value={address}
+                        placeholder="Rua, número, bairro" onChange={(e) => setAddress(e.target.value)} data-testid="input-endereco-tutor" />
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="nb-referencia">Referência (opcional)</Label>
+                        <Input id="nb-referencia" className="h-11" maxLength={120} value={addressRef}
+                          placeholder="ex.: portão azul" onChange={(e) => setAddressRef(e.target.value)} data-testid="input-referencia-tutor" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="nb-taxa">Taxa (R$)</Label>
+                        <Input id="nb-taxa" className="h-11" inputMode="decimal" placeholder="0,00" value={fee}
+                          onChange={(e) => setFee(e.target.value.replace(/[^\d,.]/g, "").slice(0, 8))} data-testid="input-taxa-leva-traz" />
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      A taxa fica registrada no agendamento e é cobrada à parte (não entra no total). O endereço fica salvo na ficha do tutor.
+                    </p>
                   </div>
                 )}
               </section>

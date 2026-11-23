@@ -49,6 +49,8 @@ export type AgendaBooking = {
   overlay?: boolean;
   /** 64: banho e tosa — nome do pet atendido (o tutor segue em customer_name) */
   pet_name?: string | null;
+  /** 4a: leva e traz (só banho e tosa traz o campo) */
+  transport?: "nenhum" | "busca" | "entrega" | "busca_entrega";
 };
 
 /** Dados para o botão "Remarcar" (opcional: sem ele, o botão não aparece) */

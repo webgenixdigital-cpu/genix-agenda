@@ -1081,6 +1081,8 @@ export function NewBookingDialog({
           templates={sale.templates}
           professionals={sale.professionals}
           onSold={afterSale}
+          pets={petMode ? pets : undefined}
+          defaultPetId={petId}
         />
       )}
     </>

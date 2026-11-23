@@ -222,11 +222,14 @@ export default async function ClientePage({ params }: Props) {
     canSell ? loadSaleOptions(supabase, business.id) : Promise.resolve({ templates: [], professionals: [] }),
     getPlanContext(business.id),
     // 39_pacote_datas_fixas: modo de agendamento de cada pacote
-    supabase.from("customer_packages").select("id, schedule_mode, payment_status").eq("customer_id", c.id),
+    supabase.from("customer_packages").select("id, schedule_mode, payment_status, pet_id").eq("customer_id", c.id),
   ]);
   const modeById = new Map(((pkgModes ?? []) as { id: string; schedule_mode: string }[]).map((m) => [m.id, m.schedule_mode]));
   // 49_pagamento_depois: pacote vendido com "Escolher depois"
   const paymentById = new Map(((pkgModes ?? []) as { id: string; payment_status: string | null }[]).map((m) => [m.id, m.payment_status]));
+  // 65: pet dono de cada pacote (banho e tosa)
+  const petNameById = new Map(((pets ?? []) as Pet[]).map((p) => [p.id, p.name]));
+  const petByPkg = new Map(((pkgModes ?? []) as { id: string; pet_id: string | null }[]).map((m) => [m.id, m.pet_id ? petNameById.get(m.pet_id) ?? null : null]));
 
   type PkgItem = {
     id: string;
@@ -259,6 +262,7 @@ export default async function ClientePage({ params }: Props) {
     price: Number(p.price),
     fixed: modeById.get(p.id) === "fixed",
     paymentPending: paymentById.get(p.id) === "pending",
+    pet_name: petByPkg.get(p.id) ?? null,
     items: items
       .filter((i) => i.customer_package_id === p.id)
       .map(({ id, service_name, sessions_total, used, remaining }) => ({ id, service_name, sessions_total, used, remaining })),
@@ -388,6 +392,7 @@ export default async function ClientePage({ params }: Props) {
           professionals={sale.professionals}
           locked={!allows(plan, "profissional")}
           today={todayInZone(business.timezone)}
+          pets={isPet ? ((pets ?? []) as Pet[]).filter((p) => p.active).map((p) => ({ id: p.id, name: p.name })) : undefined}
         />
       )}
 

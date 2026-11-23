@@ -2,8 +2,9 @@
 
 import { Ajuda } from "@/components/ajuda";
 import Link from "next/link";
-import { useState, useTransition } from "react";
-import { AlertTriangle, CalendarDays, Check, Loader2, Lock, Package, Pencil, Plus, Trash2, Wallet } from "lucide-react";
+import { useEffect, useState, useTransition } from "react";
+import { useNicheFlags } from "@/components/admin/niche-flags";
+import { AlertTriangle, CalendarDays, Check, Loader2, Lock, Package, PawPrint, Pencil, Plus, Trash2, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import {
   cancelPackage,
@@ -47,7 +48,12 @@ export type CustomerPackage = {
   sessions: { id: string; booking_date: string; start_time: string; professional_name: string; status: string; services: string[] }[];
   /** agendamentos futuros cujo serviço principal é do pacote (cancelar junto) */
   future_count: number;
+  /** 65: banho e tosa — pet dono do pacote */
+  pet_name?: string | null;
 };
+
+/** 65: pets do tutor para a venda (banho e tosa) */
+export type SalePet = { id: string; name: string };
 
 export type { SaleTemplate };
 
@@ -75,6 +81,7 @@ export function PackagesCard({
   professionals,
   locked,
   today,
+  pets,
 }: {
   customerId: string;
   packages: CustomerPackage[];
@@ -84,6 +91,8 @@ export function PackagesCard({
   locked: boolean;  // Grátis e Básico: vender fica travado; sessões já vendidas continuam
   /** hoje no fuso do espaço (data padrão do Registrar pagamento) */
   today: string;
+  /** 65: banho e tosa — pets ativos do tutor (venda pede o pet) */
+  pets?: SalePet[];
 }) {
   const [sellOpen, setSellOpen] = useState(false);
   const [toCancel, setToCancel] = useState<CustomerPackage | null>(null);
@@ -148,6 +157,11 @@ export function PackagesCard({
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="font-semibold">{p.name}</p>
+                        {p.pet_name && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-xs font-medium" data-testid={`pet-pacote-${p.id}`}>
+                            <PawPrint className="h-3 w-3" aria-hidden /> {p.pet_name}
+                          </span>
+                        )}
                         <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", st.cls)}>{st.label}</span>
                         {p.fixed && <span className="rounded-full bg-secondary px-2 py-0.5 text-xs font-medium">Datas fixas</span>}
                         {p.paymentPending && p.effective_status !== "cancelled" && <PaymentPendingBadge testId={`selo-pagamento-pendente-${p.id}`} />}
@@ -248,7 +262,7 @@ export function PackagesCard({
 
       <RegisterPaymentDialog open={payOpen} onOpenChange={setPayOpen} target={payTarget} today={today} />
 
-      <SellPackageDialog open={sellOpen} onOpenChange={setSellOpen} customerId={customerId} templates={templates} professionals={professionals} />
+      <SellPackageDialog open={sellOpen} onOpenChange={setSellOpen} customerId={customerId} templates={templates} professionals={professionals} pets={pets} />
 
       {/* Cancelar pacote: avisa que não há estorno automático */}
       <Dialog open={!!toCancel} onOpenChange={(o) => !o && setToCancel(null)}>
@@ -325,6 +339,8 @@ export function SellPackageDialog({
   templates,
   professionals,
   onSold,
+  pets,
+  defaultPetId,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
@@ -333,8 +349,18 @@ export function SellPackageDialog({
   professionals: ProOption[];
   /** venda concluída (Agenda: recarrega os pacotes do cliente e marca o novo) */
   onSold?: () => void;
+  /** 65: banho e tosa — pets do tutor; com a lista, a venda pede o pet */
+  pets?: SalePet[];
+  /** pet já escolhido no agendamento */
+  defaultPetId?: string | null;
 }) {
   const [pending, start] = useTransition();
+  const { petMode } = useNicheFlags();
+  const [petId, setPetId] = useState<string>(defaultPetId ?? "");
+  // abriu de novo (outro pet no agendamento): segue o pet de lá
+  useEffect(() => {
+    if (open) setPetId(defaultPetId ?? (pets?.length === 1 ? pets[0].id : ""));
+  }, [open, defaultPetId, pets]);
   const [templateId, setTemplateId] = useState("");
   const [method, setMethod] = useState<CashMethod | "pendente" | "">("");
   const [mode, setMode] = useState<"free" | "fixed">("free");
@@ -504,6 +530,7 @@ export function SellPackageDialog({
   }
 
   function submit() {
+    if (petMode && !petId) return setError("Escolha para qual pet é o pacote.");
     const msg = check();
     setError(msg);
     if (msg || !t) return;
@@ -511,13 +538,13 @@ export function SellPackageDialog({
     const m = t.price > 0 ? (method as CashMethod | "pendente") : null;
     start(async () => {
       if (mode === "fixed" && visits) {
-        const r = await sellPackageVisits(customerId, t.id, m, toVisits(visits), toRules());
+        const r = await sellPackageVisits(customerId, t.id, m, toVisits(visits), toRules(), petMode ? petId : null);
         if (!r) return; // demonstração: o servidor redirecionou
         if (!r.ok) return setError(r.error);
         const made = `${r.created} ${r.created === 1 ? "visita agendada" : "visitas agendadas"}`;
         toast.success(r.skipped > 0 ? `Pacote vendido · ${made} · ${r.skipped} sem data` : `Pacote vendido · ${made}`);
       } else {
-        const r = await sellPackage(customerId, t.id, m);
+        const r = await sellPackage(customerId, t.id, m, petMode ? petId : null);
         if (!r) return; // demonstração: o servidor redirecionou
         if (!r.ok) return setError(r.error);
         toast.success(m === "pendente" ? "Pacote vendido · Pagamento pendente" : t.price > 0 ? "Pacote vendido e lançado no caixa" : "Pacote registrado");
@@ -552,6 +579,34 @@ export function SellPackageDialog({
         </DialogHeader>
 
         <div className="min-w-0 space-y-4">
+          {petMode && (
+            <div className="space-y-1.5" data-testid="vender-pacote-pet">
+              <Label className="flex items-center gap-1.5"><PawPrint className="h-4 w-4 text-primary" /> Para qual pet?</Label>
+              {(pets ?? []).length === 0 ? (
+                <p className="rounded-xl bg-secondary p-3 text-sm">
+                  Cadastre o pet na ficha do tutor antes de vender o pacote.
+                </p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {(pets ?? []).map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      aria-pressed={petId === p.id}
+                      onClick={() => setPetId(p.id)}
+                      className={cn(
+                        "min-h-11 rounded-full border px-4 text-sm font-medium",
+                        petId === p.id ? "border-primary bg-primary text-primary-foreground" : "bg-white",
+                      )}
+                      data-testid="btn-pacote-pet"
+                    >
+                      {p.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
           <div className="space-y-1.5">
             <Label>Pacote</Label>
             <Select value={templateId} onValueChange={chooseTemplate}>

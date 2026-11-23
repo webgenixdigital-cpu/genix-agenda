@@ -10,6 +10,7 @@ import type { PlanRule, PlanVisit } from "@/lib/package-plan";
 import { phoneError } from "@/lib/phone";
 import { parseCustomerPhone } from "@/lib/phone-intl";
 import { PLAN_ERRORS } from "@/lib/plan-features";
+import { PET_NICHE_ID } from "@/lib/pets";
 
 type Result = { ok: true; id?: string } | { ok: false; error: string };
 
@@ -212,15 +213,44 @@ const PACKAGE_ERRORS: Record<string, string> = {
 const packageError = (message: string, fallback: string) =>
   PACKAGE_ERRORS[Object.keys(PACKAGE_ERRORS).find((k) => message.includes(k)) ?? ""] ?? fallback;
 
+// 65_pacote_do_pet: no banho e tosa o pacote é de um pet do tutor
+type Supa = ReturnType<typeof createClient>;
+
+/** Antes de vender: no nicho pet, exige um pet ativo deste tutor */
+async function checkSalePet(supabase: Supa, business: { id: string; subcategory: string | null }, customerId: string, petId?: string | null) {
+  if (business.subcategory !== PET_NICHE_ID) return null;
+  if (!petId) return "Escolha para qual pet é o pacote.";
+  const { data } = await supabase
+    .from("pets").select("id").eq("id", petId).eq("customer_id", customerId).eq("business_id", business.id).eq("active", true)
+    .maybeSingle();
+  return data ? null : "Esse pet não é deste tutor.";
+}
+
+/** Depois de vender: grava o pet do pacote (e das visitas já marcadas) */
+async function attachSalePet(supabase: Supa, business: { subcategory: string | null }, packageId: string | null, petId?: string | null) {
+  if (business.subcategory !== PET_NICHE_ID || !petId) return null;
+  if (!packageId) return "Pacote vendido, mas não foi possível ligar ao pet.";
+  const { error } = await supabase.rpc("set_package_pet", { p_package: packageId, p_pet: petId });
+  return error ? "Pacote vendido, mas não foi possível ligar ao pet. Fale com o suporte." : null;
+}
+
 export async function sellPackage(
   customerId: string,
   templateId: string,
-  method: "pix" | "dinheiro" | "credito" | "debito" | "pendente" | null
+  method: "pix" | "dinheiro" | "credito" | "debito" | "pendente" | null,
+  petId?: string | null
 ): Promise<Result> {
-  await getEditorContext();
+  const { business } = await getEditorContext();
   const supabase = createClient();
-  const { error } = await supabase.rpc("sell_package", { p_customer: customerId, p_template: templateId, p_method: method });
+  const petErr = await checkSalePet(supabase, business, customerId, petId);
+  if (petErr) return { ok: false, error: petErr };
+  const { data, error } = await supabase.rpc("sell_package", { p_customer: customerId, p_template: templateId, p_method: method });
   if (error) return { ok: false, error: packageError(error.message, "Não foi possível vender o pacote.") };
+  const attachErr = await attachSalePet(supabase, business, (data as string | null) ?? null, petId);
+  if (attachErr) {
+    revalidatePath(`/admin/clientes/${customerId}`);
+    return { ok: false, error: attachErr };
+  }
 
   revalidatePath(`/admin/clientes/${customerId}`);
   revalidatePath("/admin/financeiro");
@@ -278,12 +308,15 @@ export async function sellPackageVisits(
   templateId: string,
   method: "pix" | "dinheiro" | "credito" | "debito" | "pendente" | null,
   visits: PlanVisit[],
-  rules: PlanRule[]
+  rules: PlanRule[],
+  petId?: string | null
 ): Promise<{ ok: true; created: number; skipped: number } | { ok: false; error: string }> {
-  await getEditorContext();
+  const { business } = await getEditorContext();
   const { payload } = visitsPayload(visits);
   if (payload.length === 0) return { ok: false, error: "Marque ao menos um serviço em alguma data." };
   const supabase = createClient();
+  const petErr = await checkSalePet(supabase, business, customerId, petId);
+  if (petErr) return { ok: false, error: petErr };
   const { data, error } = await supabase.rpc("sell_package_fixed_visits", {
     p_customer: customerId,
     p_template: templateId,
@@ -292,7 +325,13 @@ export async function sellPackageVisits(
     p_rules: rules,
   });
   if (error) return { ok: false, error: packageError(error.message, "Não foi possível vender o pacote.") };
-  const r = (data ?? {}) as { created?: number; skipped?: number };
+  const r = (data ?? {}) as { package_id?: string; created?: number; skipped?: number };
+  const attachErr = await attachSalePet(supabase, business, r.package_id ?? null, petId);
+  if (attachErr) {
+    revalidatePath(`/admin/clientes/${customerId}`);
+    revalidatePath("/admin/agenda");
+    return { ok: false, error: attachErr };
+  }
 
   revalidatePath(`/admin/clientes/${customerId}`);
   revalidatePath("/admin/financeiro");

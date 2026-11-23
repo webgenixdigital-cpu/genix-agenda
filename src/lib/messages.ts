@@ -95,12 +95,37 @@ const manualDefault = (when: "amanhã" | "hoje") =>
 export const DEFAULT_MANUAL_TOMORROW = manualDefault("amanhã");
 export const DEFAULT_MANUAL_TODAY = manualDefault("hoje");
 
+// 64: banho e tosa — o atendido é o pet; a mensagem vai para o tutor
+const petManualDefault = (when: "amanhã" | "hoje") =>
+  `Olá, {primeiro_nome}! Passando para lembrar do horário do {pet} ${when} 🐾\n\n` +
+  "• {servico}\n• Com {profissional}\n• {data}, às {hora}\n\n" +
+  "Pode confirmar respondendo esta mensagem? Se precisar remarcar, é só avisar.\n{espaco}";
+
+export const DEFAULT_PET_MANUAL_TOMORROW = petManualDefault("amanhã");
+export const DEFAULT_PET_MANUAL_TODAY = petManualDefault("hoje");
+
 /** Mensagem do botão da fila: texto salvo (com variáveis) ou o padrão de sempre */
 export function manualReminderText(
   saved: string | null | undefined,
   isToday: boolean,
-  d: { name: string; service: string; pro: string; date: string; time: string; business: string; itemsCount: number; price: number | null }
+  d: {
+    name: string; service: string; pro: string; date: string; time: string; business: string; itemsCount: number; price: number | null;
+    /** 64: banho e tosa (null = agendamento sem pet). undefined = outros nichos, nada muda */
+    pet?: string | null;
+  }
 ) {
+  const petData = d.pet !== undefined ? { petName: d.pet } : {};
+  if (!saved?.trim() && d.pet !== undefined) {
+    return renderTemplate(isToday ? DEFAULT_PET_MANUAL_TODAY : DEFAULT_PET_MANUAL_TOMORROW, {
+      customerName: d.name,
+      serviceName: d.service,
+      professionalName: d.pro,
+      date: d.date,
+      time: d.time,
+      businessName: d.business,
+      ...petData,
+    });
+  }
   if (!saved?.trim()) {
     return reminderMessage(d.name, d.service, d.pro, d.date, d.time, d.business, isToday, {
       itemsCount: d.itemsCount,
@@ -115,6 +140,7 @@ export function manualReminderText(
     time: d.time,
     businessName: d.business,
     total: d.price ?? null,
+    ...petData,
   });
 }
 

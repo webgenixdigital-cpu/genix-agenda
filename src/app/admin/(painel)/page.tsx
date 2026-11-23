@@ -1,3 +1,4 @@
+import { attendeeName, tutorLine } from "@/lib/pets";
 import { Ajuda } from "@/components/ajuda";
 import { cookies } from "next/headers";
 import Link from "next/link";
@@ -414,7 +415,8 @@ export default async function Dashboard({ searchParams }: Props) {
                     <p className="text-xs text-muted-foreground">{b.end_time.slice(0, 5)}</p>
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-semibold">{b.customer_name}</p>
+                    <p className="truncate font-semibold">{attendeeName(b)}</p>
+                    {tutorLine(b) && <p className="truncate text-xs text-muted-foreground">{tutorLine(b)}</p>}
                     <p className="truncate text-sm text-muted-foreground">
                       {b.service_name} com {b.professional_name}
                     </p>

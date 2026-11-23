@@ -14,6 +14,8 @@ import { CustomerDialog, DeleteCustomerButton } from "@/components/admin/cliente
 import { ProfileCard, type ProfileField } from "@/components/admin/clientes/profile-card";
 import { PackagesCard, type CustomerPackage } from "@/components/admin/clientes/packages-card";
 import { AutoReminderToggle } from "@/components/admin/clientes/auto-reminder-toggle";
+import { PetsCard } from "@/components/admin/clientes/pets-card";
+import { PET_COLUMNS, PET_NICHE_ID, type Pet } from "@/lib/pets";
 import { EditBookingButton } from "@/components/admin/agenda/edit-booking-dialog";
 import { ReopenBookingButton } from "@/components/admin/agenda/reopen-booking-button";
 import { PaymentPendingBadge } from "@/components/admin/payment-pending-badge";
@@ -178,6 +180,11 @@ export default async function ClientePage({ params }: Props) {
       .order("sort_order"),
     supabase.from("niches").select("name").eq("id", business.subcategory ?? "").maybeSingle(),
   ]);
+  // 63: pets do tutor (só no nicho "Banho e tosa")
+  const isPet = business.subcategory === PET_NICHE_ID;
+  const { data: pets } = isPet
+    ? await supabase.from("pets").select(PET_COLUMNS).eq("customer_id", c.id).order("created_at")
+    : { data: [] };
   const { data: events } = list.length
     ? await supabase
         .from("booking_events")
@@ -367,6 +374,9 @@ export default async function ClientePage({ params }: Props) {
       {canSell && allows(plan, "profissional") && waEnabled && (
         <AutoReminderToggle customerId={c.id} initial={c.no_auto_reminders} />
       )}
+
+      {/* Pets (63): só espaços de banho e tosa */}
+      {isPet && <PetsCard customerId={c.id} pets={(pets ?? []) as Pet[]} canDelete={role === "owner"} />}
 
       {/* Pacotes: no Grátis e no Básico só aparece se já houver pacote vendido */}
       {(allows(plan, "profissional") || packages.length > 0) && (

@@ -585,6 +585,15 @@ const AJUDA_TEXTOS = {
     passos: ["Toque em “Editar ficha técnica”.", "Preencha os campos e salve."],
     atencao: ["Não use para dados de saúde (alergias, remédios, doenças). O sistema não é feito para guardar esse tipo de informação."],
   },
+  pets: {
+    titulo: "Pets",
+    serve: "Guarda os pets deste tutor: espécie, raça, porte, peso, pelagem e comportamento. Isso ajuda a prever o tempo do banho e da tosa.",
+    passos: ["Toque em “Adicionar pet”.", "Preencha o que souber (só o nome é obrigatório) e salve.", "Para mudar algo, toque no lápis ao lado do pet."],
+    atencao: [
+      "Não registre dados de saúde (doenças, remédios, alergias).",
+      "Arquivar tira o pet da lista sem apagar o histórico. Excluir apaga de vez e só a matriz pode.",
+    ],
+  },
 } satisfies Record<string, AjudaItem>;
 
 export type AjudaId = keyof typeof AJUDA_TEXTOS;

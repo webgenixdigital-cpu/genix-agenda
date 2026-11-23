@@ -140,7 +140,7 @@ export default async function NichoPage({ params }: Props) {
               </ul>
               <div className="mt-3 flex items-center gap-2 rounded-xl bg-secondary p-3 text-sm">
                 <Sparkles className="h-4 w-4 shrink-0 text-primary" />
-                Vitrine no ar: <span className="font-mono text-xs">genixagenda.com.br/v/seu-espaco</span>
+                Vitrine no ar: <span className="font-mono text-xs">seu-espaco.genixagenda.com.br</span>
               </div>
             </div>
           </div>

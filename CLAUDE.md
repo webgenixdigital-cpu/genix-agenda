@@ -147,6 +147,13 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
   - **1 login = 1 espaço** (índice único em `business_members.user_id`). Acessos individuais são recurso do Completo.
 - **Demo pública** (`/demo`) entra no Lumina como `viewer`; ao salvar, o servidor redireciona com `?demo=bloqueado`.
 - **Buscadores (Google, 30):** `sitemap.ts` lista estáticas, nichos ativos (`/para`, `/explorar`) e vitrines publicadas que não são demo nem `businesses.search_hidden`; `robots.ts` bloqueia painel, `/genix`, `/api`, `/auth`, `/demo`, cadastro/senha e `/v/*/avaliar`. `search_hidden` só a Genix muda (`/genix?aba=buscadores`; gatilho no banco); contas novas nascem visíveis. Vitrine oculta/demo e o painel têm `noindex`.
+- **Link curto por subdomínio (62):** `https://<slug>.genixagenda.com.br` (domínio curinga na Vercel). O middleware faz
+  **rewrite** de `/` → `/v/<slug>` e de `/avaliar/<id>` → `/v/<slug>/avaliar/<id>`, para qualquer método (inclusive o POST
+  das server actions); `/_next`, `/api` e arquivos seguem sem rewrite; o resto (e subdomínio reservado) vai em 308 para o
+  domínio principal. No subdomínio **não roda `updateSession`**: sem sessão e sem cookie. `/v/<slug>` continua valendo;
+  o canonical é o subdomínio. Tudo que divulga o link usa `vitrineUrl`/`vitrineLabel` (`lib/vitrine-url.ts`, com
+  `RESERVED_SUBDOMAINS`/`RESERVED_SLUGS`; no banco, `slug_is_reserved` + gatilho `guard_business_slug`, erro
+  `SLUG_RESERVADO`). Local: `http://<slug>.localhost:3000`.
 - **Avaliações** próprias pós-atendimento (link único por atendimento concluído), não Google. O **pedido** (link no
   WhatsApp e `submit_review`) é do Profissional em diante (59); as já recebidas aparecem em todos os planos.
 - **WhatsApp:** links `wa.me` (fila de um toque) + **lembrete automático beta** (Profissional e Equipe, liberado pela Genix

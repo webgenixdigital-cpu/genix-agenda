@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import type { OnboardingItem } from "@/lib/onboarding";
 import { ONBOARDING_COOKIE, setPrefCookie } from "@/lib/ui-prefs";
 import { cn } from "@/lib/utils";
+import { vitrineUrl } from "@/lib/vitrine-url";
 
 type Props = {
   items: OnboardingItem[];
@@ -63,7 +64,7 @@ export function OnboardingCard({ items, doneCount, total, initialExpanded, slug,
   }
 
   async function copyLink(item: OnboardingItem) {
-    const url = `${origin}/v/${slug}`;
+    const url = vitrineUrl(slug, origin);
     await navigator.clipboard.writeText(url);
     toast.success("Link copiado. Agora é só colar na bio e no status.");
     if (!item.done && item.step) run(item.key, () => markOnboardingStep(item.step as ManualStep));

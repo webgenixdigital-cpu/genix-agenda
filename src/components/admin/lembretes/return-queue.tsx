@@ -6,6 +6,7 @@ import { formatPhone } from "@/lib/phone";
 import { returnMessage } from "@/lib/messages";
 import { SendReturnButton, UndoReturnButton } from "@/components/admin/lembretes/return-actions";
 import { cn } from "@/lib/utils";
+import { vitrineUrl } from "@/lib/vitrine-url";
 
 type Item = {
   booking_id: string;
@@ -41,7 +42,7 @@ export async function ReturnQueue({ business }: { business: { id: string; name: 
   const { data, error } = await supabase.rpc("return_queue", { p_business: business.id });
   const items = (data ?? []) as Item[];
 
-  const bookingUrl = `${siteOrigin()}/v/${business.slug}`;
+  const bookingUrl = vitrineUrl(business.slug, siteOrigin());
   const queue = items.filter((i) => !i.return_contacted_at);
   const overdue = queue.filter((i) => i.days_overdue >= 0);
   const upcoming = queue.filter((i) => i.days_overdue < 0);

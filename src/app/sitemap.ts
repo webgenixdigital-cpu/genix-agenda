@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { createPublicClient } from "@/lib/supabase/public";
+import { vitrineUrl } from "@/lib/vitrine-url";
 
 // Sitemap para o Google (/sitemap.xml). Cliente público (sem cookies): pode ter cache.
 export const revalidate = 3600;
@@ -45,6 +46,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       { url: `${BASE}/para/${n.id}`, lastModified: date(n.updated_at) },
       { url: `${BASE}/explorar/${n.id}`, lastModified: date(n.updated_at) },
     ]),
-    ...vitrines.map((v) => ({ url: `${BASE}/v/${v.slug}`, lastModified: date(v.updated_at) })),
+    ...vitrines.map((v) => ({ url: vitrineUrl(v.slug), lastModified: date(v.updated_at) })),
   ];
 }

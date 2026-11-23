@@ -13,6 +13,7 @@ import { maskPhone } from "@/lib/format";
 import { SEGMENTS } from "@/lib/segments";
 import { SIGNUP_PREFILL_KEY } from "@/content/landing";
 import { attachReferral } from "./actions";
+import { vitrineLabel } from "@/lib/vitrine-url";
 
 // ---------------------------------------------------------------------
 // PARTE 1 — Utilitários
@@ -229,7 +230,7 @@ export function SignupForm({
             onChange={(e) => setBusinessName(e.target.value.slice(0, 80))} data-testid="input-cadastro-espaco" />
           {slug.length >= 3 && (
             <p className="text-sm text-muted-foreground">
-              Sua vitrine: <span className="font-mono text-foreground">/v/{slug}</span> (dá para trocar depois)
+              Sua vitrine: <span className="break-all font-mono text-foreground">{vitrineLabel(slug)}</span> (dá para trocar depois)
             </p>
           )}
         </div>

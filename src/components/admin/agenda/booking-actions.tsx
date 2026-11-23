@@ -16,6 +16,7 @@ import { ReopenBookingButton } from "@/components/admin/agenda/reopen-booking-bu
 import { useBookingDialogs, type BookingDialogKind } from "@/components/admin/agenda/booking-dialogs";
 import { usePlanFlags } from "@/components/admin/plan-flags";
 import type { BookingStatus } from "@/lib/types";
+import { vitrineUrl } from "@/lib/vitrine-url";
 
 export type AgendaBooking = {
   id: string;
@@ -87,7 +88,7 @@ export function BookingActions({
 
   useEffect(() => setOrigin(window.location.origin), []);
 
-  const reviewUrl = origin && reviewRequest ? `${origin}/v/${slug}/avaliar/${b.id}` : undefined;
+  const reviewUrl = origin && reviewRequest ? `${vitrineUrl(slug, origin)}/avaliar/${b.id}` : undefined;
   const wa = whatsappLink(b.customer_phone, customerMessage(b, businessName, reviewUrl), b.customer_phone_country);
   const open = (kind: BookingDialogKind) => openBooking(kind, b, { businessName, slug, fullAccess, reschedule, onCancelling });
 

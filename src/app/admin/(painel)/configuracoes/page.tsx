@@ -22,6 +22,7 @@ import { getOnboarding } from "@/lib/onboarding";
 import { ReviewOnboardingLink } from "@/components/admin/configuracoes/review-onboarding-link";
 import { VitrinePlanNote } from "@/components/admin/vitrine-plan-note";
 import { LockedFeatureCard } from "@/components/admin/locked-feature";
+import { vitrineLabel } from "@/lib/vitrine-url";
 
 export const dynamic = "force-dynamic";
 // criar a instância da Evolution espera o primeiro QR (~5 s + rede)
@@ -99,7 +100,7 @@ export default async function ConfiguracoesPage() {
       id: "link",
       help: "link-vitrine",
       title: "Link da vitrine",
-      summary: `/v/${b.slug} · ${b.is_published ? "publicada" : "não publicada"}${vitrineOnline ? "" : " · cartão de visita"}`,
+      summary: `${vitrineLabel(b.slug)} · ${b.is_published ? "publicada" : "não publicada"}${vitrineOnline ? "" : " · cartão de visita"}`,
       description: "O endereço que você divulga no Instagram e no WhatsApp.",
       content: (
         <>

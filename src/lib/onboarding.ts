@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { PlanContext } from "@/lib/plan";
 import { planAllows } from "@/lib/plan-features";
 import { FREE_MONTHS, PLAN_PROMISE } from "@/content/planos";
+import { vitrineLabel } from "@/lib/vitrine-url";
 
 export type OnboardingAction = "link" | "confirm" | "suggest" | "solo" | "copy";
 
@@ -95,7 +96,7 @@ export function buildOnboarding(business: BusinessLike, plan: PlanContext, count
     {
       key: "link",
       title: "Confira o link da sua vitrine",
-      why: `Hoje ele é /v/${business.slug}. Curto e fácil de digitar ajuda o cliente a lembrar.`,
+      why: `Hoje ele é ${vitrineLabel(business.slug)}. Curto e fácil de digitar ajuda o cliente a lembrar.`,
       done: !!flags.link,
       href: "/admin/configuracoes#link",
       hrefLabel: "Personalizar",

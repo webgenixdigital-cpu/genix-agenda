@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
+import { mainOrigin, subdomainOf, vitrineUrl } from "@/lib/vitrine-url";
 import { AtSign, Clock, MapPin, MessageCircle, Star } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { SiteHeader } from "@/components/site-header";
@@ -109,9 +111,23 @@ async function hiddenFromSearch(slug: string) {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const [data, hidden] = await Promise.all([loadVitrine(params.slug), hiddenFromSearch(params.slug)]);
   if (!data) return { title: "Página não encontrada" };
+  const title = `${data.business.name} | ${data.cardOnly ? "Agende pelo WhatsApp" : "Agende online"}`;
+  const description = data.business.tagline ?? data.business.description ?? undefined;
+  // link curto: um só endereço oficial (subdomínio), igual em /v/slug e no subdomínio
+  const url = vitrineUrl(data.business.slug);
   return {
-    title: `${data.business.name} | ${data.cardOnly ? "Agende pelo WhatsApp" : "Agende online"}`,
-    description: data.business.tagline ?? data.business.description ?? undefined,
+    title,
+    description,
+    alternates: { canonical: url },
+    openGraph: {
+      type: "website",
+      url,
+      title,
+      description,
+      siteName: "Genix Agenda",
+      locale: "pt_BR",
+      ...(data.business.hero_image ? { images: [{ url: data.business.hero_image }] } : {}),
+    },
     ...(hidden ? { robots: { index: false, follow: false } } : {}),
   };
 }
@@ -142,9 +158,13 @@ export default async function VitrinePage({ params }: Props) {
     return acc;
   }, {});
 
+  // aberta pelo subdomínio: "/" seria a própria vitrine, então os links vão para o site principal
+  const host = headers().get("host");
+  const home = subdomainOf(host) ? mainOrigin(host) : "";
+
   const page = (
     <>
-      <SiteHeader />
+      <SiteHeader origin={home} />
 
       <main className="pb-24 md:pb-0">
         {/* ---------- HERO ---------- */}
@@ -453,7 +473,7 @@ export default async function VitrinePage({ params }: Props) {
 
       {showBadge && (
         <p className="pb-28 text-center text-xs text-muted-foreground md:pb-10" data-testid="selo-feito-com-genix">
-          <Link href="/" className="tap-target inline-flex items-center hover:underline" data-testid="link-feito-com-genix">
+          <Link href={home || "/"} className="tap-target inline-flex items-center hover:underline" data-testid="link-feito-com-genix">
             Feito com Genix Agenda
           </Link>
         </p>

@@ -8,11 +8,10 @@ import { todayISO } from "@/lib/dates";
 import { REGIMES, type TaxRegime } from "@/lib/faturamento";
 import { isConfirmMode } from "@/lib/confirm-mode";
 import { removeReplacedImage, storagePathOf } from "@/lib/images";
+import { RESERVED_SLUGS } from "@/lib/vitrine-url";
 
 type Result = { ok: true } | { ok: false; error: string };
 
-const RESERVED = ["admin", "api", "v", "login", "auth", "static", "assets", "public", "docs",
-  "app", "painel", "segmento", "genix", "www", "suporte"];
 const SEGMENTS = ["beleza", "estetica", "psicologia_terapias", "outros"];
 
 function refreshAll(slugs: string[]) {
@@ -118,7 +117,7 @@ export async function updateLink(input: { slug: string; customDomain: string; is
   if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug) || slug.length < 3 || slug.length > 40) {
     return { ok: false, error: "Use de 3 a 40 letras minúsculas, números e hífen (sem espaço nem acento)." };
   }
-  if (RESERVED.includes(slug)) return { ok: false, error: `“${slug}” é um endereço reservado do sistema.` };
+  if (RESERVED_SLUGS.includes(slug)) return { ok: false, error: `“${slug}” é um endereço reservado do sistema.` };
 
   const domain = input.customDomain.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "");
   if (domain && !/^([a-z0-9-]+\.)+[a-z]{2,}$/.test(domain)) {
@@ -131,6 +130,8 @@ export async function updateLink(input: { slug: string; customDomain: string; is
     .eq("id", business.id);
 
   if (error) {
+    // 62: o banco também barra os reservados (gatilho guard_business_slug)
+    if (error.message.includes("SLUG_RESERVADO")) return { ok: false, error: `“${slug}” é um endereço reservado do sistema.` };
     if (error.code === "23505") {
       return {
         ok: false,

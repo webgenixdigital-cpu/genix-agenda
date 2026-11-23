@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { ROOT_DOMAIN, vitrineLabel } from "@/lib/vitrine-url";
 
 /** "Salão Lumina Belle" → "salao-lumina-belle" */
 const toSlug = (v: string) =>
@@ -30,7 +31,7 @@ export function LinkForm({
   const [published, setPublished] = useState(initial.is_published);
   const [origin, setOrigin] = useState("");
 
-  useEffect(() => setOrigin(window.location.host), []);
+  useEffect(() => setOrigin(window.location.origin), []);
 
   function save() {
     start(async () => {
@@ -52,9 +53,6 @@ export function LinkForm({
       <div className="space-y-1.5">
         <Label htmlFor="lk-slug">Endereço da vitrine</Label>
         <div className="flex h-11 items-center overflow-hidden rounded-md border bg-white focus-within:ring-2 focus-within:ring-ring">
-          <span className="hidden h-full items-center border-r bg-secondary px-3 text-sm text-muted-foreground sm:flex">
-            {origin || "seusite"}/v/
-          </span>
           <input
             id="lk-slug"
             className="-my-px h-11 min-w-0 flex-1 bg-transparent px-3 text-sm outline-none"
@@ -62,8 +60,19 @@ export function LinkForm({
             onChange={(e) => setSlug(toSlug(e.target.value))}
             data-testid="input-config-slug"
           />
+          <span className="flex h-full items-center border-l bg-secondary px-3 text-sm text-muted-foreground">
+            .{ROOT_DOMAIN}
+          </span>
         </div>
-        <p className="text-xs text-muted-foreground">Curto e fácil de digitar. Só letras, números e hífen.</p>
+        <p className="text-xs text-muted-foreground">
+          Curto e fácil de digitar. Só letras, números e hífen.
+          {slug.length >= 3 && (
+            <>
+              {" "}Seu link: <span className="break-all font-medium text-foreground">{vitrineLabel(slug.replace(/-+$/, ""), origin)}</span>.
+              O endereço antigo ({origin ? origin.replace(/^https?:\/\//, "") : ROOT_DOMAIN}/v/…) continua funcionando.
+            </>
+          )}
+        </p>
       </div>
 
       <div className="space-y-1.5">

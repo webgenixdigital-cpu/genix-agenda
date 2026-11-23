@@ -6,15 +6,16 @@ import { Check, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Ajuda } from "@/components/ajuda";
+import { vitrineUrl } from "@/lib/vitrine-url";
 import { VitrinePlanNote } from "@/components/admin/vitrine-plan-note";
 
 /** cardOnly (59): Grátis e Básico — o link é um cartão de visita */
 export function VitrineLinkCard({ slug, cardOnly = false }: { slug: string; cardOnly?: boolean }) {
-  const [url, setUrl] = useState(`/v/${slug}`);
+  const [url, setUrl] = useState(() => vitrineUrl(slug));
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    setUrl(`${window.location.origin}/v/${slug}`);
+    setUrl(vitrineUrl(slug, window.location.origin));
   }, [slug]);
 
   async function copy() {

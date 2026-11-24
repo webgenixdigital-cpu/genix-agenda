@@ -63,8 +63,18 @@ export function RoutesBoard({ businessId, groups, drivers, canManage }: {
         router.refresh()
       )
       .subscribe();
+    // reforço: o tempo real às vezes não avisa (outra aba, celular dormindo, card da agenda)
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") router.refresh();
+    }, 20000);
+    const onFocus = () => router.refresh();
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
     return () => {
       supabase.removeChannel(ch);
+      window.clearInterval(timer);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
     };
   }, [businessId, router]);
 
@@ -74,6 +84,7 @@ export function RoutesBoard({ businessId, groups, drivers, canManage }: {
       if (!r) return; // demonstração
       if (r.ok) {
         if (okMsg) toast.success(okMsg);
+        router.refresh();
       } else toast.error(r.error ?? "Não foi possível salvar.");
     });
 

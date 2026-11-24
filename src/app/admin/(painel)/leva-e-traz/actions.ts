@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getEditorContext } from "@/lib/admin";
 import { PET_NICHE_ID, ROUTE_STATUSES, type RouteStatus } from "@/lib/pets";
+import { activeDrivers, pickDriver, type ActiveDriver } from "@/lib/drivers";
 
 type Result = { ok: true } | { ok: false; error: string };
 
@@ -94,6 +95,10 @@ export type BookingTransportInfo = {
   fee: number;
   address: string | null;
   addressRef: string | null;
+  /** motorista atual das paradas (null = sem) */
+  driverId: string | null;
+  /** ativos; a escolha só aparece com 2 ou mais */
+  drivers: ActiveDriver[];
 };
 
 export async function getBookingTransport(bookingId: string): Promise<{ ok: true; info: BookingTransportInfo } | { ok: false; error: string }> {
@@ -104,6 +109,10 @@ export async function getBookingTransport(bookingId: string): Promise<{ ok: true
     .eq("id", bookingId).eq("business_id", c.business.id).maybeSingle();
   if (!b) return { ok: false, error: "Agendamento não encontrado." };
   const cust = b.customer as unknown as { address: string | null; address_ref: string | null } | null;
+  const [{ data: r }, drivers] = await Promise.all([
+    c.supabase.from("transport_routes").select("driver_id").eq("booking_id", bookingId).eq("business_id", c.business.id).limit(1),
+    activeDrivers(c.supabase, c.business.id),
+  ]);
   return {
     ok: true,
     info: {
@@ -111,13 +120,15 @@ export async function getBookingTransport(bookingId: string): Promise<{ ok: true
       fee: Number(b.transport_fee ?? 0),
       address: cust?.address ?? null,
       addressRef: cust?.address_ref ?? null,
+      driverId: (r?.[0]?.driver_id as string | null) ?? null,
+      drivers,
     },
   };
 }
 
 export async function setBookingTransport(
   bookingId: string,
-  input: { transport: Transport; fee: string; address: string; addressRef: string }
+  input: { transport: Transport; fee: string; address: string; addressRef: string; driverId?: string | null }
 ): Promise<Result> {
   const c = await ctx(["owner", "reception"]);
   if ("error" in c) return { ok: false, error: c.error! };
@@ -130,7 +141,7 @@ export async function setBookingTransport(
   }
 
   const { data: b } = await c.supabase
-    .from("bookings").select("id, status, customer_id").eq("id", bookingId).eq("business_id", c.business.id).maybeSingle();
+    .from("bookings").select("id, status, customer_id, booking_date, start_time").eq("id", bookingId).eq("business_id", c.business.id).maybeSingle();
   if (!b) return { ok: false, error: "Agendamento não encontrado." };
   if (b.status !== "pending" && b.status !== "confirmed") return { ok: false, error: "Só dá para mudar o leva e traz de agendamentos pendentes ou confirmados." };
 
@@ -161,14 +172,48 @@ export async function setBookingTransport(
     const { error } = await c.supabase.from("transport_routes").delete().in("id", toRemove.map((r) => r.id)).eq("business_id", c.business.id);
     if (error) return { ok: false, error: "Leva e traz salvo, mas não foi possível tirar uma parada. Confira na tela Leva e traz." };
   }
+  // motorista: o escolhido; sem escolha, mantém o das paradas que ficam ou escolhe (único ativo / livre no horário)
+  const kept = (routes ?? []).filter((r) => want.includes(r.kind as string)) as { id: string; driver_id?: string | null }[];
+  const { data: keptDrivers } = kept.length
+    ? await c.supabase.from("transport_routes").select("driver_id").in("id", kept.map((r) => r.id))
+    : { data: [] };
+  const current = (keptDrivers ?? []).find((r) => r.driver_id)?.driver_id as string | undefined;
+  const driverId = want.length
+    ? await pickDriver(c.supabase, c.business.id, b as { id: string; booking_date: string; start_time: string }, input.driverId ?? current ?? null)
+    : null;
+  if (kept.length && driverId && driverId !== current) {
+    await c.supabase.from("transport_routes").update({ driver_id: driverId }).in("id", kept.map((r) => r.id)).eq("business_id", c.business.id);
+  }
   if (toAdd.length) {
     const { error } = await c.supabase
-      .from("transport_routes").insert(toAdd.map((kind) => ({ business_id: c.business.id, booking_id: b.id, kind })));
+      .from("transport_routes").insert(toAdd.map((kind) => ({ business_id: c.business.id, booking_id: b.id, kind, driver_id: driverId })));
     if (error) return { ok: false, error: "Leva e traz salvo, mas não foi possível criar a parada. Confira na tela Leva e traz." };
   }
 
   revalidatePath(PATH);
   revalidatePath("/admin/agenda");
   if (b.customer_id) revalidatePath(`/admin/clientes/${b.customer_id}`);
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------
+// PARTE 4 — Link do app do motorista (66_link_motorista; só a matriz)
+// O código só sai aqui, na hora de gerar; o banco não o devolve depois.
+// ---------------------------------------------------------------------
+export async function generateDriverLink(driverId: string): Promise<{ ok: true; token: string } | { ok: false; error: string }> {
+  const c = await ctx(["owner"]);
+  if ("error" in c) return { ok: false, error: c.error! };
+  const { data, error } = await c.supabase.rpc("driver_link_reset", { p_driver: driverId });
+  if (error || typeof data !== "string") return { ok: false, error: "Não foi possível gerar o link." };
+  revalidatePath(PATH);
+  return { ok: true, token: data };
+}
+
+export async function revokeDriverLink(driverId: string): Promise<Result> {
+  const c = await ctx(["owner"]);
+  if ("error" in c) return { ok: false, error: c.error! };
+  const { error } = await c.supabase.rpc("driver_link_revoke", { p_driver: driverId });
+  if (error) return { ok: false, error: "Não foi possível desligar o link." };
+  revalidatePath(PATH);
   return { ok: true };
 }

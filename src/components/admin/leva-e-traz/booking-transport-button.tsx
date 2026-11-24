@@ -10,9 +10,12 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
 type Transport = "nenhum" | "busca" | "entrega" | "busca_entrega";
+const AUTO = "__auto__";
+
 const OPTIONS: { value: Transport; label: string }[] = [
   { value: "nenhum", label: "Não" },
   { value: "busca", label: "Só busca" },
@@ -24,7 +27,8 @@ export function BookingTransportButton({ bookingId, current, who }: { bookingId:
   const [open, setOpen] = useState(false);
   const [loading, startLoad] = useTransition();
   const [pending, start] = useTransition();
-  const [v, setV] = useState({ transport: "nenhum" as Transport, fee: "", address: "", addressRef: "" });
+  const [v, setV] = useState({ transport: "nenhum" as Transport, fee: "", address: "", addressRef: "", driverId: "" });
+  const [drivers, setDrivers] = useState<{ id: string; name: string }[]>([]);
 
   function openDialog() {
     startLoad(async () => {
@@ -36,14 +40,16 @@ export function BookingTransportButton({ bookingId, current, who }: { bookingId:
         fee: r.info.fee > 0 ? r.info.fee.toFixed(2).replace(".", ",") : "",
         address: r.info.address ?? "",
         addressRef: r.info.addressRef ?? "",
+        driverId: r.info.driverId ?? "",
       });
+      setDrivers(r.info.drivers);
       setOpen(true);
     });
   }
 
   function save() {
     start(async () => {
-      const r = await setBookingTransport(bookingId, v);
+      const r = await setBookingTransport(bookingId, { ...v, driverId: v.driverId || null });
       if (!r) return;
       if (r.ok) {
         toast.success(v.transport === "nenhum" ? "Leva e traz retirado" : "Leva e traz salvo");
@@ -110,6 +116,19 @@ export function BookingTransportButton({ bookingId, current, who }: { bookingId:
                       onChange={(e) => setV({ ...v, fee: e.target.value.replace(/[^\d,.]/g, "").slice(0, 8) })} data-testid="input-editar-taxa" />
                   </div>
                 </div>
+                {drivers.length > 1 && (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="lt-motorista">Motorista</Label>
+                    <Select value={v.driverId || AUTO} onValueChange={(x) => setV({ ...v, driverId: x === AUTO ? "" : x })}>
+                      <SelectTrigger id="lt-motorista" className="h-11" data-testid="select-editar-motorista"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={AUTO}>Automático (livre no horário)</SelectItem>
+                        {drivers.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                {drivers.length === 1 && <p className="text-xs text-muted-foreground">Motorista: <strong>{drivers[0].name}</strong></p>}
               </>
             )}
             <Button type="submit" className="h-12 w-full text-base" disabled={pending} data-testid="btn-salvar-leva-traz">

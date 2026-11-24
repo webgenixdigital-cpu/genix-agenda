@@ -8,6 +8,7 @@ import { cleanCountry, phoneError } from "@/lib/phone";
 import { parseCustomerPhone } from "@/lib/phone-intl";
 import { PLAN_ERRORS } from "@/lib/plan-features";
 import { PET_NICHE_ID } from "@/lib/pets";
+import { activeDrivers, pickDriver, type ActiveDriver } from "@/lib/drivers";
 
 type Result = { ok: true } | { ok: false; error: string };
 type Method = "pix" | "dinheiro" | "credito" | "debito";
@@ -46,6 +47,8 @@ export type PetChoice = {
   transportFee?: string;
   transportAddress?: string;
   transportAddressRef?: string;
+  /** só quando há mais de um motorista ativo; sem ele, o sistema escolhe */
+  transportDriverId?: string | null;
 };
 export type Transport = "nenhum" | "busca" | "entrega" | "busca_entrega";
 const TRANSPORTS: Transport[] = ["nenhum", "busca", "entrega", "busca_entrega"];
@@ -124,7 +127,16 @@ async function attachTransport(supabase: Supa, business: Biz, bookingIds: string
   if (upErr) return fail;
 
   const kinds = transport === "busca_entrega" ? ["busca", "entrega"] : [transport];
-  const rows = bookingIds.flatMap((id) => kinds.map((kind) => ({ business_id: business.id, booking_id: id, kind })));
+  // motorista: o escolhido, o único ativo ou um livre no horário (cada data da série confere o seu)
+  const { data: bks } = await supabase
+    .from("bookings").select("id, booking_date, start_time").in("id", bookingIds).eq("business_id", business.id);
+  const driverOf = new Map<string, string | null>();
+  for (const b of (bks ?? []) as { id: string; booking_date: string; start_time: string }[]) {
+    driverOf.set(b.id, await pickDriver(supabase, business.id, b, pet.transportDriverId));
+  }
+  const rows = bookingIds.flatMap((id) =>
+    kinds.map((kind) => ({ business_id: business.id, booking_id: id, kind, driver_id: driverOf.get(id) ?? null }))
+  );
   const { error: routeErr } = await supabase.from("transport_routes").insert(rows);
   return routeErr ? fail : null;
 }
@@ -538,6 +550,13 @@ export type CustomerPackage = {
 };
 
 export type LookupPet = { id: string; name: string; size: string | null };
+
+/** 4b: motoristas ativos (o novo agendamento só mostra a escolha com 2 ou mais) */
+export async function listActiveDrivers(): Promise<ActiveDriver[]> {
+  const { business, role } = await getAdminContext();
+  if (!isPetBusiness(business) || (role !== "owner" && role !== "reception")) return [];
+  return activeDrivers(createClient(), business.id);
+}
 
 /** Cliente exato pelo país + número (RLS: o profissional só acha quem já atendeu) */
 export async function lookupCustomer(

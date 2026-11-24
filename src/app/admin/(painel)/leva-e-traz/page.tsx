@@ -64,6 +64,12 @@ export default async function LevaETrazPage({ searchParams }: Props) {
       .gte("booking_date", today).lte("booking_date", addDaysISO(today, 30))
       .order("booking_date").limit(200),
   ]);
+  // 66: quais motoristas têm link ligado (o código em si nunca sai do banco por aqui)
+  const { data: linkRows } = role === "owner" ? await supabase.rpc("driver_link_status", { p_business: business.id }) : { data: [] };
+  const links = Object.fromEntries(
+    ((linkRows ?? []) as { driver_id: string; has_link: boolean; created_at: string | null }[]).map((l) => [l.driver_id, l.has_link])
+  );
+
   const ids = (dayBookings ?? []).map((b) => b.id as string);
   const { data: rows } = ids.length
     ? await supabase
@@ -158,7 +164,7 @@ export default async function LevaETrazPage({ searchParams }: Props) {
         </section>
       )}
 
-      {role === "owner" && <DriversCard drivers={(drivers ?? []) as DriverRow[]} />}
+      {role === "owner" && <DriversCard drivers={(drivers ?? []) as DriverRow[]} links={links} businessName={business.name} />}
     </main>
   );
 }

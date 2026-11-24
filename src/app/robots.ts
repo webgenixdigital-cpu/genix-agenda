@@ -16,6 +16,7 @@ export default function robots(): MetadataRoute.Robots {
         "/esqueci-senha",
         "/redefinir-senha",
         "/v/*/avaliar",
+        "/motorista",
       ],
     },
     sitemap: "https://genixagenda.com.br/sitemap.xml",

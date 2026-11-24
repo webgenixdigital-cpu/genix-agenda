@@ -13,6 +13,7 @@ import {
   createManualBooking,
   createOverlayBooking,
   createSeries,
+  listActiveDrivers,
   listManualSlots,
   lookupCustomer,
   previewSeries,
@@ -66,6 +67,8 @@ type Props = {
 type Preview = { dates: SeriesDate[]; packageFit: number | null; packageExpires: string | null };
 /** cliente achado pelo WhatsApp: null = ainda não procurou; found false = cliente novo */
 type Lookup = { found: boolean; packages: CustomerPackage[]; pets: LookupPet[] } | null;
+
+const AUTO_DRIVER = "__auto__";
 
 const TRANSPORT_OPTIONS: { value: Transport; label: string }[] = [
   { value: "nenhum", label: "Não" },
@@ -158,12 +161,23 @@ export function NewBookingDialog({
   const [address, setAddress] = useState("");
   const [addressRef, setAddressRef] = useState("");
   const canTransport = petMode && !!canSellPackages;
+  // motorista: com 1 ativo o sistema escolhe sozinho; com 2+ aparece a escolha ("" = automático, livre no horário)
+  const [drivers, setDrivers] = useState<{ id: string; name: string }[] | null>(null);
+  const [driverId, setDriverId] = useState("");
+  useEffect(() => {
+    if (!open || !canTransport || transport === "nenhum" || drivers !== null) return;
+    let alive = true;
+    listActiveDrivers().then((d) => alive && setDrivers(d ?? []));
+    return () => {
+      alive = false;
+    };
+  }, [open, canTransport, transport, drivers]);
   const petChoice = petMode
     ? {
         petId,
         newPetName: petId ? "" : newPetName,
         ...(canTransport && transport !== "nenhum"
-          ? { transport, transportFee: fee, transportAddress: address, transportAddressRef: addressRef }
+          ? { transport, transportFee: fee, transportAddress: address, transportAddressRef: addressRef, transportDriverId: driverId || null }
           : {}),
       }
     : {};
@@ -377,6 +391,8 @@ export function NewBookingDialog({
     setNewPetName("");
     setDonePets([]);
     setTransport("nenhum");
+    setDrivers(null);
+    setDriverId("");
     setFee("");
     setAddress("");
     setAddressRef("");
@@ -681,6 +697,21 @@ export function NewBookingDialog({
                           onChange={(e) => setFee(e.target.value.replace(/[^\d,.]/g, "").slice(0, 8))} data-testid="input-taxa-leva-traz" />
                       </div>
                     </div>
+                    {drivers && drivers.length > 1 && (
+                      <div className="space-y-1.5">
+                        <Label htmlFor="nb-motorista">Motorista</Label>
+                        <Select value={driverId || AUTO_DRIVER} onValueChange={(v) => setDriverId(v === AUTO_DRIVER ? "" : v)}>
+                          <SelectTrigger id="nb-motorista" className="h-11" data-testid="select-motorista-agendamento"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value={AUTO_DRIVER}>Automático (livre no horário)</SelectItem>
+                            {drivers.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                    {drivers && drivers.length === 1 && (
+                      <p className="text-xs text-muted-foreground">Motorista: <strong>{drivers[0].name}</strong></p>
+                    )}
                     <p className="text-xs text-muted-foreground">
                       A taxa fica registrada no agendamento e é cobrada à parte (não entra no total). O endereço fica salvo na ficha do tutor.
                     </p>

@@ -11,6 +11,7 @@ import { signOut } from "@/app/admin/actions";
 import { BrandIcon, BrandLogo } from "@/components/brand-logo";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { LOCKED_FEATURES, minPlanLabel } from "@/lib/plan-features";
 import { SIDEBAR_COOKIE, setPrefCookie } from "@/lib/ui-prefs";
 import { cn } from "@/lib/utils";
 
@@ -26,7 +27,8 @@ const NAV: { href: string; label: string; icon: typeof LayoutDashboard; roles: R
   { href: "/admin/clientes", label: "Clientes", icon: UserRound, roles: ALL },
   { href: "/admin/lembretes", label: "Lembretes", icon: BellRing, roles: ALL },
   { href: "/admin/leva-e-traz", label: "Leva e traz", icon: Car, roles: ["owner", "reception", "viewer"], pet: true },
-  { href: "/admin/bloqueios", label: "Bloqueios", icon: CalendarOff, roles: ALL },
+  // 67: bloqueios saíram do Básico
+  { href: "/admin/bloqueios", label: "Bloqueios", icon: CalendarOff, roles: ALL, lock: minPlanLabel(LOCKED_FEATURES.bloqueios.minPlan) },
   { href: "/admin/ganhos", label: "Meus ganhos", icon: HandCoins, roles: ["staff"] },
   { href: "/admin/servicos", label: "Serviços", icon: Scissors, roles: OWNER },
   { href: "/admin/profissionais", label: "Equipe", icon: Users, roles: OWNER },

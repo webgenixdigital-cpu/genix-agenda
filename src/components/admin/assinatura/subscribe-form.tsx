@@ -36,8 +36,8 @@ const METHODS = [
 ] as const;
 
 const KINDS: { id: PaidKind; title: string; text: string }[] = [
-  { id: "basico", title: "Básico", text: "Agenda sem limite, encaixe, bloqueios, lembretes e financeiro para 1 profissional." },
-  { id: "profissional", title: "Profissional", text: "Tudo do Básico + retornos, pacotes, combos e WhatsApp automático." },
+  { id: "basico", title: "Básico", text: "Agenda sem prazo, lembretes da véspera e financeiro para 1 profissional." },
+  { id: "profissional", title: "Profissional", text: "Tudo do Básico + vitrine online, encaixe, bloqueios, recorrência, retornos, pacotes, combos e WhatsApp automático." },
   { id: "equipe", title: "Equipe", text: "Para salões e equipes: até 3 profissionais, acessos da equipe e comissões." },
 ];
 

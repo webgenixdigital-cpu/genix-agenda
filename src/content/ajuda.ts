@@ -121,7 +121,7 @@ const AJUDA_TEXTOS = {
     ],
     atencao: [
       "Bloqueio não cancela atendimentos já marcados nesses horários; confira a agenda.",
-      `${planNote("bloqueios")} Vale para almoço, folga fixa, férias e feriados.`,
+      `${planNote("bloqueios")} Vale para almoço, folga fixa, férias e feriados. Sem o plano, os bloqueios que já existem continuam valendo, mas não dá para criar, mudar ou apagar.`,
     ],
   },
   servicos: {
@@ -416,7 +416,7 @@ const AJUDA_TEXTOS = {
       "O encaixe ignora o horário de funcionamento, mas não passa por cima de bloqueios nem de outro atendimento.",
       "Para marcar por cima de outro atendimento (enquanto o produto age), use o “Encaixe sobreposto”.",
       "No Remarcar, só a matriz e a recepção podem usar.",
-      `${planNote("encaixe")} No Grátis, escolha um dos horários livres da lista.`,
+      `${planNote("encaixe")} No Grátis e no Básico, escolha um dos horários livres da lista.`,
     ],
   },
   "encaixe-sobreposto": {
@@ -460,7 +460,10 @@ const AJUDA_TEXTOS = {
       "Marque “Repetir este horário” e escolha a frequência e quantas vezes.",
       "Toque em “Ver datas”, confira e crie.",
     ],
-    atencao: ["Datas com conflito são puladas, sem criar data extra no fim.", planNote("recorrencia")],
+    atencao: [
+      "Datas com conflito são puladas, sem criar data extra no fim.",
+      `${planNote("recorrencia")} Séries criadas antes continuam marcadas, mesmo sem o plano.`,
+    ],
   },
   "vender-pacote": {
     titulo: "Vender pacote",

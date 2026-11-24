@@ -490,7 +490,7 @@ export function WeekGrid(props: Props) {
         defaultDate={newSlot?.date ?? today}
         services={props.services}
         professionals={professionals}
-        fullAccess={props.fullAccess}
+        fitAccess={props.reschedule?.canFit ?? false}
         canSellPackages={props.reschedule?.canChooseProfessional}
         canOverlay={props.reschedule?.canOverlay}
         open={!!newSlot}

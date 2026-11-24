@@ -1,8 +1,10 @@
 import { Ajuda } from "@/components/ajuda";
-import { CalendarOff, Repeat } from "lucide-react";
+import Link from "next/link";
+import { CalendarOff, Lock, Repeat } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminContext, seesWholeTeam } from "@/lib/admin";
-import { getPlanContext } from "@/lib/plan";
+import { allows, getPlanContext } from "@/lib/plan";
+import { LOCKED_FEATURES, minPlanLabel } from "@/lib/plan-features";
 import { LockedFeature } from "@/components/admin/locked-feature";
 import { todayISO } from "@/lib/dates";
 import { NewBlockDialog } from "@/components/admin/bloqueios/new-block-dialog";
@@ -23,7 +25,9 @@ export default async function BloqueiosPage() {
   const { business, role, professionalId } = await getAdminContext();
   const wholeTeam = seesWholeTeam(role);
   const plan = await getPlanContext(business.id);
-  if (plan.tier === "gratis") return <LockedFeature feature="bloqueios" />;
+  // 67: criar, mudar e apagar só no Profissional e no Equipe. Sem o plano, os bloqueios que já
+  // existem continuam valendo (agenda e vitrine) e aparecem aqui só para consulta.
+  const canEdit = allows(plan, "profissional");
 
   const supabase = createClient();
   const today = todayISO();
@@ -40,6 +44,7 @@ export default async function BloqueiosPage() {
 
   const pros = (professionals ?? []).filter((p) => wholeTeam || p.id === professionalId);
   const list = blocks ?? [];
+  if (!canEdit && list.length === 0) return <LockedFeature feature="bloqueios" />;
 
   return (
     <main className="mx-auto max-w-4xl space-y-8 p-4 md:p-8">
@@ -50,7 +55,21 @@ export default async function BloqueiosPage() {
             Férias, folgas, cursos e manutenção. Nos períodos bloqueados a vitrine não oferece horários.
           </p>
         </div>
-        <NewBlockDialog professionals={pros} businessName={business.name} allowTeam={wholeTeam} />
+        {canEdit ? (
+          <NewBlockDialog professionals={pros} businessName={business.name} allowTeam={wholeTeam} />
+        ) : (
+          <Link
+            href="/admin/assinatura"
+            className="flex min-h-11 max-w-lg items-start gap-2 rounded-xl border border-dashed bg-card p-3 text-left text-sm text-muted-foreground hover:text-foreground"
+            data-testid="link-liberar-bloqueios"
+          >
+            <Lock className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+            <span>
+              Recurso dos {minPlanLabel(LOCKED_FEATURES.bloqueios.minPlan)}. Os bloqueios abaixo continuam valendo na agenda e
+              na vitrine. Para criar, mudar ou apagar, veja os planos.
+            </span>
+          </Link>
+        )}
       </header>
 
       {list.length === 0 ? (
@@ -93,7 +112,7 @@ export default async function BloqueiosPage() {
                     {period}, {hours}
                   </p>
                 </div>
-                <DeleteBlockButton id={k.id} />
+                {canEdit && <DeleteBlockButton id={k.id} />}
               </li>
             );
           })}

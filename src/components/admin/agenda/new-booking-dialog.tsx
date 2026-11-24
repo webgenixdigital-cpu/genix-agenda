@@ -31,6 +31,7 @@ import type { SaleProfessional, SaleTemplate } from "@/lib/package-sale";
 import { FREQUENCY_LABEL, SKIP_REASON } from "@/lib/series";
 import { CustomerSearch } from "@/components/admin/agenda/customer-search";
 import { OverlayPreview } from "@/components/admin/agenda/overlay-preview";
+import { LOCKED_FEATURES, minPlanLabel } from "@/lib/plan-features";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -49,8 +50,8 @@ type Props = {
   services: { id: string; name: string; price: number; duration_min: number; kind?: string | null }[];
   /** profissionais que quem está logado pode agendar (profissional: só ele mesmo) */
   professionals: { id: string; name: string }[];
-  /** plano pago (a partir do Básico): libera encaixe, encaixe sobreposto e "Repetir" (recorrência) */
-  fullAccess?: boolean;
+  /** Profissional ou Equipe (67): libera encaixe, encaixe sobreposto e "Repetir" (recorrência) */
+  fitAccess?: boolean;
   /** Profissional ou Equipe: libera "Vender pacote" (sem ele, botão com cadeado) */
   packagesAccess?: boolean;
   /** matriz e recepção: botão "Vender pacote" (no Grátis aparece com cadeado) */
@@ -90,7 +91,7 @@ export function NewBookingDialog({
   defaultDate,
   services,
   professionals,
-  fullAccess = false,
+  fitAccess = false,
   packagesAccess = false,
   canSellPackages = false,
   canOverlay = false,
@@ -311,11 +312,11 @@ export function NewBookingDialog({
       if (slots.some((s) => s.time === init.time)) {
         setFit(false);
         setTime(init.time);
-      } else if (fullAccess) {
+      } else if (fitAccess) {
         setFit(true);
         setFitTime(init.time);
       }
-      // Grátis: sem encaixe, fica na grade de horários livres
+      // Grátis e Básico (67): sem encaixe, fica na grade de horários livres
       return;
     }
     if (!fit && time && !slots.some((s) => s.time === time)) setTime("");
@@ -861,16 +862,16 @@ export function NewBookingDialog({
                     </PopoverContent>
                   </Popover>
                 </div>
-                {serviceId && !fullAccess && (
+                {serviceId && !fitAccess && (
                   <Link
                     href="/admin/assinatura"
                     className="flex min-h-11 items-center gap-2 text-sm text-muted-foreground hover:text-primary"
                     data-testid="link-liberar-encaixe"
                   >
-                    <Lock className="h-4 w-4" /> Encaixe · a partir do Básico
+                    <Lock className="h-4 w-4" /> Encaixe · {minPlanLabel(LOCKED_FEATURES.encaixe.minPlan)}
                   </Link>
                 )}
-                {serviceId && fullAccess && (
+                {serviceId && fitAccess && (
                   <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm">
                     <input
                       type="checkbox"
@@ -914,7 +915,7 @@ export function NewBookingDialog({
                 </p>
               ) : slots.length === 0 ? (
                 <p className="rounded-lg bg-secondary/40 p-3 text-sm text-muted-foreground" data-testid="sem-horarios-manual">
-                  Nenhum horário livre nesta data{service ? ` para ${service.name}` : ""}. Escolha outra data{fullAccess ? " ou use o encaixe" : ""}.
+                  Nenhum horário livre nesta data{service ? ` para ${service.name}` : ""}. Escolha outra data{fitAccess ? " ou use o encaixe" : ""}.
                 </p>
               ) : (
                 <div
@@ -954,16 +955,16 @@ export function NewBookingDialog({
             </section>
 
             {/* 4b. Encaixe sobreposto (50/51): matriz, recepção e profissional (na própria agenda) */}
-            {canOverlay && serviceId && !fullAccess && (
+            {canOverlay && serviceId && !fitAccess && (
               <Link
                 href="/admin/assinatura"
                 className="flex min-h-11 items-center gap-2 rounded-xl border border-dashed p-3 text-sm text-muted-foreground hover:text-primary"
                 data-testid="link-liberar-encaixe-sobreposto"
               >
-                <Lock className="h-4 w-4 shrink-0" /> Encaixe sobreposto · a partir do Básico
+                <Lock className="h-4 w-4 shrink-0" /> Encaixe sobreposto · {minPlanLabel(LOCKED_FEATURES.encaixe.minPlan)}
               </Link>
             )}
-            {canOverlay && serviceId && fullAccess && (
+            {canOverlay && serviceId && fitAccess && (
               <div className={cn("space-y-3 rounded-xl border p-3", overlay && "border-dashed border-primary/60")}>
                 <div className="flex items-center gap-1">
                   <label className="flex min-h-11 flex-1 cursor-pointer items-center gap-3 text-sm font-semibold">
@@ -1068,8 +1069,8 @@ export function NewBookingDialog({
               <Textarea id="nb-notes" rows={2} value={notes} onChange={(e) => setNotes(e.target.value.slice(0, 500))} />
             </div>
 
-            {/* Repetir (recorrência) — a partir do Básico */}
-            {overlay ? null : fullAccess ? (
+            {/* Repetir (recorrência) — Profissional e Equipe (67) */}
+            {overlay ? null : fitAccess ? (
               <div className="space-y-3 rounded-xl border p-3">
                 <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm font-semibold">
                   <input
@@ -1152,7 +1153,7 @@ export function NewBookingDialog({
                 className="flex min-h-11 items-center gap-2 rounded-xl border border-dashed p-3 text-sm text-muted-foreground hover:text-foreground"
                 data-testid="link-repetir-bloqueado"
               >
-                <Lock className="h-4 w-4 text-primary" /> Repetir este horário · a partir do Básico
+                <Lock className="h-4 w-4 text-primary" /> Repetir este horário · {minPlanLabel(LOCKED_FEATURES.recorrencia.minPlan)}
               </Link>
             )}
 

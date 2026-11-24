@@ -3,6 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getEditorContext } from "@/lib/admin";
+import { allows, getPlanContext } from "@/lib/plan";
+import { LOCKED_FEATURES, minPlanLabel } from "@/lib/plan-features";
+
+// 67: criar e apagar bloqueio só no Profissional e no Equipe (o banco confere de novo pela RLS;
+// o delete barrado pela RLS não dá erro, por isso a conferência aqui)
+const PLAN_ERROR = `Bloqueios são um recurso dos ${minPlanLabel(LOCKED_FEATURES.bloqueios.minPlan)}. Os que já existem continuam valendo.`;
 
 export type AffectedBooking = {
   id: string;
@@ -41,6 +47,7 @@ function refresh() {
 // ---------------------------------------------------------------------
 export async function createBlock(input: BlockInput): Promise<CreateResult> {
   const { business } = await getEditorContext();
+  if (!allows(await getPlanContext(business.id), "profissional")) return { ok: false, error: PLAN_ERROR };
   const supabase = createClient();
 
   if (!input.dateStart || !input.dateEnd || input.dateEnd < input.dateStart) {
@@ -98,6 +105,7 @@ export async function createBlock(input: BlockInput): Promise<CreateResult> {
 // ---------------------------------------------------------------------
 export async function deleteBlock(id: string): Promise<{ ok: boolean; error?: string }> {
   const { business } = await getEditorContext();
+  if (!allows(await getPlanContext(business.id), "profissional")) return { ok: false, error: PLAN_ERROR };
   const supabase = createClient();
   const { error } = await supabase.from("schedule_blocks").delete().eq("id", id).eq("business_id", business.id);
   if (error) return { ok: false, error: "Não foi possível remover o bloqueio." };

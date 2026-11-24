@@ -87,12 +87,16 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
     planos). **Fim dos 6 meses** (`free_period_over`): painel **SÓ CONSULTA** — vê agenda, clientes e histórico e pode
     **cancelar**; não cria, edita, remarca, confirma nem conclui agendamentos, nem cria/edita clientes (gatilho
     `guard_free_read_only`, erro `PLANO_CONSULTA`; na tela `usePlanFlags().readOnly`). Nada é apagado.
-  - **Básico** (R$ 28,70/mês | R$ 287,00/ano): Grátis sem prazo e sem selo + **encaixe e encaixe sobreposto**
-    (inclusive no Remarcar), **bloqueios** (almoço, folga fixa, férias, feriados), **fila manual de véspera**,
-    recorrência e financeiro (caixa, pagar depois, faturamento, contador). 1 profissional. Link = cartão de visita.
+  - **Básico** (R$ 28,70/mês | R$ 287,00/ano): Grátis sem prazo e sem selo + **fila manual de véspera** e financeiro
+    (caixa, pagar depois, faturamento, contador). 1 profissional. Link = cartão de visita. **Sem** encaixe, bloqueios
+    e recorrência (67): no Básico, como no Grátis, o manual só usa os horários da lista.
   - **Profissional** (R$ 62,70/mês | R$ 627,00/ano): Básico + **vitrine com agendamento online 24h, confirmação
-    automática, diretório, pedido de avaliação** (`submit_review`), retornos, pacotes, combos, metas e WhatsApp
-    automático. 1 profissional; sem acessos de equipe nem profissional extra.
+    automática, diretório, pedido de avaliação** (`submit_review`), **encaixe e encaixe sobreposto** (inclusive no
+    Remarcar), **bloqueios** (almoço, folga fixa, férias, feriados), **recorrência** (67), retornos, pacotes, combos,
+    metas e WhatsApp automático. 1 profissional; sem acessos de equipe nem profissional extra.
+  - **Transição da 67:** bloqueios, séries e encaixes que já existem continuam valendo (agenda e vitrine respeitam);
+    sem o plano não dá para criar, mudar nem apagar bloqueio (a tela de Bloqueios fica só consulta), nem criar
+    encaixe/série. Remarcar comum e “cancelar as próximas” da série seguem em todos os planos.
   - **Equipe** (R$ 121,70/mês | R$ 1.217,00/ano): até 3 profissionais + R$ 18,70/mês (R$ 187,00/ano) por extra; acessos
     da equipe (recepção, profissional, "Meus ganhos"), comissões e salão-parceiro (o relatório e o registro na
     conclusão só contam o parceiro no Equipe, 59).
@@ -104,9 +108,11 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
     `/para`, etiquetas da landing e dos blocos de benefícios, cadeados (`LOCKED_FEATURES.minPlan`), menu
     (`lockedHrefsFor`), ajuda, FAQ, banners, cadastro, `/espacos`. Mudou o plano de um recurso? Mude lá **e** no banco.
   - Banco: `access_tier` (`completo`|`gratis`) separa pago × grátis (o que é "a partir do Básico" usa ele);
-    `plan_kind` diz qual plano; `plan_allows(bid, 'profissional')` trava pacotes, combos e WhatsApp automático;
-    `plan_allows(bid, 'basico')` trava encaixe (gatilho `guard_manual_booking_plan`), encaixe sobreposto, `p_fit` do
-    Remarcar e a fila de véspera (gatilho `guard_reminder_plan`); erros `PLANO_BASICO` / `PLANO_PROFISSIONAL` /
+    `plan_kind` diz qual plano; `plan_allows(bid, 'profissional')` trava pacotes, combos, WhatsApp automático,
+    encaixe (gatilho `guard_manual_booking_plan`), encaixe sobreposto, `p_fit` do Remarcar, recorrência
+    (`check_series_input`) e as políticas de escrita de `schedule_blocks` (67, erros `PLANO_PROFISSIONAL_ENCAIXE` /
+    `PLANO_PROFISSIONAL_RECORRENCIA`); `plan_allows(bid, 'basico')` trava
+    a fila de véspera (gatilho `guard_reminder_plan`); erros `PLANO_BASICO` / `PLANO_PROFISSIONAL` /
     `PLANO_EQUIPE` / `LIMITE_PLANO_BASICO`. `plan_max_professionals` e o gatilho de `business_members` (só Equipe tem
     acessos) travam no banco. Acessos de equipe num plano sem equipe ficam **pausados**, nunca apagados.
   - Troca de plano (entre os 3 pagos, mesmo ciclo): upgrade mensal na hora (novo valor na próxima cobrança); upgrade
@@ -197,7 +203,7 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
   nem “passado”, como o manual sempre foi). Staff só vê a própria agenda; a gravação continua em `createManualBooking`.
 - **Encaixe sobreposto (50):** atendimento por cima de outro do mesmo profissional (tempo de produto agindo). `bookings.overlay`
   (só muda por `create_overlay_booking` / `reschedule_overlay`, sinal `genix.overlay_edit`; gatilho `guard_booking_overlay`);
-  `no_overlap` ganhou `and not overlay`. Dono e recepção em qualquer agenda; profissional na própria; viewer não (papel só em `overlay_slot_issue`, 51); a partir do **Básico** (52b, `PLANO_BASICO`).
+  `no_overlap` ganhou `and not overlay`. Dono e recepção em qualquer agenda; profissional na própria; viewer não (papel só em `overlay_slot_issue`, 51); a partir do **Profissional** (67, `PLANO_PROFISSIONAL_ENCAIXE`; era Básico na 52b).
   Precisa de atendimento embaixo (`LIVRE`), 1 por trecho (`JA_TEM_ENCAIXE`); bloqueio, meia-noite e “faz o serviço” valem.
   Para o resto ele é **ocupado**: vitrine, horários do manual, remarcar, recorrência e pacote já contam todo pending/confirmed,
   e o gatilho barra normal que ganhe sobreposição **nova** com um sobreposto (erro 23P01, igual à trava). Remarcar comum

@@ -121,12 +121,12 @@ export async function loadAgenda(ctx: AdminContext, wholeTeam: boolean, o: Optio
       return { id: p.id, name: p.name, serviceIds: ids.length ? [...ids, ...combos] : null };
     }),
     canChooseProfessional: role === "owner" || role === "reception",
-    // 52: encaixe e encaixe sobreposto a partir do Básico (o banco confere de novo)
-    canFit: allows(plan, "basico"),
+    // 67: encaixe e encaixe sobreposto nos planos Profissional e Equipe (o banco confere de novo)
+    canFit: allows(plan, "profissional"),
     // 46_reabrir_atendimento: matriz e recepção (prazo de 30 dias da recepção conferido no banco)
     canReopen: role === "owner" || role === "reception",
     // 50/51 encaixe sobreposto: matriz e recepção (qualquer agenda) e profissional (a própria); demonstração não
-    canOverlay: (role === "owner" || role === "reception" || role === "staff") && allows(plan, "basico"),
+    canOverlay: (role === "owner" || role === "reception" || role === "staff") && allows(plan, "profissional"),
     today: todayInZone(business.timezone),
   };
 

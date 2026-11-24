@@ -6,9 +6,14 @@ import { getAdminContext, getEditorContext } from "@/lib/admin";
 import { customerSearchFilter } from "@/lib/customer-search";
 import { cleanCountry, phoneError } from "@/lib/phone";
 import { parseCustomerPhone } from "@/lib/phone-intl";
-import { PLAN_ERRORS } from "@/lib/plan-features";
+import { LOCKED_FEATURES, PLAN_ERRORS, minPlanLabel } from "@/lib/plan-features";
 import { PET_NICHE_ID } from "@/lib/pets";
 import { activeDrivers, pickDriver, type ActiveDriver } from "@/lib/drivers";
+
+// 67: encaixe e recorrência saíram do Básico (o banco devolve PLANO_PROFISSIONAL_ENCAIXE / _RECORRENCIA;
+// PLANO_BASICO / PLANO_GRATIS ficam para o intervalo entre o deploy e a migration)
+const FIT_PLAN_ERROR = `Encaixe é um recurso dos ${minPlanLabel(LOCKED_FEATURES.encaixe.minPlan)}. No Grátis e no Básico, escolha um horário da lista.`;
+const SERIES_PLAN_ERROR = `Agendamentos recorrentes são um recurso dos ${minPlanLabel(LOCKED_FEATURES.recorrencia.minPlan)}.`;
 
 type Result = { ok: true } | { ok: false; error: string };
 type Method = "pix" | "dinheiro" | "credito" | "debito";
@@ -23,11 +28,12 @@ const PACKAGE_ERRORS: Record<string, string> = {
   PACOTE_INVALIDO: "Esse pacote não pode ser usado aqui (cancelado, de outro cliente ou de outro serviço).",
   // combos (32_combos), no gatilho do item 0
   PROFISSIONAL_NAO_FAZ: "Esse profissional não faz todos os serviços deste combo.",
+  PLANO_PROFISSIONAL_ENCAIXE: FIT_PLAN_ERROR,   // 67 (antes de PLANO_PROFISSIONAL: busca por trecho)
   PLANO_PROFISSIONAL: "Combos são um recurso dos planos Profissional e Equipe.",
   PLANO_GRATIS: "Combos são um recurso dos planos Profissional e Equipe.",
   COMBO_INCOMPLETO: "Esse combo está incompleto. Edite o combo em Serviços.",
-  // 52: encaixe (fora da lista) e encaixe sobreposto, a partir do Básico
-  PLANO_BASICO: "Encaixe é um recurso dos planos pagos, a partir do Básico. No Grátis, escolha um horário da lista.",
+  // 52 (até a migration 67 rodar): encaixe fora da lista e encaixe sobreposto
+  PLANO_BASICO: FIT_PLAN_ERROR,
 };
 const packageError = (message?: string) =>
   PACKAGE_ERRORS[Object.keys(PACKAGE_ERRORS).find((k) => message?.includes(k)) ?? ""];
@@ -673,7 +679,8 @@ export type SeriesDate = { seq: number; date: string; issue: string | null };
 
 const SERIES_ERRORS: Record<string, string> = {
   PLANO_CONSULTA: PLAN_ERRORS.PLANO_CONSULTA,   // 59: Grátis vencido = só consulta
-  PLANO_GRATIS: "Agendamentos recorrentes são um recurso dos planos pagos, a partir do Básico.",
+  PLANO_PROFISSIONAL_RECORRENCIA: SERIES_PLAN_ERROR,   // 67
+  PLANO_GRATIS: SERIES_PLAN_ERROR,   // até a migration 67 rodar
   SEM_PERMISSAO: "Você só pode agendar na sua própria agenda.",
   FREQUENCIA_INVALIDA: "Escolha a frequência.",
   QUANTIDADE_INVALIDA: "Escolha de 1 a 52 vezes.",
@@ -769,7 +776,8 @@ export async function cancelSeriesFuture(seriesId: string): Promise<{ ok: true; 
 // ---------------------------------------------------------------------
 const RESCHEDULE_ERRORS: Record<string, string> = {
   PLANO_CONSULTA: PLAN_ERRORS.PLANO_CONSULTA,   // 59: Grátis vencido = só consulta
-  PLANO_BASICO: "Encaixe é um recurso dos planos pagos, a partir do Básico. No Grátis, escolha um horário livre.",
+  PLANO_PROFISSIONAL_ENCAIXE: FIT_PLAN_ERROR,   // 67
+  PLANO_BASICO: FIT_PLAN_ERROR,   // até a migration 67 rodar
   PASSADO: "Escolha uma data e horário a partir de agora.",
   FECHADO: "O espaço não abre nesse dia.",
   FORA_EXPEDIENTE: "Esse horário fica fora do expediente.",

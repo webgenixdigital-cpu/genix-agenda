@@ -61,7 +61,7 @@ export type RescheduleProps = {
   professionals: ProOption[];
   /** matriz e recepção: trocam o profissional e podem encaixar */
   canChooseProfessional: boolean;
-  /** 52: encaixe no Remarcar só a partir do Básico (Grátis: cadeado) */
+  /** 67: encaixe no Remarcar nos planos Profissional e Equipe (Grátis e Básico: cadeado) */
   canFit?: boolean;
   /** "Reabrir atendimento" nos concluídos (matriz e recepção) */
   canReopen?: boolean;

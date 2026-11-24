@@ -33,6 +33,8 @@ type Props = {
   hours: BusinessHour[];
   /** 52: o espaço não está recebendo agendamento online (mensagem neutra, sem dizer o motivo) */
   onlineClosed?: boolean;
+  /** 64: banho e tosa — pede o nome do pet */
+  petMode?: boolean;
 };
 
 type Slot = { slot_time: string; professional_ids: string[] };
@@ -47,6 +49,8 @@ type Confirmation = {
   price: number;
   customer_name: string;
   status: "pending" | "confirmed";
+  /** 64: banho e tosa */
+  pet_name?: string | null;
 };
 
 const STEPS = ["Serviço", "Profissional", "Data e horário", "Seus dados"];
@@ -68,7 +72,7 @@ declare global {
 // ---------------------------------------------------------------------
 // PARTE 2 — Componente
 // ---------------------------------------------------------------------
-export function BookingWizard({ slug, businessName, whatsapp, services, professionals, hours, onlineClosed = false }: Props) {
+export function BookingWizard({ slug, businessName, whatsapp, services, professionals, hours, onlineClosed = false, petMode = false }: Props) {
   const supabase = useMemo(() => createClient(), []);
 
   const [open, setOpen] = useState(false);
@@ -85,6 +89,7 @@ export function BookingWizard({ slug, businessName, whatsapp, services, professi
   const [phone, setPhone] = useState("");
   const [phoneCountry, setPhoneCountry] = useState(BR);
   const [notes, setNotes] = useState("");
+  const [petName, setPetName] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<Confirmation | null>(null);
@@ -164,6 +169,7 @@ export function BookingWizard({ slug, businessName, whatsapp, services, professi
     setDone(null);
     setLimitHit(false);
     setToken("");
+    setPetName("");
   }
 
   async function submit() {
@@ -182,6 +188,7 @@ export function BookingWizard({ slug, businessName, whatsapp, services, professi
       notes: notes || null,
       professionalId: proId === ANY ? null : proId,
       token,
+      ...(petMode ? { petName } : {}),
     });
     setSending(false);
     if (!r) return;
@@ -203,7 +210,7 @@ export function BookingWizard({ slug, businessName, whatsapp, services, professi
 
   // regra do banco; a validação completa (libphonenumber) roda na server action
   const phoneOk = isPhoneShapeValid(phoneCountry, normalizePhone(phone, phoneCountry));
-  const canSubmit = name.trim().length >= 2 && phoneOk && !!token && !sending;
+  const canSubmit = name.trim().length >= 2 && phoneOk && !!token && !sending && (!petMode || petName.trim().length >= 1);
 
   const confirmed = done?.status === "confirmed";
   const waText = done
@@ -211,7 +218,8 @@ export function BookingWizard({ slug, businessName, whatsapp, services, professi
         ? `Olá, ${businessName}! Agendei pelo site e meu horário já está confirmado:\n\n`
         : `Olá, ${businessName}! Acabei de enviar um pedido de agendamento pelo site. Fico aguardando a confirmação:\n\n`) +
       `• ${done.service_name}\n• Com ${done.professional_name}\n` +
-      `• ${longDate(done.date)}, às ${done.start_time}\n\nNome: ${done.customer_name}`
+      `• ${longDate(done.date)}, às ${done.start_time}\n\nNome: ${done.customer_name}` +
+      (petMode && (done.pet_name || petName.trim()) ? `\nPet: ${done.pet_name || petName.trim()}` : "")
     : "";
   const waConfirm = whatsappLink(whatsapp, waText);
 
@@ -265,6 +273,7 @@ export function BookingWizard({ slug, businessName, whatsapp, services, professi
             </DialogDescription>
 
             <dl className="mt-6 space-y-2 rounded-xl bg-secondary p-4 text-left text-sm">
+              {petMode && (done.pet_name || petName.trim()) && <Row label="Pet" value={done.pet_name || petName.trim()} />}
               <Row label="Serviço" value={done.service_name} />
               <Row label="Profissional" value={done.professional_name} />
               <Row label="Data" value={longDate(done.date)} />
@@ -468,8 +477,23 @@ export function BookingWizard({ slug, businessName, whatsapp, services, professi
                     if (canSubmit) submit();
                   }}
                 >
+                  {petMode && (
+                    <div className="space-y-1.5">
+                      <Label htmlFor="bk-pet">Nome do pet</Label>
+                      <Input
+                        id="bk-pet"
+                        value={petName}
+                        maxLength={60}
+                        onChange={(e) => setPetName(e.target.value)}
+                        placeholder="ex.: Thor"
+                        className="h-12 text-base"
+                        data-testid="input-nome-pet"
+                      />
+                      <p className="text-xs text-muted-foreground">Tem mais de um pet? Faça um agendamento para cada um.</p>
+                    </div>
+                  )}
                   <div className="space-y-1.5">
-                    <Label htmlFor="bk-name">Seu nome</Label>
+                    <Label htmlFor="bk-name">{petMode ? "Seu nome (tutor)" : "Seu nome"}</Label>
                     <Input
                       id="bk-name"
                       value={name}

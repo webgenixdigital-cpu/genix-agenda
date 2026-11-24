@@ -7,6 +7,8 @@ import { customerSearchFilter } from "@/lib/customer-search";
 import { cleanCountry, phoneError } from "@/lib/phone";
 import { parseCustomerPhone } from "@/lib/phone-intl";
 import { PLAN_ERRORS } from "@/lib/plan-features";
+import { PET_NICHE_ID } from "@/lib/pets";
+import { activeDrivers, pickDriver, type ActiveDriver } from "@/lib/drivers";
 
 type Result = { ok: true } | { ok: false; error: string };
 type Method = "pix" | "dinheiro" | "credito" | "debito";
@@ -29,6 +31,123 @@ const PACKAGE_ERRORS: Record<string, string> = {
 };
 const packageError = (message?: string) =>
   PACKAGE_ERRORS[Object.keys(PACKAGE_ERRORS).find((k) => message?.includes(k)) ?? ""];
+
+// ---------------------------------------------------------------------
+// PARTE 0 — 64_atendimento_por_pet: no nicho "Banho e tosa" cada agendamento é de 1 pet.
+// O tutor continua sendo o cliente (o gatilho liga pelo WhatsApp); o pet entra
+// depois de criado o agendamento. O banco confere pet ↔ tutor ↔ pacote.
+// ---------------------------------------------------------------------
+/** petId = pet já cadastrado do tutor; newPetName = cadastra o pet junto (tutor novo ou pet novo).
+ *  transport (4a): leva e traz; a taxa fica registrada e é cobrada à parte (não entra no total). */
+export type PetChoice = {
+  petId?: string | null;
+  newPetName?: string;
+  transport?: Transport;
+  /** "15,00" */
+  transportFee?: string;
+  transportAddress?: string;
+  transportAddressRef?: string;
+  /** só quando há mais de um motorista ativo; sem ele, o sistema escolhe */
+  transportDriverId?: string | null;
+};
+export type Transport = "nenhum" | "busca" | "entrega" | "busca_entrega";
+const TRANSPORTS: Transport[] = ["nenhum", "busca", "entrega", "busca_entrega"];
+const feeNumber = (raw?: string) => {
+  const n = Number((raw ?? "").replace(/\./g, "").replace(",", "."));
+  return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : NaN;
+};
+
+type Supa = ReturnType<typeof createClient>;
+type Biz = { id: string; subcategory: string | null };
+
+const isPetBusiness = (b: Biz) => b.subcategory === PET_NICHE_ID;
+
+/** Antes de criar: no nicho pet, exige o pet e confere se o pacote é dele */
+async function checkPetChoice(supabase: Supa, business: Biz, pet: PetChoice, packageId?: string | null, role?: string) {
+  if (!isPetBusiness(business)) return null;
+  const transport = pet.transport ?? "nenhum";
+  if (!TRANSPORTS.includes(transport)) return "Escolha o leva e traz.";
+  if (transport !== "nenhum") {
+    if (role !== "owner" && role !== "reception") return "Só a matriz e a recepção marcam leva e traz.";
+    if ((pet.transportAddress ?? "").trim().length < 5) return "Informe o endereço do tutor para o leva e traz.";
+    if ((pet.transportAddress ?? "").length > 200 || (pet.transportAddressRef ?? "").length > 120) return "Endereço muito longo.";
+    const fee = feeNumber(pet.transportFee || "0");
+    if (Number.isNaN(fee) || fee > 9999) return "Taxa do leva e traz inválida.";
+  }
+  const newName = pet.newPetName?.trim() ?? "";
+  if (!pet.petId && !newName) return "Escolha o pet que vai ser atendido.";
+  if (!pet.petId && newName.length > 60) return "Nome do pet: no máximo 60 caracteres.";
+  if (packageId) {
+    const { data: p } = await supabase
+      .from("customer_packages").select("pet_id").eq("id", packageId).eq("business_id", business.id).maybeSingle();
+    if (p?.pet_id && p.pet_id !== (pet.petId ?? null)) return "Esse pacote é de outro pet.";
+  }
+  return null;
+}
+
+/** Depois de criar: liga o pet (cadastra se for novo) aos agendamentos */
+async function attachPet(supabase: Supa, business: Biz, bookingIds: string[], pet: PetChoice) {
+  if (!isPetBusiness(business) || bookingIds.length === 0) return null;
+  let petId = pet.petId ?? null;
+  if (!petId) {
+    const { data: b } = await supabase
+      .from("bookings").select("customer_id").eq("id", bookingIds[0]).eq("business_id", business.id).maybeSingle();
+    if (!b?.customer_id) return "Agendamento criado, mas não achei o tutor para cadastrar o pet. Edite pela ficha do cliente.";
+    const { data: created, error } = await supabase
+      .from("pets")
+      .insert({ business_id: business.id, customer_id: b.customer_id, name: pet.newPetName!.trim() })
+      .select("id").single();
+    if (error || !created) return "Agendamento criado, mas não foi possível cadastrar o pet.";
+    petId = created.id as string;
+  }
+  const { error } = await supabase
+    .from("bookings").update({ pet_id: petId }).in("id", bookingIds).eq("business_id", business.id);
+  if (error) return `Agendamento criado, mas não foi possível ligar o pet (${petError(error.message) ?? "tente pela agenda"}).`;
+  return attachTransport(supabase, business, bookingIds, pet);
+}
+
+/** 4a: leva e traz — grava no agendamento, atualiza o endereço do tutor e cria as paradas (sem motorista) */
+async function attachTransport(supabase: Supa, business: Biz, bookingIds: string[], pet: PetChoice) {
+  const transport = pet.transport ?? "nenhum";
+  if (transport === "nenhum" || bookingIds.length === 0) return null;
+  const fail = "Agendamento criado, mas o leva e traz não foi salvo. Marque de novo pela tela Leva e traz.";
+
+  const { data: first } = await supabase
+    .from("bookings").select("customer_id").eq("id", bookingIds[0]).eq("business_id", business.id).maybeSingle();
+  if (first?.customer_id) {
+    await supabase.from("customers").update({
+      address: pet.transportAddress!.trim(),
+      address_ref: pet.transportAddressRef?.trim() || null,
+    }).eq("id", first.customer_id).eq("business_id", business.id);
+  }
+
+  const { error: upErr } = await supabase
+    .from("bookings").update({ transport, transport_fee: feeNumber(pet.transportFee || "0") })
+    .in("id", bookingIds).eq("business_id", business.id);
+  if (upErr) return fail;
+
+  const kinds = transport === "busca_entrega" ? ["busca", "entrega"] : [transport];
+  // motorista: o escolhido, o único ativo ou um livre no horário (cada data da série confere o seu)
+  const { data: bks } = await supabase
+    .from("bookings").select("id, booking_date, start_time").in("id", bookingIds).eq("business_id", business.id);
+  const driverOf = new Map<string, string | null>();
+  for (const b of (bks ?? []) as { id: string; booking_date: string; start_time: string }[]) {
+    driverOf.set(b.id, await pickDriver(supabase, business.id, b, pet.transportDriverId));
+  }
+  const rows = bookingIds.flatMap((id) =>
+    kinds.map((kind) => ({ business_id: business.id, booking_id: id, kind, driver_id: driverOf.get(id) ?? null }))
+  );
+  const { error: routeErr } = await supabase.from("transport_routes").insert(rows);
+  return routeErr ? fail : null;
+}
+
+const PET_ERRORS: Record<string, string> = {
+  "Este pet é de outro tutor": "este pet é de outro tutor",
+  "Este pacote é de outro pet": "o pacote é de outro pet",
+  "Pet não pertence a este espaço": "pet de outro espaço",
+};
+const petError = (message?: string) =>
+  PET_ERRORS[Object.keys(PET_ERRORS).find((k) => message?.includes(k)) ?? ""];
 
 function refresh() {
   revalidatePath("/admin/agenda");
@@ -206,9 +325,12 @@ export async function createManualBooking(input: {
   customerPhoneCountry?: string;
   notes?: string;
   packageId?: string | null;
-}): Promise<Result> {
-  const { business } = await getEditorContext();
+} & PetChoice): Promise<Result> {
+  const { business, role } = await getEditorContext();
   const supabase = createClient();
+
+  const petErr = await checkPetChoice(supabase, business, input, input.packageId, role);
+  if (petErr) return { ok: false, error: petErr };
 
   const name = input.customerName.trim();
   const parsedPhone = parseCustomerPhone(input.customerPhone, input.customerPhoneCountry);
@@ -240,7 +362,7 @@ export async function createManualBooking(input: {
   });
   if (blocked) return { ok: false, error: "Esse horário está bloqueado na agenda desse profissional." };
 
-  const { error } = await supabase.from("bookings").insert({
+  const { data: created, error } = await supabase.from("bookings").insert({
     business_id: business.id,
     service_id: service.id,
     professional_id: pro.id,
@@ -259,7 +381,7 @@ export async function createManualBooking(input: {
     source: "manual",
     // o banco valida cliente, serviço, validade e saldo (trg_validate_package)
     customer_package_id: input.packageId || null,
-  });
+  }).select("id").single();
 
   if (error) {
     return {
@@ -270,9 +392,10 @@ export async function createManualBooking(input: {
         : packageError(error.message) ?? "Não foi possível salvar o agendamento.",
     };
   }
+  const attachErr = await attachPet(supabase, business, created ? [created.id as string] : [], input);
   refresh();
   if (input.packageId) revalidatePath("/admin/clientes");
-  return { ok: true };
+  return attachErr ? { ok: false, error: attachErr } : { ok: true };
 }
 
 // ---------------------------------------------------------------------
@@ -355,8 +478,8 @@ export async function createOverlayBooking(input: {
   customerPhoneCountry?: string;
   notes?: string;
   packageId?: string | null;
-}): Promise<Result> {
-  const { business } = await getEditorContext();
+} & PetChoice): Promise<Result> {
+  const { business, role } = await getEditorContext();
   const name = input.customerName.trim();
   const parsedPhone = parseCustomerPhone(input.customerPhone, input.customerPhoneCountry);
   if (name.length < 2) return { ok: false, error: "Informe o nome do cliente." };
@@ -366,7 +489,9 @@ export async function createOverlayBooking(input: {
   }
 
   const supabase = createClient();
-  const { error } = await supabase.rpc("create_overlay_booking", {
+  const petErr = await checkPetChoice(supabase, business, input, input.packageId, role);
+  if (petErr) return { ok: false, error: petErr };
+  const { data: overlayId, error } = await supabase.rpc("create_overlay_booking", {
     p_business: business.id,
     p_service: input.serviceId,
     p_professional: input.professionalId,
@@ -379,9 +504,10 @@ export async function createOverlayBooking(input: {
     p_package: input.packageId || null,
   });
   if (error) return { ok: false, error: overlayError(error.message) };
+  const attachErr = await attachPet(supabase, business, overlayId ? [overlayId as string] : [], input);
   refresh();
   if (input.packageId) revalidatePath("/admin/clientes");
-  return { ok: true };
+  return attachErr ? { ok: false, error: attachErr } : { ok: true };
 }
 
 export async function rescheduleOverlay(input: {
@@ -418,14 +544,25 @@ export type CustomerPackage = {
   id: string;
   name: string;
   expires_at: string | null;
+  /** 64: pacote de um pet (null = do tutor / outros nichos) */
+  petId: string | null;
   items: { serviceId: string; serviceName: string; remaining: number }[];
 };
+
+export type LookupPet = { id: string; name: string; size: string | null };
+
+/** 4b: motoristas ativos (o novo agendamento só mostra a escolha com 2 ou mais) */
+export async function listActiveDrivers(): Promise<ActiveDriver[]> {
+  const { business, role } = await getAdminContext();
+  if (!isPetBusiness(business) || (role !== "owner" && role !== "reception")) return [];
+  return activeDrivers(createClient(), business.id);
+}
 
 /** Cliente exato pelo país + número (RLS: o profissional só acha quem já atendeu) */
 export async function lookupCustomer(
   phone: string,
   phoneCountry?: string
-): Promise<{ name: string; packages: CustomerPackage[] } | null> {
+): Promise<{ name: string; packages: CustomerPackage[]; pets: LookupPet[]; address: string | null; addressRef: string | null } | null> {
   const { business } = await getAdminContext();
   const parsedPhone = parseCustomerPhone(phone, phoneCountry);
   if (!parsedPhone) return null;
@@ -451,11 +588,32 @@ export async function lookupCustomer(
     remaining: number; expires_at: string | null;
   }[]) {
     const p = packages.get(r.customer_package_id) ??
-      { id: r.customer_package_id, name: r.package_name, expires_at: r.expires_at, items: [] };
+      { id: r.customer_package_id, name: r.package_name, expires_at: r.expires_at, petId: null, items: [] };
     p.items.push({ serviceId: r.service_id, serviceName: r.service_name, remaining: r.remaining });
     packages.set(r.customer_package_id, p);
   }
-  return { name: customer.name as string, packages: Array.from(packages.values()) };
+  // 64: pets ativos do tutor e o pet de cada pacote (nicho "Banho e tosa")
+  let pets: LookupPet[] = [];
+  let address: string | null = null;
+  let addressRef: string | null = null;
+  if (isPetBusiness(business)) {
+    const { data: addr } = await supabase.from("customers").select("address, address_ref").eq("id", customer.id).maybeSingle();
+    address = (addr?.address as string | null) ?? null;
+    addressRef = (addr?.address_ref as string | null) ?? null;
+    const ids = Array.from(packages.keys());
+    const [{ data: petRows }, { data: pkgPets }] = await Promise.all([
+      supabase.from("pets").select("id, name, size").eq("customer_id", customer.id).eq("active", true).order("created_at"),
+      ids.length
+        ? supabase.from("customer_packages").select("id, pet_id").in("id", ids)
+        : Promise.resolve({ data: [] as { id: string; pet_id: string | null }[] }),
+    ]);
+    pets = (petRows ?? []) as LookupPet[];
+    for (const r of pkgPets ?? []) {
+      const p = packages.get(r.id);
+      if (p) p.petId = r.pet_id;
+    }
+  }
+  return { name: customer.name as string, packages: Array.from(packages.values()), pets, address, addressRef };
 }
 
 export type ManualSlot = { time: string; professionalIds: string[] };
@@ -562,10 +720,12 @@ export async function previewSeries(
 }
 
 export async function createSeries(
-  input: SeriesInput
+  input: SeriesInput & PetChoice
 ): Promise<{ ok: true; created: number; skipped: SeriesDate[] } | { ok: false; error: string }> {
-  const { business } = await getEditorContext();
+  const { business, role } = await getEditorContext();
   const supabase = createClient();
+  const petErr = await checkPetChoice(supabase, business, input, input.packageId, role);
+  if (petErr) return { ok: false, error: petErr };
   const { data, error } = await supabase.rpc("create_booking_series", {
     ...seriesArgs(input, business.id),
     p_customer_name: input.customerName.trim(),
@@ -580,6 +740,11 @@ export async function createSeries(
   }
 
   const rows = (data ?? []) as { seq: number; occurs_on: string; booking_id: string | null; issue: string | null }[];
+  const attachErr = await attachPet(supabase, business, rows.flatMap((r) => (r.booking_id ? [r.booking_id] : [])), input);
+  if (attachErr) {
+    refresh();
+    return { ok: false, error: attachErr };
+  }
   refresh();
   if (input.packageId) revalidatePath("/admin/clientes");
   return {

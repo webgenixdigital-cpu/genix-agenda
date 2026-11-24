@@ -15,6 +15,8 @@ import { AdminSidebar } from "@/components/admin/admin-sidebar";
 import { DemoBanner } from "@/components/admin/demo-banner";
 import { PlanBanner } from "@/components/admin/plan-banner";
 import { PlanFlagsProvider } from "@/components/admin/plan-flags";
+import { NicheFlagsProvider } from "@/components/admin/niche-flags";
+import { PET_NICHE_ID } from "@/lib/pets";
 import { EmailConfirmedToast, EmailVerifyBanner } from "@/components/admin/email-verify-banner";
 import { NixChat } from "@/components/admin/nix/nix-chat";
 import { agentAccess } from "@/lib/agente/access";
@@ -112,6 +114,7 @@ export default async function PainelLayout({ children }: { children: React.React
           email={isDemo ? "Conta de demonstração" : ctx.email}
           lockedHrefs={lockedHrefsFor(plan.kind)}
           role={ctx.role}
+          petMode={ctx.business.subcategory === PET_NICHE_ID}
           initialCollapsed={sidebarCollapsed}
           belowDemoBanner={isDemo}
         />
@@ -147,7 +150,9 @@ export default async function PainelLayout({ children }: { children: React.React
           </Suspense>
           <PlanFlagsProvider value={{ readOnly: plan.freeOver, reviewRequest: allows(plan, "profissional") }}>
             {/* espaço no fim da página para o botão da Nix não cobrir o último item */}
-            {nix.kind === "oculto" ? children : <div className="pb-20">{children}</div>}
+            <NicheFlagsProvider value={{ petMode: ctx.business.subcategory === PET_NICHE_ID }}>
+              {nix.kind === "oculto" ? children : <div className="pb-20">{children}</div>}
+            </NicheFlagsProvider>
           </PlanFlagsProvider>
         </div>
       </div>

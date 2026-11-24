@@ -1,5 +1,6 @@
 // Dados do Início (/admin): tudo numa rodada só (um Promise.all), cada consulta
 // só para o papel/plano que vê o quadro. Consulta que falha devolve null e o quadro some.
+import { PET_NICHE_ID } from "@/lib/pets";
 import { createClient } from "@/lib/supabase/server";
 import { addDaysISO, todayInZone } from "@/lib/dates";
 import { BIRTH_YEAR } from "@/lib/birthday";
@@ -20,6 +21,7 @@ type BusinessLike = {
   hero_image?: string | null;
   whatsapp?: string | null;
   onboarding?: Record<string, boolean> | null;
+  subcategory?: string | null;
 };
 
 export type TodayBooking = {
@@ -31,6 +33,8 @@ export type TodayBooking = {
   professional_name: string;
   price: number;
   status: string;
+  /** 64: banho e tosa — pet atendido */
+  pet_name?: string | null;
 };
 
 export type NextBlock = { date_start: string; date_end: string; reason: string | null; time_start: string | null };
@@ -73,6 +77,8 @@ export async function loadHome(
   const today = todayInZone(tz);
   const monthStart = today.slice(0, 8) + "01";
   const bid = business.id;
+  // 64: banho e tosa traz o pet dos atendimentos de hoje (outros nichos: consulta igual)
+  const isPet = business.subcategory === PET_NICHE_ID;
 
   const ownerLike = role === "owner" || role === "viewer";
   const wholeTeam = ownerLike || role === "reception";
@@ -118,7 +124,7 @@ export async function loadHome(
       : none,
     supabase
       .from("bookings")
-      .select("id, start_time, end_time, customer_name, service_name, professional_name, price, status")
+      .select(`id, start_time, end_time, customer_name, service_name, professional_name, price, status${isPet ? ", pet:pets(name)" : ""}`)
       .eq("business_id", bid)
       .eq("booking_date", today)
       .order("start_time"),
@@ -177,7 +183,9 @@ export async function loadHome(
   const sum = (list: { amount: number | string }[]) => list.reduce((acc, c) => acc + Number(c.amount), 0);
 
   // --- Hoje
-  const bookings = (bookingsToday.data ?? []) as TodayBooking[];
+  const bookings = ((bookingsToday.data ?? []) as unknown as (TodayBooking & { pet?: { name: string } | null })[]).map(
+    ({ pet, ...b }) => (isPet ? { ...b, pet_name: pet?.name ?? null } : b)
+  ) as TodayBooking[];
   const active = bookings.filter((b) => b.status !== "cancelled");
 
   // --- Caixa do mês

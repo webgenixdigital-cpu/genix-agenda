@@ -1,7 +1,8 @@
 // Cartão de um agendamento (lista do Dia e lista do dia no Mês) + aviso de bloqueio.
 // Sem "use client": serve na página (servidor) e no calendário (cliente).
 import Link from "next/link";
-import { CalendarOff, Globe, Layers2, Package, Phone, Repeat, StickyNote } from "lucide-react";
+import { CalendarOff, Car, Globe, Layers2, Package, PawPrint, Phone, Repeat, StickyNote } from "lucide-react";
+import { TRANSPORT_LABEL, attendeeName, tutorLine } from "@/lib/pets";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { AutoConfirmBadge } from "@/components/admin/auto-confirm-badge";
 import { PaymentPendingBadge } from "@/components/admin/payment-pending-badge";
@@ -51,11 +52,22 @@ export function BookingCard({
           <div className="flex flex-wrap items-center gap-2">
             {b.customer_id ? (
               <Link href={`/admin/clientes/${b.customer_id}`} className="tap-target font-semibold hover:underline" data-testid={`link-cliente-${b.id}`}>
-                {b.customer_name}
+                {b.pet_name && <PawPrint className="mr-1 inline h-4 w-4 text-primary" aria-hidden />}
+                {attendeeName(b)}
               </Link>
             ) : (
-              <p className="font-semibold">{b.customer_name}</p>
+              <p className="font-semibold">{attendeeName(b)}</p>
             )}
+            {b.transport && b.transport !== "nenhum" && (
+              <Link
+                href={`/admin/leva-e-traz?data=${b.booking_date}`}
+                className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-xs font-medium hover:underline"
+                data-testid={`selo-leva-traz-${b.id}`}
+              >
+                <Car className="h-3 w-3" aria-hidden /> {TRANSPORT_LABEL[b.transport]}
+              </Link>
+            )}
+            {tutorLine(b) && <span className="w-full text-xs text-muted-foreground" data-testid={`tutor-${b.id}`}>{tutorLine(b)}</span>}
             <StatusBadge status={b.status} />
             <AutoConfirmBadge status={b.status} reason={b.auto_confirm_reason} testId={`selo-auto-confirmado-${b.id}`} />
             {b.status === "completed" && b.payment_status === "pending" && <PaymentPendingBadge testId={`selo-pagamento-pendente-${b.id}`} />}

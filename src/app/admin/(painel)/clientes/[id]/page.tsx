@@ -14,6 +14,9 @@ import { CustomerDialog, DeleteCustomerButton } from "@/components/admin/cliente
 import { ProfileCard, type ProfileField } from "@/components/admin/clientes/profile-card";
 import { PackagesCard, type CustomerPackage } from "@/components/admin/clientes/packages-card";
 import { AutoReminderToggle } from "@/components/admin/clientes/auto-reminder-toggle";
+import { PetsCard } from "@/components/admin/clientes/pets-card";
+import { TutorAddressCard } from "@/components/admin/clientes/tutor-address-card";
+import { PET_COLUMNS, PET_NICHE_ID, type Pet } from "@/lib/pets";
 import { EditBookingButton } from "@/components/admin/agenda/edit-booking-dialog";
 import { ReopenBookingButton } from "@/components/admin/agenda/reopen-booking-button";
 import { PaymentPendingBadge } from "@/components/admin/payment-pending-badge";
@@ -178,6 +181,14 @@ export default async function ClientePage({ params }: Props) {
       .order("sort_order"),
     supabase.from("niches").select("name").eq("id", business.subcategory ?? "").maybeSingle(),
   ]);
+  // 63: pets do tutor (só no nicho "Banho e tosa")
+  const isPet = business.subcategory === PET_NICHE_ID;
+  const [{ data: pets }, { data: tutorAddress }] = isPet
+    ? await Promise.all([
+        supabase.from("pets").select(PET_COLUMNS).eq("customer_id", c.id).order("created_at"),
+        supabase.from("customers").select("address, address_ref, alt_contact").eq("id", c.id).maybeSingle(),
+      ])
+    : [{ data: [] }, { data: null }];
   const { data: events } = list.length
     ? await supabase
         .from("booking_events")
@@ -215,11 +226,14 @@ export default async function ClientePage({ params }: Props) {
     canSell ? loadSaleOptions(supabase, business.id) : Promise.resolve({ templates: [], professionals: [] }),
     getPlanContext(business.id),
     // 39_pacote_datas_fixas: modo de agendamento de cada pacote
-    supabase.from("customer_packages").select("id, schedule_mode, payment_status").eq("customer_id", c.id),
+    supabase.from("customer_packages").select("id, schedule_mode, payment_status, pet_id").eq("customer_id", c.id),
   ]);
   const modeById = new Map(((pkgModes ?? []) as { id: string; schedule_mode: string }[]).map((m) => [m.id, m.schedule_mode]));
   // 49_pagamento_depois: pacote vendido com "Escolher depois"
   const paymentById = new Map(((pkgModes ?? []) as { id: string; payment_status: string | null }[]).map((m) => [m.id, m.payment_status]));
+  // 65: pet dono de cada pacote (banho e tosa)
+  const petNameById = new Map(((pets ?? []) as Pet[]).map((p) => [p.id, p.name]));
+  const petByPkg = new Map(((pkgModes ?? []) as { id: string; pet_id: string | null }[]).map((m) => [m.id, m.pet_id ? petNameById.get(m.pet_id) ?? null : null]));
 
   type PkgItem = {
     id: string;
@@ -252,6 +266,7 @@ export default async function ClientePage({ params }: Props) {
     price: Number(p.price),
     fixed: modeById.get(p.id) === "fixed",
     paymentPending: paymentById.get(p.id) === "pending",
+    pet_name: petByPkg.get(p.id) ?? null,
     items: items
       .filter((i) => i.customer_package_id === p.id)
       .map(({ id, service_name, sessions_total, used, remaining }) => ({ id, service_name, sessions_total, used, remaining })),
@@ -368,6 +383,15 @@ export default async function ClientePage({ params }: Props) {
         <AutoReminderToggle customerId={c.id} initial={c.no_auto_reminders} />
       )}
 
+      {/* Pets (63): só espaços de banho e tosa */}
+      {isPet && <PetsCard customerId={c.id} pets={(pets ?? []) as Pet[]} canDelete={role === "owner"} />}
+      {isPet && (
+        <TutorAddressCard
+          customerId={c.id}
+          initial={(tutorAddress as { address: string | null; address_ref: string | null; alt_contact: string | null } | null) ?? { address: null, address_ref: null, alt_contact: null }}
+        />
+      )}
+
       {/* Pacotes: no Grátis e no Básico só aparece se já houver pacote vendido */}
       {(allows(plan, "profissional") || packages.length > 0) && (
         <PackagesCard
@@ -378,6 +402,7 @@ export default async function ClientePage({ params }: Props) {
           professionals={sale.professionals}
           locked={!allows(plan, "profissional")}
           today={todayInZone(business.timezone)}
+          pets={isPet ? ((pets ?? []) as Pet[]).filter((p) => p.active).map((p) => ({ id: p.id, name: p.name })) : undefined}
         />
       )}
 

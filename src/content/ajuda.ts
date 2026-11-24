@@ -585,6 +585,25 @@ const AJUDA_TEXTOS = {
     passos: ["Toque em “Editar ficha técnica”.", "Preencha os campos e salve."],
     atencao: ["Não use para dados de saúde (alergias, remédios, doenças). O sistema não é feito para guardar esse tipo de informação."],
   },
+  pets: {
+    titulo: "Pets",
+    serve: "Guarda os pets deste tutor: espécie, raça, porte, peso, pelagem e comportamento. Isso ajuda a prever o tempo do banho e da tosa.",
+    passos: ["Toque em “Adicionar pet”.", "Preencha o que souber (só o nome é obrigatório) e salve.", "Para mudar algo, toque no lápis ao lado do pet."],
+    atencao: [
+      "Não registre dados de saúde (doenças, remédios, alergias).",
+      "Arquivar tira o pet da lista sem apagar o histórico. Excluir apaga de vez e só a matriz pode.",
+    ],
+  },
+  "leva-e-traz": {
+    titulo: "Leva e traz",
+    serve: "Mostra as buscas e entregas de pets do dia, com endereço do tutor, motorista e status.",
+    passos: [
+      "Marque o leva e traz no novo agendamento do pet.",
+      "Aqui, escolha o motorista de cada parada e use as setas para montar a ordem da rota.",
+      "O status muda pela lista ou pelo app do motorista e atualiza sozinho.",
+    ],
+    atencao: ["A taxa do leva e traz é cobrada à parte: ela não entra no total do atendimento nem no caixa."],
+  },
 } satisfies Record<string, AjudaItem>;
 
 export type AjudaId = keyof typeof AJUDA_TEXTOS;

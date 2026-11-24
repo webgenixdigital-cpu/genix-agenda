@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { cleanCountry } from "@/lib/phone";
 import { parseCustomerPhone } from "@/lib/phone-intl";
+import { PET_NICHE_ID } from "@/lib/pets";
 
 // ---------------------------------------------------------------------
 // PARTE 1 — Tipos e mensagens
@@ -20,6 +21,8 @@ export type PublicBookingInput = {
   notes: string | null;
   professionalId: string | null;
   token: string;
+  /** 64: banho e tosa — nome do pet atendido (obrigatório nesse nicho) */
+  petName?: string;
 };
 
 export type PublicBooking = {
@@ -33,6 +36,8 @@ export type PublicBooking = {
   customer_name: string;
   /** 'confirmed' quando a confirmação automática do espaço aprovou (25_confirmacao_automatica) */
   status: "pending" | "confirmed";
+  /** 64: banho e tosa — pet do agendamento */
+  pet_name?: string | null;
 };
 
 type Result = { ok: true; booking: PublicBooking } | { ok: false; error: string; code?: string };
@@ -91,7 +96,38 @@ async function verifyTurnstile(token: string): Promise<string | null> {
 // PARTE 3 — Criar agendamento pela vitrine
 // Recebe só o slug (nunca business_id do navegador). A única chamada com
 // service role é create_public_booking, que revalida tudo no banco.
+// 64 (banho e tosa): depois, o pet entra SÓ no agendamento que essa chamada
+// acabou de criar (id devolvido pelo banco, nunca do navegador).
 // ---------------------------------------------------------------------
+
+/** Banho e tosa: o espaço é do nicho pet? (pelo slug; outros nichos não fazem nada a mais) */
+async function isPetVitrine(slug: string) {
+  const { data } = await createAdminClient()
+    .from("businesses").select("subcategory").eq("slug", slug).eq("is_published", true).maybeSingle();
+  return data?.subcategory === PET_NICHE_ID;
+}
+
+/** Liga o pet ao agendamento recém-criado: usa o pet do tutor com o mesmo nome ou cadastra. Nunca derruba o agendamento. */
+async function attachPublicPet(bookingId: string, petName: string) {
+  const db = createAdminClient();
+  const { data: b } = await db
+    .from("bookings").select("id, business_id, customer_id, pet_id, source").eq("id", bookingId).maybeSingle();
+  if (!b?.customer_id || b.pet_id || b.source !== "online") return null;
+
+  const name = petName.trim().slice(0, 60);
+  const { data: same } = await db
+    .from("pets").select("id, name").eq("business_id", b.business_id).eq("customer_id", b.customer_id)
+    .eq("active", true).ilike("name", name.replace(/[%_\\]/g, "\\$&")).limit(1).maybeSingle();
+  let petId = same?.id as string | undefined;
+  if (!petId) {
+    const { data: created } = await db
+      .from("pets").insert({ business_id: b.business_id, customer_id: b.customer_id, name }).select("id").single();
+    petId = created?.id as string | undefined;
+  }
+  if (!petId) return null;
+  const { error } = await db.from("bookings").update({ pet_id: petId }).eq("id", b.id).is("pet_id", null);
+  return error ? null : name;
+}
 export async function createPublicBooking(input: PublicBookingInput): Promise<Result> {
   if (
     typeof input.slug !== "string" ||
@@ -101,6 +137,13 @@ export async function createPublicBooking(input: PublicBookingInput): Promise<Re
     (input.professionalId !== null && !UUID.test(input.professionalId ?? ""))
   ) {
     return { ok: false, error: "Dados do agendamento inválidos. Recarregue a página e tente novamente." };
+  }
+
+  // 64: banho e tosa pede o nome do pet (o resto da vitrine não muda)
+  const petName = typeof input.petName === "string" ? input.petName.trim() : "";
+  const petVitrine = await isPetVitrine(input.slug);
+  if (petVitrine && (petName.length < 1 || petName.length > 60)) {
+    return { ok: false, error: "Informe o nome do pet.", code: "DADOS_INVALIDOS" };
   }
 
   const captchaError = await verifyTurnstile(input.token);
@@ -133,5 +176,13 @@ export async function createPublicBooking(input: PublicBookingInput): Promise<Re
       error: code ? ERRORS[code] : "Não foi possível concluir o agendamento. Tente novamente.",
     };
   }
-  return { ok: true, booking: data as PublicBooking };
+  const booking = data as PublicBooking;
+  if (petVitrine) {
+    try {
+      booking.pet_name = await attachPublicPet(booking.id, petName);
+    } catch {
+      booking.pet_name = null; // agendamento já criado; o espaço liga o pet pela agenda
+    }
+  }
+  return { ok: true, booking };
 }

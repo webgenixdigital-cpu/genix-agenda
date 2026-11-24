@@ -8,26 +8,35 @@ import { saveManualReminderTexts } from "@/app/admin/(painel)/lembretes/actions"
 import { TemplateTextField } from "@/components/admin/template-text-field";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { DEFAULT_MANUAL_TODAY, DEFAULT_MANUAL_TOMORROW } from "@/lib/messages";
-import { MANUAL_TEMPLATE_VARS } from "@/lib/whatsapp/templates";
+import { DEFAULT_MANUAL_TODAY, DEFAULT_MANUAL_TOMORROW, DEFAULT_PET_MANUAL_TODAY, DEFAULT_PET_MANUAL_TOMORROW } from "@/lib/messages";
+import { MANUAL_TEMPLATE_VARS, PET_MANUAL_TEMPLATE_VARS } from "@/lib/whatsapp/templates";
+import { useNicheFlags } from "@/components/admin/niche-flags";
 import { todayISO } from "@/lib/dates";
 
 type Props = { businessName: string; tomorrow: string | null; today: string | null };
 
-const FIELDS = [
+const BASE_FIELDS = [
   { key: "amanha", label: "Amanhã", def: DEFAULT_MANUAL_TOMORROW, offset: 1 },
   { key: "hoje", label: "Hoje", def: DEFAULT_MANUAL_TODAY, offset: 0 },
+] as const;
+
+const PET_FIELDS = [
+  { key: "amanha", label: "Amanhã", def: DEFAULT_PET_MANUAL_TOMORROW, offset: 1 },
+  { key: "hoje", label: "Hoje", def: DEFAULT_PET_MANUAL_TODAY, offset: 0 },
 ] as const;
 
 /** Textos da fila manual (matriz e recepção) */
 export function ReminderTextDialog({ businessName, tomorrow, today }: Props) {
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
-  const [texts, setTexts] = useState<[string, string]>([DEFAULT_MANUAL_TOMORROW, DEFAULT_MANUAL_TODAY]);
+  // 64: banho e tosa usa textos padrão com {pet}
+  const { petMode } = useNicheFlags();
+  const FIELDS = petMode ? PET_FIELDS : BASE_FIELDS;
+  const [texts, setTexts] = useState<[string, string]>([FIELDS[0].def, FIELDS[1].def]);
   const [error, setError] = useState<string | null>(null);
 
   function openDialog() {
-    setTexts([tomorrow || DEFAULT_MANUAL_TOMORROW, today || DEFAULT_MANUAL_TODAY]);
+    setTexts([tomorrow || FIELDS[0].def, today || FIELDS[1].def]);
     setError(null);
     setOpen(true);
   }
@@ -72,7 +81,7 @@ export function ReminderTextDialog({ businessName, tomorrow, today }: Props) {
                 value={texts[i]}
                 onChange={(v) => setTexts((cur) => (i === 0 ? [v, cur[1]] : [cur[0], v]))}
                 defaultText={f.def}
-                vars={MANUAL_TEMPLATE_VARS}
+                vars={petMode ? PET_MANUAL_TEMPLATE_VARS : MANUAL_TEMPLATE_VARS}
                 sample={{
                   customerName: "Ana Souza",
                   serviceName: "Corte e escova",
@@ -81,6 +90,7 @@ export function ReminderTextDialog({ businessName, tomorrow, today }: Props) {
                   time: "14:30",
                   businessName,
                   total: 120,
+                  ...(petMode ? { customerName: "Ana Souza", serviceName: "Banho e tosa", petName: "Thor" } : {}),
                 }}
                 testIds={{
                   restore: `btn-lembrete-texto-padrao-${f.key}`,

@@ -3,20 +3,24 @@
 import { Ajuda } from "@/components/ajuda";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { ReadOnlyLink, usePlanFlags } from "@/components/admin/plan-flags";
+import { useNicheFlags } from "@/components/admin/niche-flags";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarDays, Check, Layers2, Loader2, Lock, Package, Plus, Repeat, UserRound, X } from "lucide-react";
+import { CalendarDays, Car, Check, Layers2, Loader2, Lock, Package, PawPrint, Plus, Repeat, UserRound, X } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
 import {
   createManualBooking,
   createOverlayBooking,
   createSeries,
+  listActiveDrivers,
   listManualSlots,
   lookupCustomer,
   previewSeries,
   type CustomerPackage,
+  type LookupPet,
   type ManualSlot,
+  type Transport,
   type SeriesDate,
   type SeriesFrequency,
   type SeriesInput,
@@ -62,7 +66,16 @@ type Props = {
 
 type Preview = { dates: SeriesDate[]; packageFit: number | null; packageExpires: string | null };
 /** cliente achado pelo WhatsApp: null = ainda não procurou; found false = cliente novo */
-type Lookup = { found: boolean; packages: CustomerPackage[] } | null;
+type Lookup = { found: boolean; packages: CustomerPackage[]; pets: LookupPet[] } | null;
+
+const AUTO_DRIVER = "__auto__";
+
+const TRANSPORT_OPTIONS: { value: Transport; label: string }[] = [
+  { value: "nenhum", label: "Não" },
+  { value: "busca", label: "Só busca" },
+  { value: "entrega", label: "Só entrega" },
+  { value: "busca_entrega", label: "Busca e entrega" },
+];
 
 const shortDate = (iso: string) => format(parseISO(iso), "EEE, dd/MM/yyyy", { locale: ptBR });
 const br = (iso: string) => iso.split("-").reverse().join("/");
@@ -87,6 +100,7 @@ export function NewBookingDialog({
 }: Props) {
   const controlled = openProp !== undefined;
   const { readOnly } = usePlanFlags();   // 59: Grátis vencido = só consulta
+  const { petMode } = useNicheFlags();   // 64: banho e tosa = quem é atendido é o pet
   const [innerOpen, setInnerOpen] = useState(false);
   const open = controlled ? openProp : innerOpen;
   const setOpen = (v: boolean) => (controlled ? onOpenChange?.(v) : setInnerOpen(v));
@@ -119,15 +133,64 @@ export function NewBookingDialog({
       setLookingUp(false);
       if (r) {
         setName(r.name);
-        setLookup({ found: true, packages: r.packages });
-      } else setLookup({ found: false, packages: [] });
+        setLookup({ found: true, packages: r.packages, pets: r.pets });
+        setAddress(r.address ?? "");
+        setAddressRef(r.addressRef ?? "");
+        // 1 pet só: já vem escolhido
+        if (r.pets.length === 1) {
+          setPetId(r.pets[0].id);
+          setNewPetName("");
+        }
+      } else setLookup({ found: false, packages: [], pets: [] });
     });
     return () => {
       alive = false;
     };
   }, [open, phoneKey]);
 
-  const packages = lookup?.packages ?? [];
+  // ------------------------------------------------------------------ 1b. pet (64, banho e tosa)
+  /** pet já cadastrado do tutor; null + newPetName = cadastra junto */
+  const [petId, setPetId] = useState<string | null>(null);
+  const [newPetName, setNewPetName] = useState("");
+  /** pets já agendados nesta abertura (para "agendar o próximo pet") */
+  const [donePets, setDonePets] = useState<string[]>([]);
+  const pets = lookup?.pets ?? [];
+  // 4a: leva e traz (matriz e recepção); a taxa é cobrada à parte
+  const [transport, setTransport] = useState<Transport>("nenhum");
+  const [fee, setFee] = useState("");
+  const [address, setAddress] = useState("");
+  const [addressRef, setAddressRef] = useState("");
+  const canTransport = petMode && !!canSellPackages;
+  // motorista: com 1 ativo o sistema escolhe sozinho; com 2+ aparece a escolha ("" = automático, livre no horário)
+  const [drivers, setDrivers] = useState<{ id: string; name: string }[] | null>(null);
+  const [driverId, setDriverId] = useState("");
+  useEffect(() => {
+    if (!open || !canTransport || transport === "nenhum" || drivers !== null) return;
+    let alive = true;
+    listActiveDrivers().then((d) => alive && setDrivers(d ?? []));
+    return () => {
+      alive = false;
+    };
+  }, [open, canTransport, transport, drivers]);
+  const petChoice = petMode
+    ? {
+        petId,
+        newPetName: petId ? "" : newPetName,
+        ...(canTransport && transport !== "nenhum"
+          ? { transport, transportFee: fee, transportAddress: address, transportAddressRef: addressRef, transportDriverId: driverId || null }
+          : {}),
+      }
+    : {};
+  const petLabel = petId ? pets.find((p) => p.id === petId)?.name ?? "" : newPetName.trim();
+
+  // trocou de tutor: pet de outro tutor sai
+  useEffect(() => {
+    if (petId && lookup && !lookup.pets.some((p) => p.id === petId)) setPetId(null);
+  }, [lookup, petId]);
+
+  // no banho e tosa, só aparecem os pacotes do pet escolhido (ou sem pet)
+  const allPackages = lookup?.packages ?? [];
+  const packages = petMode ? allPackages.filter((p) => !p.petId || p.petId === petId) : allPackages;
 
   // ------------------------------------------------------------------ 2. pacote
   const [packageId, setPackageId] = useState<string | null>(null);
@@ -137,9 +200,10 @@ export function NewBookingDialog({
 
   // trocou de cliente: pacote de outra pessoa sai
   useEffect(() => {
-    if (packageId && lookup && !lookup.packages.some((p) => p.id === packageId)) setPackageId(null);
+    if (packageId && lookup && !packages.some((p) => p.id === packageId)) setPackageId(null);
     if (packageChoosing && lookup && !lookup.packages.some((p) => p.id === packageChoosing)) setPackageChoosing(null);
-  }, [lookup, packageId, packageChoosing]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lookup, packageId, packageChoosing, petId]);
 
   function applyPackage(p: CustomerPackage, serviceIdToUse?: string) {
     const item = serviceIdToUse
@@ -177,7 +241,7 @@ export function NewBookingDialog({
     const before = new Set(packages.map((p) => p.id));
     const r = await lookupCustomer(phoneNational, phoneCountry);
     const list = r?.packages ?? [];
-    setLookup({ found: true, packages: list });
+    setLookup({ found: true, packages: list, pets: r?.pets ?? [] });
     const fresh = list.find((p) => !before.has(p.id));
     if (fresh) applyPackage(fresh);
     else toast.info("Pacote vendido. As sessões com data já estão na agenda.");
@@ -323,6 +387,15 @@ export function NewBookingDialog({
     setPhoneCountry(BR);
     setName("");
     setLookup(null);
+    setPetId(null);
+    setNewPetName("");
+    setDonePets([]);
+    setTransport("nenhum");
+    setDrivers(null);
+    setDriverId("");
+    setFee("");
+    setAddress("");
+    setAddressRef("");
     setPackageId(null);
     setPackageChoosing(null);
     setServiceId("");
@@ -359,6 +432,43 @@ export function NewBookingDialog({
     };
   }
 
+  function validPet() {
+    if (!petMode) return true;
+    const msg = !petId && !newPetName.trim()
+      ? "Escolha o pet que vai ser atendido."
+      : canTransport && transport !== "nenhum" && address.trim().length < 5
+        ? "Informe o endereço do tutor para o leva e traz."
+        : null;
+    if (msg) setError(msg);
+    return !msg;
+  }
+
+  /** Banho e tosa: depois de salvar, segue aberto para o próximo pet do tutor (se houver) */
+  async function afterSaved(msg: string) {
+    if (!petMode) {
+      toast.success(msg);
+      setOpen(false);
+      return;
+    }
+    const done = [...donePets, petLabel];
+    const r = lookup?.found || newPetName.trim() ? await lookupCustomer(phoneNational, phoneCountry) : null;
+    const fresh = r?.pets ?? pets;
+    const left = fresh.filter((p) => !done.includes(p.name));
+    if (left.length === 0) {
+      toast.success(`${msg} para ${petLabel}`);
+      setOpen(false);
+      return;
+    }
+    toast.success(`${msg} para ${petLabel}`, { description: "Escolha o próximo pet ou feche." });
+    if (r) setLookup({ found: true, packages: r.packages, pets: r.pets });
+    setDonePets(done);
+    setPetId(null);
+    setNewPetName("");
+    setPackageId(null);
+    setTime("");
+    setPreview(null);
+  }
+
   function validCustomer() {
     const msg = !phoneOk ? phoneError(phoneCountry) : name.trim().length < 2 ? "Informe o nome do cliente." : null;
     if (msg) setError(msg);
@@ -367,7 +477,7 @@ export function NewBookingDialog({
 
   function submitSeries() {
     if (n < 1) return setError("Escolha de 1 a 52 vezes.");
-    if (!validCustomer()) return;
+    if (!validCustomer() || !validPet()) return;
     start(async () => {
       // 1º toque: prévia das datas
       if (!preview) {
@@ -378,7 +488,7 @@ export function NewBookingDialog({
         return;
       }
       // 2º toque: cria as datas livres e pula as recusadas
-      const r = await createSeries(seriesInput());
+      const r = await createSeries({ ...seriesInput(), ...petChoice });
       if (!r) return; // demonstração: o servidor redirecionou
       if (!r.ok) return setError(r.error);
       const msg = `${r.created} ${r.created === 1 ? "criado" : "criados"}, ${r.skipped.length} ${r.skipped.length === 1 ? "pulado" : "pulados"}`;
@@ -387,25 +497,26 @@ export function NewBookingDialog({
           description: r.skipped.map((s) => `${shortDate(s.date)}: ${SKIP_REASON[s.issue ?? ""] ?? s.issue}`).join("\n"),
           duration: 10000,
         });
-      } else toast.success(msg);
-      if (r.created > 0) setOpen(false);
-      else setPreview(null);
+      } else if (!petMode) toast.success(msg);
+      if (r.created > 0) {
+        if (petMode) await afterSaved(msg);
+        else setOpen(false);
+      } else setPreview(null);
     });
   }
 
   function submit() {
     setError(null);
     if (repeat && !overlay) return submitSeries();
-    if (!validCustomer()) return;
+    if (!validCustomer() || !validPet()) return;
     start(async () => {
       const r = await (overlay ? createOverlayBooking : createManualBooking)({
         serviceId, professionalId, date, time: chosenTime, customerName: name, customerPhone: phone,
-        customerPhoneCountry: phoneCountry, notes, packageId,
+        customerPhoneCountry: phoneCountry, notes, packageId, ...petChoice,
       });
       if (!r) return; // demonstração: o servidor redirecionou
       if (r.ok) {
-        toast.success(overlay ? "Encaixe sobreposto criado" : "Agendamento criado");
-        setOpen(false);
+        await afterSaved(overlay ? "Encaixe sobreposto criado" : "Agendamento criado");
       } else {
         setError(r.error);
       }
@@ -438,7 +549,7 @@ export function NewBookingDialog({
           >
             {/* 1. Cliente: WhatsApp primeiro; achou = nome preenchido */}
             <section className="space-y-3" aria-labelledby="nb-sec-cliente">
-              <h3 id="nb-sec-cliente" className="text-sm font-semibold">Cliente</h3>
+              <h3 id="nb-sec-cliente" className="text-sm font-semibold">{petMode ? "Tutor" : "Cliente"}</h3>
               <div className="space-y-1.5">
                 <Label htmlFor="nb-phone">WhatsApp</Label>
                 <PhoneInput
@@ -490,6 +601,124 @@ export function NewBookingDialog({
                 </p>
               </div>
             </section>
+
+            {/* 1b. Pet (64, banho e tosa): quem vai ser atendido */}
+            {petMode && phoneOk && lookup && (
+              <section className="space-y-2" aria-labelledby="nb-sec-pet" data-testid="opcoes-pet-manual">
+                <h3 id="nb-sec-pet" className="flex items-center gap-1.5 text-sm font-semibold">
+                  <PawPrint className="h-4 w-4 text-primary" /> Pet
+                </h3>
+                {donePets.length > 0 && (
+                  <p className="text-xs text-green-700" data-testid="pets-agendados">
+                    <Check className="mr-1 inline h-3.5 w-3.5" /> Já agendado: {donePets.join(", ")}
+                  </p>
+                )}
+                <div className="flex flex-wrap gap-2">
+                  {pets.map((p) => {
+                    const on = petId === p.id;
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        aria-pressed={on}
+                        onClick={() => {
+                          setPetId(on ? null : p.id);
+                          setNewPetName("");
+                        }}
+                        className={cn(
+                          "min-h-11 rounded-full border px-4 text-sm font-medium",
+                          on ? "border-primary bg-primary text-primary-foreground" : "bg-white",
+                          donePets.includes(p.name) && !on && "opacity-60",
+                        )}
+                        data-testid="btn-escolher-pet"
+                      >
+                        {p.name}
+                      </button>
+                    );
+                  })}
+                </div>
+                {!petId && (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="nb-pet-novo">{pets.length ? "Ou cadastre outro pet" : "Nome do pet"}</Label>
+                    <Input
+                      id="nb-pet-novo"
+                      className="h-11"
+                      maxLength={60}
+                      value={newPetName}
+                      placeholder="ex.: Thor"
+                      onChange={(e) => setNewPetName(e.target.value)}
+                      data-testid="input-pet-novo"
+                    />
+                    <p className="text-xs text-muted-foreground">O pet é cadastrado ao salvar. Complete porte e pelagem depois, na ficha do tutor.</p>
+                  </div>
+                )}
+              </section>
+            )}
+
+            {/* 1c. Leva e traz (4a): matriz e recepção */}
+            {canTransport && phoneOk && lookup && (
+              <section className="space-y-2" aria-labelledby="nb-sec-transporte" data-testid="opcoes-leva-traz">
+                <h3 id="nb-sec-transporte" className="flex items-center gap-1.5 text-sm font-semibold">
+                  <Car className="h-4 w-4 text-primary" /> Leva e traz
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  {TRANSPORT_OPTIONS.map((o) => (
+                    <button
+                      key={o.value}
+                      type="button"
+                      aria-pressed={transport === o.value}
+                      onClick={() => setTransport(o.value)}
+                      className={cn(
+                        "min-h-11 rounded-full border px-4 text-sm font-medium",
+                        transport === o.value ? "border-primary bg-primary text-primary-foreground" : "bg-white",
+                      )}
+                      data-testid={`btn-leva-traz-${o.value}`}
+                    >
+                      {o.label}
+                    </button>
+                  ))}
+                </div>
+                {transport !== "nenhum" && (
+                  <div className="space-y-3 rounded-xl border bg-secondary/30 p-3">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="nb-endereco">Endereço do tutor</Label>
+                      <Input id="nb-endereco" className="h-11" maxLength={200} value={address}
+                        placeholder="Rua, número, bairro" onChange={(e) => setAddress(e.target.value)} data-testid="input-endereco-tutor" />
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="nb-referencia">Referência (opcional)</Label>
+                        <Input id="nb-referencia" className="h-11" maxLength={120} value={addressRef}
+                          placeholder="ex.: portão azul" onChange={(e) => setAddressRef(e.target.value)} data-testid="input-referencia-tutor" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="nb-taxa">Taxa (R$)</Label>
+                        <Input id="nb-taxa" className="h-11" inputMode="decimal" placeholder="0,00" value={fee}
+                          onChange={(e) => setFee(e.target.value.replace(/[^\d,.]/g, "").slice(0, 8))} data-testid="input-taxa-leva-traz" />
+                      </div>
+                    </div>
+                    {drivers && drivers.length > 1 && (
+                      <div className="space-y-1.5">
+                        <Label htmlFor="nb-motorista">Motorista</Label>
+                        <Select value={driverId || AUTO_DRIVER} onValueChange={(v) => setDriverId(v === AUTO_DRIVER ? "" : v)}>
+                          <SelectTrigger id="nb-motorista" className="h-11" data-testid="select-motorista-agendamento"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value={AUTO_DRIVER}>Automático (livre no horário)</SelectItem>
+                            {drivers.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                    {drivers && drivers.length === 1 && (
+                      <p className="text-xs text-muted-foreground">Motorista: <strong>{drivers[0].name}</strong></p>
+                    )}
+                    <p className="text-xs text-muted-foreground">
+                      A taxa fica registrada no agendamento e é cobrada à parte (não entra no total). O endereço fica salvo na ficha do tutor.
+                    </p>
+                  </div>
+                )}
+              </section>
+            )}
 
             {/* 2. Pacote (opcional) */}
             {(packages.length > 0 || (canSellPackages && phoneOk)) && (
@@ -965,6 +1194,8 @@ export function NewBookingDialog({
           templates={sale.templates}
           professionals={sale.professionals}
           onSold={afterSale}
+          pets={petMode ? pets : undefined}
+          defaultPetId={petId}
         />
       )}
     </>

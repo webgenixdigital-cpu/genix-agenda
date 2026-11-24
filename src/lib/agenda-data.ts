@@ -6,6 +6,7 @@ import { todayInZone } from "@/lib/dates";
 import { allows, getPlanContext } from "@/lib/plan";
 import type { RescheduleProps } from "@/components/admin/agenda/booking-actions";
 import type { AgendaBlock, AgendaHour, AgendaItem } from "@/lib/agenda";
+import { PET_NICHE_ID } from "@/lib/pets";
 
 export { blockAppliesOn } from "@/lib/agenda";
 
@@ -31,12 +32,14 @@ export function agendaProfessional(wholeTeam: boolean, requested: string | undef
 export async function loadAgenda(ctx: AdminContext, wholeTeam: boolean, o: Options) {
   const { business, role, professionalId } = ctx;
   const supabase = createClient();
+  // 64: banho e tosa traz o nome do pet de cada agendamento (outros nichos: consulta igual à de antes)
+  const isPet = business.subcategory === PET_NICHE_ID;
 
   // mesma consulta, em páginas de PAGE linhas (limite do PostgREST); quase sempre 1 ida só
   const page = (n: number) => {
     let q = supabase
       .from("bookings")
-      .select("id, booking_date, start_time, end_time, customer_name, customer_phone, customer_phone_country, customer_notes, customer_id, service_name, professional_name, professional_id, service_id, price, status, source, customer_package_id, series_id, auto_confirm_reason, items_count, payment_status, overlay")
+      .select(`id, booking_date, start_time, end_time, customer_name, customer_phone, customer_phone_country, customer_notes, customer_id, service_name, professional_name, professional_id, service_id, price, status, source, customer_package_id, series_id, auto_confirm_reason, items_count, payment_status, overlay${isPet ? ", transport, pet:pets(name)" : ""}`)
       .eq("business_id", business.id)
       .order("booking_date")
       .order("start_time")
@@ -82,6 +85,12 @@ export async function loadAgenda(ctx: AdminContext, wholeTeam: boolean, o: Optio
   for (const i of comboItems ?? []) components.set(i.combo_id, [...(components.get(i.combo_id) ?? []), i.service_id]);
 
   const list = (bookings ?? []) as AgendaItem[];
+  if (isPet) {
+    for (const b of list as (AgendaItem & { pet?: { name: string } | null })[]) {
+      b.pet_name = b.pet?.name ?? null;
+      delete b.pet;
+    }
+  }
 
   // sessões de pacote: "Pacote 3/10"; pacote de vários serviços: "Manicure 2/4 · Pedicure 1/2" (37_plano_fechado)
   const packageIds = list.filter((b) => b.customer_package_id).map((b) => b.id);

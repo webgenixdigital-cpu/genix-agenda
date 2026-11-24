@@ -9,6 +9,7 @@ import { todayISO } from "@/lib/dates";
 import { longDate, whatsappLink } from "@/lib/format";
 import { formatPhone } from "@/lib/phone";
 import { manualReminderText } from "@/lib/messages";
+import { PET_NICHE_ID, attendeeName, attendeeText, tutorLine } from "@/lib/pets";
 import { ReminderTextDialog } from "@/components/admin/lembretes/reminder-text-dialog";
 import { KIND_LABEL, MESSAGE_KINDS, reasonLabel, type MessageKind } from "@/lib/whatsapp/templates";
 import { StatusBadge } from "@/components/admin/status-badge";
@@ -50,15 +51,22 @@ export default async function LembretesPage({ searchParams }: Props) {
   const isToday = searchParams.dia === "hoje";
   const date = todayISO(isToday ? 0 : 1);
 
-  const { data } = await supabase
+  // 64: banho e tosa traz o pet de cada agendamento (outros nichos: consulta igual à de antes)
+  const isPet = business.subcategory === PET_NICHE_ID;
+  const { data: rows } = await supabase
     .from("bookings")
-    .select("id, start_time, customer_name, customer_phone, customer_phone_country, service_name, professional_name, status, reminder_sent_at, price, items_count")
+    .select(`id, start_time, customer_name, customer_phone, customer_phone_country, service_name, professional_name, status, reminder_sent_at, price, items_count${isPet ? ", pet:pets(name)" : ""}`)
     .eq("business_id", business.id)
     .eq("booking_date", date)
     .in("status", ["pending", "confirmed"])
     .order("start_time");
 
-  const list = data ?? [];
+  type Row = {
+    id: string; start_time: string; customer_name: string; customer_phone: string; customer_phone_country: string | null;
+    service_name: string; professional_name: string; status: string; reminder_sent_at: string | null; price: number | null;
+    items_count: number; pet?: { name: string } | null;
+  };
+  const list = ((rows ?? []) as unknown as Row[]).map(({ pet, ...b }) => ({ ...b, pet_name: isPet ? pet?.name ?? null : undefined }));
   const queue = list.filter((b) => !b.reminder_sent_at);
   const sent = list.filter((b) => b.reminder_sent_at);
 
@@ -177,6 +185,7 @@ export default async function LembretesPage({ searchParams }: Props) {
                 business: business.name,
                 itemsCount: b.items_count,
                 price: b.price === null ? null : Number(b.price),
+                pet: b.pet_name,
               }),
               b.customer_phone_country
             );
@@ -185,7 +194,8 @@ export default async function LembretesPage({ searchParams }: Props) {
                 <div className="w-14 shrink-0 text-lg font-semibold">{b.start_time.slice(0, 5)}</div>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-semibold">{b.customer_name}</p>
+                    <p className="font-semibold">{attendeeName(b)}</p>
+                    {tutorLine(b) && <span className="w-full text-xs text-muted-foreground">{tutorLine(b)}</span>}
                     <StatusBadge status={b.status as BookingStatus} />
                   </div>
                   <p className="text-sm text-muted-foreground">
@@ -214,7 +224,7 @@ export default async function LembretesPage({ searchParams }: Props) {
                   <CheckCircle2 className="h-5 w-5 shrink-0 text-green-600" />
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold">
-                      {b.start_time.slice(0, 5)} · {b.customer_name}
+                      {b.start_time.slice(0, 5)} · {attendeeText(b)}
                     </p>
                     {isAuto ? (
                       <p className="flex items-center gap-1 text-xs font-medium text-primary" data-testid={`selo-automatico-${b.id}`}>

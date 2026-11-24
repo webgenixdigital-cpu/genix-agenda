@@ -1,3 +1,4 @@
+import { PET_NICHE_ID } from "@/lib/pets";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { headers } from "next/headers";
@@ -488,6 +489,7 @@ export default async function VitrinePage({ params }: Props) {
         professionals={professionals.filter((p) => !blocked.includes(p.id))}
         hours={hours}
         onlineClosed={onlineClosed}
+        petMode={b.subcategory === PET_NICHE_ID}
       />
       )}
 

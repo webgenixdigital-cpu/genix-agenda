@@ -1,15 +1,16 @@
 "use client";
 
 // "Registrar pagamento" de um atendimento ou pacote com Pagamento pendente
-// (49_pagamento_depois.sql): forma + valor (sugere o cobrado) + data (hoje).
+// (49_pagamento_depois.sql; partes e saldo na 68_pagamento_parcial.sql):
+// mostra total, já pago e o que falta; uma ou mais formas; pode ser parcial.
 // Quem abre guarda o alvo (cópia), fora de qualquer lista: ver booking-dialogs.tsx.
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { registerBookingPayment, registerPackagePayment, type PaymentMethod } from "@/app/admin/(painel)/agenda/actions";
+import { getPaymentBalance, registerBookingPayment, registerPackagePayment } from "@/app/admin/(painel)/agenda/actions";
 import { Ajuda } from "@/components/ajuda";
-import { bookingTotals, useBookingEditInfo } from "@/components/admin/agenda/edit-booking-dialog";
+import { PaymentSplit, newRow, splitParts, splitSummary, type SplitRow } from "@/components/admin/payment-split";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -22,20 +23,11 @@ export type PaymentTarget = {
   customerName: string;
   /** "Corte · 20/11" / "Pacote 10 drenagens" */
   description: string;
-  /** valor sugerido; null = atendimento: busca o cobrado (total − itens do pacote) */
+  /** saldo já conhecido (lista de pendentes); null = busca no banco */
   suggested: number | null;
 };
 
-const METHODS: { value: PaymentMethod; label: string }[] = [
-  { value: "pix", label: "Pix" },
-  { value: "dinheiro", label: "Dinheiro" },
-  { value: "credito", label: "Cartão de crédito" },
-  { value: "debito", label: "Cartão de débito" },
-];
-
-const toInput = (n: number) => n.toFixed(2).replace(".", ",");
-/** "1.234,56" ou "10,5" (vírgula decimal) e também "10.5" */
-const parseMoney = (v: string) => Number(v.includes(",") ? v.replace(/\./g, "").replace(",", ".") : v);
+type Balance = { total: number; paid: number; remaining: number };
 
 export function RegisterPaymentDialog({
   open,
@@ -51,49 +43,61 @@ export function RegisterPaymentDialog({
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
-  const [method, setMethod] = useState<PaymentMethod | null>(null);
-  const [amount, setAmount] = useState("");
+  const [balance, setBalance] = useState<Balance | null>(null);
+  const [rows, setRows] = useState<SplitRow[]>([]);
   const [date, setDate] = useState(today);
   const [error, setError] = useState<string | null>(null);
 
-  // atendimento sem valor sugerido: o cobrado vem do mesmo cálculo do Concluir
-  const needsInfo = open && target?.kind === "booking" && target.suggested === null;
-  const info = useBookingEditInfo(target?.id ?? "", needsInfo);
-  const suggested = target?.suggested ?? (info.info ? bookingTotals(info.info).charge : null);
-
-  // abre limpo, com o valor sugerido e a data de hoje
+  // abre limpo: busca total, pago e saldo; a 1ª parte já vem com o saldo
+  // (o alvo chega como objeto novo a cada render: as dependências são os campos)
+  const kind = target?.kind;
+  const id = target?.id;
+  const suggested = target?.suggested ?? null;
   useEffect(() => {
-    if (!open) return;
-    setMethod(null);
+    if (!open || !kind || !id) return;
+    let alive = true;
+    setBalance(null);
     setDate(today);
     setError(null);
-    setAmount("");
-  }, [open, target?.id, today]);
-  useEffect(() => {
-    if (open && suggested !== null && amount === "") setAmount(toInput(suggested));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, suggested]);
+    setRows(suggested !== null ? [newRow(suggested)] : []);
+    void getPaymentBalance(kind, id).then((r) => {
+      if (!alive || !r) return;
+      if (!r.ok) return setError(r.error);
+      setBalance({ total: r.total, paid: r.paid, remaining: r.remaining });
+      setRows((cur) => (cur.length ? cur : [newRow(r.remaining)]));
+    });
+    return () => {
+      alive = false;
+    };
+  }, [open, kind, id, suggested, today]);
+
+  const due = balance?.remaining ?? target?.suggested ?? 0;
 
   function save() {
     if (!target) return;
-    const value = parseMoney(amount);
-    if (!method) return setError("Escolha a forma de pagamento.");
-    if (!Number.isFinite(value) || value <= 0) return setError("Informe um valor maior que zero.");
+    const parts = splitParts(rows, due);
+    if (typeof parts === "string") return setError(parts);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date > today) return setError("A data do pagamento não pode ser no futuro.");
     setError(null);
     start(async () => {
-      const input = { method, amount: Math.round(value * 100) / 100, date };
       const r =
         target.kind === "booking"
-          ? await registerBookingPayment({ bookingId: target.id, ...input })
-          : await registerPackagePayment({ packageId: target.id, ...input });
+          ? await registerBookingPayment({ bookingId: target.id, payments: parts, date })
+          : await registerPackagePayment({ packageId: target.id, payments: parts, date });
       if (!r) return; // demonstração: o servidor redirecionou
       if (!r.ok) return setError(r.error);
-      toast.success(`Pagamento registrado no caixa (${brl(input.amount)})`);
+      const sum = parts.reduce((s, p) => s + p.amount, 0);
+      toast.success(
+        r.remaining > 0
+          ? `Pagamento parcial registrado (${brl(sum)}). Falta ${brl(r.remaining)}.`
+          : `Pagamento registrado no caixa (${brl(sum)}). Tudo pago.`
+      );
       onOpenChange(false);
       router.refresh();
     });
   }
+
+  const summary = splitSummary(rows, due);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -108,60 +112,67 @@ export function RegisterPaymentDialog({
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="space-y-1.5">
-            <Label>Forma de pagamento</Label>
-            <div className="grid grid-cols-2 gap-2">
-              {METHODS.map((m) => (
-                <Button
-                  key={m.value}
-                  type="button"
-                  variant={method === m.value ? "default" : "outline"}
-                  className="h-11"
-                  onClick={() => setMethod(m.value)}
-                  data-testid={`pagamento-depois-${m.value}`}
-                >
-                  {m.label}
-                </Button>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="min-w-0 space-y-1.5">
-              <Label htmlFor="pg-valor">Valor (R$)</Label>
-              <Input
-                id="pg-valor"
-                inputMode="decimal"
-                className="h-11"
-                placeholder={needsInfo && suggested === null ? "carregando…" : "0,00"}
-                value={amount}
-                onChange={(e) => setAmount(e.target.value.replace(/[^\d,.]/g, ""))}
-                data-testid="input-valor-pagamento"
-              />
-            </div>
-            <div className="min-w-0 space-y-1.5">
-              <Label htmlFor="pg-data">Data</Label>
-              <Input
-                id="pg-data"
-                type="date"
-                className="h-11"
-                max={today}
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                data-testid="input-data-pagamento"
-              />
-            </div>
-          </div>
-          {suggested !== null && (
-            <p className="text-xs text-muted-foreground">
-              Valor sugerido: {brl(suggested)} (o que foi cobrado). Pode mudar se o cliente pagou outro valor.
-            </p>
+          {balance ? (
+            <dl className="grid grid-cols-3 gap-2 rounded-xl border p-3 text-center text-sm" data-testid="saldo-pagamento">
+              <div className="min-w-0">
+                <dt className="text-xs text-muted-foreground">Total</dt>
+                <dd className="font-semibold">{brl(balance.total)}</dd>
+              </div>
+              <div className="min-w-0">
+                <dt className="text-xs text-muted-foreground">Já pago</dt>
+                <dd className="font-semibold">{brl(balance.paid)}</dd>
+              </div>
+              <div className="min-w-0">
+                <dt className="text-xs text-muted-foreground">Falta</dt>
+                <dd className="font-semibold text-amber-900">{brl(balance.remaining)}</dd>
+              </div>
+            </dl>
+          ) : (
+            !error && (
+              <p className="flex items-center justify-center gap-2 py-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" /> Carregando…
+              </p>
+            )
           )}
+
+          {rows.length > 0 && (
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-1">
+                <Label>Forma e valor</Label>
+                <Ajuda id="dividir-pagamento" />
+              </div>
+              <PaymentSplit rows={rows} onChange={setRows} due={due} disabled={pending} testId="pagamento" />
+            </div>
+          )}
+
+          <div className="space-y-1.5">
+            <Label htmlFor="pg-data">Data do pagamento</Label>
+            <Input
+              id="pg-data"
+              type="date"
+              className="h-11"
+              max={today}
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              data-testid="input-data-pagamento"
+            />
+          </div>
 
           {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-destructive">{error}</p>}
 
-          <Button className="h-12 w-full text-base" disabled={pending || !target} onClick={save} data-testid="btn-salvar-pagamento">
-            {pending ? <Loader2 className="h-5 w-5 animate-spin" /> : "Registrar no caixa"}
+          <Button
+            className="h-12 w-full text-base"
+            disabled={pending || !target || rows.length === 0 || !summary.valid || summary.over > 0}
+            onClick={save}
+            data-testid="btn-salvar-pagamento"
+          >
+            {pending ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : summary.missing > 0 && summary.sum > 0 ? (
+              "Registrar parte no caixa"
+            ) : (
+              "Registrar no caixa"
+            )}
           </Button>
         </div>
       </DialogContent>

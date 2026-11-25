@@ -13,7 +13,7 @@
 // agendamento e só fecha quando o usuário fecha.
 import { createContext, useCallback, useContext, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCheck, Loader2, Plus } from "lucide-react";
+import { CheckCheck, Loader2, Plus, Split } from "lucide-react";
 import { attendeeText } from "@/lib/pets";
 import { toast } from "sonner";
 import { cancelSeriesFuture, completeBooking, updateBookingStatus } from "@/app/admin/(painel)/agenda/actions";
@@ -26,6 +26,7 @@ import { RescheduleDialog } from "@/components/admin/agenda/reschedule-dialog";
 import { EditBookingDialog, bookingTotals, itemGroups, useBookingEditInfo } from "@/components/admin/agenda/edit-booking-dialog";
 import { ReopenDialog } from "@/components/admin/agenda/reopen-booking-button";
 import { RegisterPaymentDialog } from "@/components/admin/register-payment-dialog";
+import { PaymentSplit, newRow, splitParts, splitSummary, type SplitRow } from "@/components/admin/payment-split";
 import { todayISO } from "@/lib/dates";
 import type { AgendaBooking, RescheduleProps } from "@/components/admin/agenda/booking-actions";
 
@@ -177,8 +178,16 @@ function CompleteDialog({ active, open, onClose }: { active: Active; open: boole
   // forma de pagamento só no plano pago e com valor a cobrar (sessão de pacote sem adicional: não)
   const askMethod = active.ctx.fullAccess && (totals?.charge ?? 0) > 0;
 
+  // 68: dividir o pagamento (várias formas; pode ficar parte pendente)
+  const [split, setSplit] = useState(false);
+  const [rows, setRows] = useState<SplitRow[]>([]);
+  const charge = totals?.charge ?? 0;
+
   useEffect(() => {
-    if (!open) setEditOpen(false);
+    if (!open) {
+      setEditOpen(false);
+      setSplit(false);
+    }
   }, [open]);
 
   function finish(method: (typeof METHODS)[number]["value"] | "pendente" | null, success: string) {
@@ -188,6 +197,29 @@ function CompleteDialog({ active, open, onClose }: { active: Active; open: boole
       if (!r) return; // demonstração: o servidor redirecionou
       if (r.ok) toast.success(success);
       else toast.error(r.error);
+    });
+  }
+
+  function finishSplit() {
+    const parts = splitParts(rows, charge);
+    if (typeof parts === "string") {
+      toast.error(parts);
+      return;
+    }
+    const { missing } = splitSummary(rows, charge);
+    onClose();
+    start(async () => {
+      const r = await completeBooking(b.id, null, parts);
+      if (!r) return; // demonstração: o servidor redirecionou
+      if (!r.ok) {
+        toast.error(r.error);
+        return;
+      }
+      toast.success(
+        missing > 0
+          ? `Concluído · ${brl(charge - missing)} no caixa, falta ${brl(missing)} (Pagamento pendente)`
+          : `Concluído e lançado no caixa em ${parts.length} formas`
+      );
     });
   }
 
@@ -257,7 +289,7 @@ function CompleteDialog({ active, open, onClose }: { active: Active; open: boole
             </Button>
           )}
 
-          {askMethod && (
+          {askMethod && !split && (
             <div className="grid grid-cols-2 gap-2">
               {METHODS.map((m) => (
                 <Button
@@ -273,7 +305,47 @@ function CompleteDialog({ active, open, onClose }: { active: Active; open: boole
               ))}
             </div>
           )}
-          {askMethod && (
+          {askMethod && !split && (
+            <div className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                className="h-11 flex-1"
+                disabled={pending}
+                onClick={() => {
+                  setRows([newRow(charge)]);
+                  setSplit(true);
+                }}
+                data-testid={`btn-concluir-dividir-${b.id}`}
+              >
+                <Split className="mr-1.5 h-4 w-4" /> Dividir pagamento
+              </Button>
+              <Ajuda id="dividir-pagamento" />
+            </div>
+          )}
+          {askMethod && split && (
+            <div className="space-y-3">
+              <p className="text-sm font-medium">Quanto foi pago em cada forma?</p>
+              <PaymentSplit rows={rows} onChange={setRows} due={charge} disabled={pending} testId="concluir-dividir" />
+              <Button
+                className="h-12 w-full"
+                disabled={pending || !splitSummary(rows, charge).valid || splitSummary(rows, charge).over > 0}
+                onClick={finishSplit}
+                data-testid={`btn-concluir-dividido-${b.id}`}
+              >
+                <CheckCheck className="mr-1.5 h-4 w-4" /> Concluir e lançar no caixa
+              </Button>
+              <Button
+                variant="ghost"
+                className="h-11 w-full"
+                disabled={pending}
+                onClick={() => setSplit(false)}
+                data-testid={`btn-concluir-voltar-${b.id}`}
+              >
+                Voltar para uma forma só
+              </Button>
+            </div>
+          )}
+          {askMethod && !split && (
             <div className="space-y-1">
               <div className="flex items-center gap-1">
                 <Button
@@ -292,7 +364,7 @@ function CompleteDialog({ active, open, onClose }: { active: Active; open: boole
               </p>
             </div>
           )}
-          {askMethod && (
+          {askMethod && !split && (
             <div className="space-y-1">
               <Button
                 variant="ghost"

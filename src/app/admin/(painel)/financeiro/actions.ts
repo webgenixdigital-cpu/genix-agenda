@@ -37,7 +37,13 @@ export async function addCashEntry(input: CashInput): Promise<Result> {
     entry_date: input.date,
     created_by: userId,
   });
-  if (error) return { ok: false, error: "Não foi possível salvar o lançamento." };
+  if (error) {
+    // 68: lançamento ligado a atendimento/pacote não pode passar do cobrado
+    if (error.message.includes("VALOR_ACIMA_DO_SALDO")) {
+      return { ok: false, error: "Esse valor passa do que falta pagar neste atendimento." };
+    }
+    return { ok: false, error: "Não foi possível salvar o lançamento." };
+  }
   refresh();
   return { ok: true };
 }

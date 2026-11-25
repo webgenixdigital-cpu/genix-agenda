@@ -23,7 +23,7 @@ export function PendingPaymentsList({ items, today }: { items: PendingPaymentIte
       <div className="rounded-2xl border border-dashed bg-white p-10 text-center">
         <p className="font-heading text-2xl">Tudo pago</p>
         <p className="mt-2 text-sm text-muted-foreground">
-          Atendimentos concluídos e pacotes vendidos com “Escolher depois” aparecem aqui até o pagamento ser registrado.
+          Atendimentos concluídos e pacotes vendidos com “Escolher depois” aparecem aqui até o pagamento ser registrado por completo. Quem pagou só uma parte aparece com o que falta.
         </p>
       </div>
     );
@@ -56,7 +56,14 @@ export function PendingPaymentsList({ items, today }: { items: PendingPaymentIte
                   <p className="text-xs text-muted-foreground">{formatPhone(p.customer_phone, p.customer_phone_country)}</p>
                 )}
               </div>
-              <p className="shrink-0 text-lg font-semibold">{brl(p.amount)}</p>
+              <div className="shrink-0 text-right">
+                <p className="text-lg font-semibold">{p.paid > 0 ? `Falta ${brl(p.amount)}` : brl(p.amount)}</p>
+                {p.paid > 0 && (
+                  <p className="text-xs text-muted-foreground" data-testid={`pendente-parcial-${p.id}`}>
+                    Pago {brl(p.paid)} de {brl(p.total)}
+                  </p>
+                )}
+              </div>
             </div>
             <Button
               className="mt-3 h-11 w-full sm:w-auto"

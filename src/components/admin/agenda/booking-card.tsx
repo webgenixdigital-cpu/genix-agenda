@@ -5,7 +5,7 @@ import { CalendarOff, Car, Globe, Layers2, Package, PawPrint, Phone, Repeat, Sti
 import { TRANSPORT_LABEL, attendeeName, tutorLine } from "@/lib/pets";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { AutoConfirmBadge } from "@/components/admin/auto-confirm-badge";
-import { PaymentPendingBadge } from "@/components/admin/payment-pending-badge";
+import { PaymentPendingBadge, bookingBadgeRemaining } from "@/components/admin/payment-pending-badge";
 import { BookingActions, type RescheduleProps } from "@/components/admin/agenda/booking-actions";
 import { AgendaCardShell } from "@/components/admin/agenda/agenda-card-shell";
 import { brl } from "@/lib/format";
@@ -70,7 +70,7 @@ export function BookingCard({
             {tutorLine(b) && <span className="w-full text-xs text-muted-foreground" data-testid={`tutor-${b.id}`}>{tutorLine(b)}</span>}
             <StatusBadge status={b.status} />
             <AutoConfirmBadge status={b.status} reason={b.auto_confirm_reason} testId={`selo-auto-confirmado-${b.id}`} />
-            {b.status === "completed" && b.payment_status === "pending" && <PaymentPendingBadge testId={`selo-pagamento-pendente-${b.id}`} />}
+            {b.status === "completed" && b.payment_status === "pending" && <PaymentPendingBadge testId={`selo-pagamento-pendente-${b.id}`} remaining={bookingBadgeRemaining(b)} partial={Number(b.amount_paid ?? 0) > 0} />}
             {b.overlay && (
               <span
                 className="inline-flex items-center gap-1 rounded-full border border-dashed border-primary/60 bg-secondary px-2 py-0.5 text-xs font-medium text-primary"

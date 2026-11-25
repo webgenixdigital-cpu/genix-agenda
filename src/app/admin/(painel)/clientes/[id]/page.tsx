@@ -163,7 +163,7 @@ export default async function ClientePage({ params }: Props) {
 
   const { data: bookings } = await supabase
     .from("bookings")
-    .select("id, booking_date, start_time, service_name, professional_name, price, status, customer_package_id, auto_confirm_reason, payment_status, booking_items(price, paid_by_package, customer_package_item_id)")
+    .select("id, booking_date, start_time, service_name, professional_name, price, status, customer_package_id, auto_confirm_reason, payment_status, amount_paid, booking_items(price, paid_by_package, customer_package_item_id)")
     .eq("customer_id", c.id)
     .order("booking_date", { ascending: false })
     .order("start_time", { ascending: false })
@@ -226,11 +226,13 @@ export default async function ClientePage({ params }: Props) {
     canSell ? loadSaleOptions(supabase, business.id) : Promise.resolve({ templates: [], professionals: [] }),
     getPlanContext(business.id),
     // 39_pacote_datas_fixas: modo de agendamento de cada pacote
-    supabase.from("customer_packages").select("id, schedule_mode, payment_status, pet_id").eq("customer_id", c.id),
+    supabase.from("customer_packages").select("id, schedule_mode, payment_status, amount_paid, pet_id").eq("customer_id", c.id),
   ]);
   const modeById = new Map(((pkgModes ?? []) as { id: string; schedule_mode: string }[]).map((m) => [m.id, m.schedule_mode]));
   // 49_pagamento_depois: pacote vendido com "Escolher depois"
   const paymentById = new Map(((pkgModes ?? []) as { id: string; payment_status: string | null }[]).map((m) => [m.id, m.payment_status]));
+  // 68: quanto já foi pago de cada pacote pendente
+  const paidById = new Map(((pkgModes ?? []) as { id: string; amount_paid: number | null }[]).map((m) => [m.id, Number(m.amount_paid ?? 0)]));
   // 65: pet dono de cada pacote (banho e tosa)
   const petNameById = new Map(((pets ?? []) as Pet[]).map((p) => [p.id, p.name]));
   const petByPkg = new Map(((pkgModes ?? []) as { id: string; pet_id: string | null }[]).map((m) => [m.id, m.pet_id ? petNameById.get(m.pet_id) ?? null : null]));
@@ -266,6 +268,7 @@ export default async function ClientePage({ params }: Props) {
     price: Number(p.price),
     fixed: modeById.get(p.id) === "fixed",
     paymentPending: paymentById.get(p.id) === "pending",
+    amountPaid: paidById.get(p.id) ?? 0,
     pet_name: petByPkg.get(p.id) ?? null,
     items: items
       .filter((i) => i.customer_package_id === p.id)
@@ -445,7 +448,10 @@ export default async function ClientePage({ params }: Props) {
                     <AutoConfirmBadge status={b.status} reason={b.auto_confirm_reason} testId={`selo-auto-confirmado-${b.id}`} />
                     <StatusBadge status={b.status as BookingStatus} />
                     {b.status === "completed" && b.payment_status === "pending" && (
-                      <PaymentPendingBadge testId={`selo-pagamento-pendente-${b.id}`} />
+                      <PaymentPendingBadge
+                        testId={`selo-pagamento-pendente-${b.id}`}
+                        remaining={Number(b.amount_paid ?? 0) > 0 ? Math.max(charged(b) - Number(b.amount_paid), 0) : null}
+                      />
                     )}
                   </div>
                 </div>
@@ -492,7 +498,7 @@ export default async function ClientePage({ params }: Props) {
                             id: b.id,
                             customerName: c.name,
                             description: `${b.service_name} · ${br(b.booking_date)}`,
-                            suggested: charged(b),
+                            suggested: Math.max(charged(b) - Number(b.amount_paid ?? 0), 0),
                           }}
                         />
                       )}

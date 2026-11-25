@@ -13,7 +13,7 @@ export default async function ServicosPage() {
   const { business } = await requireRoles(["owner", "viewer"]);
   const supabase = createClient();
 
-  const [{ data }, { data: templates }, { data: comboItems }, plan] = await Promise.all([
+  const [{ data }, { data: templates }, { data: comboItems }, plan, { data: costRows }] = await Promise.all([
     supabase
       .from("services")
       .select("id, kind, name, description, category, price, duration_min, return_after_days, active, bookable_online, show_in_catalog, sort_order")
@@ -28,8 +28,19 @@ export default async function ServicosPage() {
       .order("sort_order"),
     supabase.from("combo_items").select("combo_id, service_id, position").eq("business_id", business.id).order("position"),
     getPlanContext(business.id),
+    // 69: custo direto (só a matriz e a demo leem; antes da migration, vem vazio)
+    supabase.from("service_costs").select("service_id, cost_material, cost_other, cost_override").eq("business_id", business.id),
   ]);
-  const all = (data ?? []).map((s) => ({ ...s, price: Number(s.price) }));
+  const costAllowed = allows(plan, "basico");
+  type CostRow = { service_id: string; cost_material: number | null; cost_other: number | null; cost_override: number | null };
+  const costById = new Map(((costRows ?? []) as CostRow[]).map((c) => [c.service_id, c]));
+  const n = (v: number | string | null | undefined) => (v == null ? null : Number(v));
+  const all = (data ?? []).map((s) => {
+    const c = costById.get(s.id);
+    return { ...s, price: Number(s.price), cost_material: n(c?.cost_material), cost_other: n(c?.cost_other), cost_override: n(c?.cost_override) };
+  });
+  const directCost = (s: { cost_material: number | null; cost_other: number | null }) =>
+    s.cost_material == null && s.cost_other == null ? null : (s.cost_material ?? 0) + (s.cost_other ?? 0);
   // combos (32_combos) ficam numa seção própria; a lista e os pacotes são só de serviços
   const services = all.filter((s) => s.kind !== "combo");
   const combos: ComboRow[] = all
@@ -47,12 +58,13 @@ export default async function ServicosPage() {
           O que você oferece, com preço e duração. A duração define quanto tempo o horário ocupa na agenda.
         </p>
       </header>
-      <ServicesManager services={services} />
+      <ServicesManager services={services} costAllowed={costAllowed} />
 
       {allows(plan, "profissional") ? (
         <CombosManager
           combos={combos}
-          services={services.map((s) => ({ id: s.id, name: s.name, price: s.price, duration_min: s.duration_min, active: s.active }))}
+          costAllowed={costAllowed}
+          services={services.map((s) => ({ id: s.id, name: s.name, price: s.price, duration_min: s.duration_min, active: s.active, cost: directCost(s) }))}
         />
       ) : (
         <LockedFeatureCard feature="combos" />

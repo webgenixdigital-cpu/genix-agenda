@@ -634,6 +634,110 @@ const AJUDA_TEXTOS = {
     ],
     atencao: ["A taxa do leva e traz é cobrada à parte: ela não entra no total do atendimento nem no caixa."],
   },
+  // ------------------------------------------------------------------ 69: custo e preço de venda
+  "custo-servico": {
+    titulo: "Custo deste serviço",
+    serve:
+      "É quanto você gasta de material em cada atendimento deste serviço. Com ele, o Financeiro mostra quanto sobra de verdade de cada atendimento.",
+    passos: [
+      "Em “Material e produtos”, ponha o que vai em um atendimento (ex.: esmalte, gel, lixa, luvas, tinta).",
+      "Em “Outros custos diretos”, o que é gasto só por causa desse atendimento (ex.: descartáveis, lavanderia da toalha).",
+      "Salve. O total e a margem aparecem embaixo.",
+    ],
+    atencao: [
+      "Aluguel, luz e internet não entram aqui: eles são custos fixos e vão na Calculadora de preço (Financeiro → Preço).",
+      "O custo vale para os próximos atendimentos concluídos. Os que já foram concluídos guardam o custo da época.",
+      "Só a matriz vê e muda o custo. Recepção e profissionais não veem.",
+      planNote("custo"),
+    ],
+  },
+  "preco-de-venda": {
+    titulo: "Como calcular o preço de venda",
+    serve: "Mostra o que precisa entrar no preço para pagar tudo e ainda sobrar o lucro que você quer.",
+    passos: [
+      "CD (custo direto): produtos e materiais usados naquele serviço.",
+      "CF (custo fixo por hora): some as despesas fixas do mês (aluguel, luz, água, internet, sistemas, contador, DAS, limpeza, seu pró-labore), divida pelas horas trabalhadas no mês e multiplique pela duração do serviço.",
+      "IMP (imposto, %): o MEI paga o DAS, um valor fixo por mês, que entra no custo fixo (não em %). No Simples Nacional é um % do faturamento: para estética, normalmente o Anexo III, a partir de 6%, com o ISS incluso. Autônomo sem CNPJ: ISS da cidade + INSS/IR.",
+      "TX (taxa, %): o que a maquininha ou o cartão cobra de cada venda.",
+      "COM (comissão, %): o que vai para o profissional ou a cota do salão-parceiro (Lei 13.352/2016).",
+      "ML (margem de lucro, %): quanto você quer que sobre.",
+      "Preço = (CD + CF) ÷ (1 − (IMP + TX + COM + ML) ÷ 100).",
+    ],
+    atencao: [
+      "Se a soma dos % (IMP + TX + COM + ML) passar de uns 70%, o preço fica alto demais: reveja a margem, a comissão ou os custos.",
+      "Os valores de impostos mudam: confira sempre com o seu contador.",
+      "Este cálculo é uma estimativa. Para impostos, confirme com seu contador.",
+    ],
+  },
+  "margem-caixa": {
+    titulo: "Margem dos atendimentos",
+    serve:
+      "Mostra quanto sobrou dos atendimentos concluídos no período: o valor cobrado menos o custo direto (material) de cada um.",
+    passos: [
+      "Receita: o valor cobrado dos atendimentos concluídos no período, mesmo os que foram pagos só em parte.",
+      "Custo direto: o custo dos serviços guardado no dia da conclusão.",
+      "Margem bruta: receita − custo direto.",
+      "Com a Calculadora de preço salva, aparece também o lucro estimado: tira impostos, taxas da maquininha por forma de pagamento, comissões e os custos fixos do período.",
+    ],
+    atencao: [
+      "Atendimento sem custo cadastrado não entra na conta (não vale como zero): ele aparece no aviso, com o link para cadastrar em Serviços.",
+      "Sessão de pacote entra com o custo do material: o dinheiro do pacote entrou no dia da venda.",
+      "“A receber” é o que falta pagar dos atendimentos com Pagamento pendente.",
+      planNote("custo"),
+    ],
+  },
+  "preco-calculadora": {
+    titulo: "Calculadora de preço",
+    serve: "Ajuda a descobrir quanto cobrar por um serviço ou quanto você lucra com o preço de hoje.",
+    passos: [
+      "Preencha uma vez o enquadramento, os custos fixos do mês, as horas trabalhadas e as taxas. Toque em “Salvar configurações”.",
+      "Escolha um serviço cadastrado (vêm a duração e o custo) ou digite.",
+      "“Quanto cobrar?”: diga a margem que você quer e veja o preço sugerido.",
+      "“Quanto eu lucro?”: digite só o preço e veja o custo real e o lucro.",
+      "Gostou do custo? Toque em “Usar este custo no serviço” para gravar no cadastro.",
+    ],
+    atencao: ["Este cálculo é uma estimativa. Para impostos, confirme com seu contador.", planNote("calculadora")],
+  },
+  "preco-enquadramento": {
+    titulo: "Enquadramento",
+    serve: "Como o seu negócio paga imposto: isso muda o % de imposto sugerido. Na dúvida, pergunte ao contador.",
+    passos: ["MEI: 0% (o DAS entra nos custos fixos).", "Simples Nacional: começa em 6% (pode mudar).", "Autônomo ou “Não sei”: informe o % que o contador passar."],
+  },
+  "preco-cd": {
+    titulo: "CD · Custo direto",
+    serve: "Os produtos e materiais gastos em um atendimento deste serviço.",
+    passos: [],
+  },
+  "preco-cf": {
+    titulo: "CF · Custo fixo",
+    serve: "As contas do mês que você paga mesmo sem atender, divididas pelas horas trabalhadas e multiplicadas pela duração do serviço.",
+    passos: [],
+  },
+  "preco-horas": {
+    titulo: "Horas trabalhadas no mês",
+    serve: "Quantas horas por mês o espaço fica aberto atendendo. A sugestão vem dos horários de funcionamento, sem o almoço fixo.",
+    passos: [],
+  },
+  "preco-imp": {
+    titulo: "IMP · Imposto",
+    serve: "O % de imposto sobre o que você fatura. No MEI fica 0%, porque o DAS já está nos custos fixos.",
+    passos: [],
+  },
+  "preco-tx": {
+    titulo: "TX · Taxa da maquininha",
+    serve: "O % que a maquininha ou o banco cobra em cada venda, por forma de pagamento. Pix e dinheiro costumam ser 0%.",
+    passos: [],
+  },
+  "preco-com": {
+    titulo: "COM · Comissão",
+    serve: "O % que vai para o profissional ou a cota do salão-parceiro em cada atendimento.",
+    passos: [],
+  },
+  "preco-ml": {
+    titulo: "ML · Margem de lucro",
+    serve: "Quanto você quer que sobre do preço depois de pagar tudo.",
+    passos: [],
+  },
 } satisfies Record<string, AjudaItem>;
 
 export type AjudaId = keyof typeof AJUDA_TEXTOS;

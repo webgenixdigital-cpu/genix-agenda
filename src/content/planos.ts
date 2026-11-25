@@ -52,6 +52,8 @@ export type FeatureKey =
   | "recorrencia"
   | "financeiro"
   | "faturamento"
+  | "custo"
+  | "calculadora"
   | "retornos"
   | "pacotes"
   | "combos"
@@ -79,6 +81,8 @@ export const FEATURES: Record<FeatureKey, Feature> = {
   lembretes: { label: "Lembretes de véspera (fila em um toque)", min: "basico" },
   financeiro: { label: "Financeiro: caixa e pagamentos pendentes", min: "basico" },
   faturamento: { label: "Faturamento e relatório para o contador", min: "basico" },
+  // 69: custo direto no serviço e margem no caixa (Básico); calculadora de preço (Profissional)
+  custo: { label: "Custo dos serviços e margem no caixa", min: "basico" },
   // 67: encaixe, bloqueios e recorrência saíram do Básico
   encaixe: { label: "Encaixe e encaixe sobreposto", min: "profissional" },
   bloqueios: { label: "Bloqueios: almoço, folgas, férias e feriados", min: "profissional" },
@@ -91,6 +95,7 @@ export const FEATURES: Record<FeatureKey, Feature> = {
   pacotes: { label: "Pacotes de sessões", min: "profissional" },
   combos: { label: "Combos de serviços", min: "profissional" },
   metas: { label: "Metas de faturamento, atendimentos e clientes", min: "profissional" },
+  calculadora: { label: "Calculadora de preço de venda e lucro estimado", min: "profissional" },
   whatsapp: { label: "WhatsApp automático (ativação assistida)", min: "profissional" },
   equipe: { label: "Mais de 1 profissional", min: "equipe" },
   acessos: { label: "Acessos da equipe e “Meus ganhos”", min: "equipe" },
@@ -203,6 +208,7 @@ const TABLE_ORDER: FeatureKey[] = [
   "lembretes",
   "financeiro",
   "faturamento",
+  "custo",
   "encaixe",
   "bloqueios",
   "recorrencia",
@@ -214,6 +220,7 @@ const TABLE_ORDER: FeatureKey[] = [
   "pacotes",
   "combos",
   "metas",
+  "calculadora",
   "whatsapp",
   "acessos",
   "comissoes",

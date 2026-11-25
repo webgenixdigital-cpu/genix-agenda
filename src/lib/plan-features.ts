@@ -33,6 +33,8 @@ export type LockedFeatureKey =
   | "encaixe"
   | "recorrencia"
   | "metas"
+  | "custo"
+  | "calculadora"
   | "vitrine"
   | "nix";
 
@@ -139,6 +141,26 @@ export const LOCKED_FEATURES: Record<
       "No plano Equipe, metas por profissional",
     ],
     minPlan: minOf("metas"),
+  },
+  custo: {
+    title: "Custo dos serviços e margem",
+    description: "Cadastre quanto gasta de material em cada serviço e veja no caixa quanto sobra de verdade.",
+    bullets: [
+      "Custo de material e outros custos diretos por serviço",
+      "Margem bruta dos atendimentos do período",
+      "Aviso dos atendimentos sem custo cadastrado",
+    ],
+    minPlan: minOf("custo"),
+  },
+  calculadora: {
+    title: "Calculadora de preço de venda",
+    description: "Descubra quanto cobrar e quanto você lucra de verdade em cada serviço, com custos fixos, impostos e taxas.",
+    bullets: [
+      "“Quanto cobrar?” com a margem que você quer",
+      "“Quanto eu lucro?” só com o preço de hoje",
+      "Lucro estimado no resumo do caixa",
+    ],
+    minPlan: minOf("calculadora"),
   },
   vitrine: {
     title: "Vitrine com agendamento online",

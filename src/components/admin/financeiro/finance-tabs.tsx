@@ -5,6 +5,8 @@ const TABS = [
   { key: "caixa", label: "Caixa", href: "/admin/financeiro" },
   { key: "faturamento", label: "Faturamento", href: "/admin/financeiro/faturamento" },
   { key: "contador", label: "Contador", href: "/admin/financeiro/contador" },
+  // 69: calculadora de preço de venda (Profissional e Equipe; no Básico, cadeado)
+  { key: "preco", label: "Preço", href: "/admin/financeiro/preco" },
 ] as const;
 
 export function FinanceTabs({ active }: { active: (typeof TABS)[number]["key"] }) {

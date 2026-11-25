@@ -25,6 +25,10 @@ export type MarginSummary = {
   revenueWithoutCost: number;
   packageSessions: number;
   toReceive: number;
+  /** 70: entradas do caixa no período sem atendimento ligado (pacote, produtos, avulsas) */
+  otherIncome: number;
+  /** 70: a mesma soma por categoria do caixa (pacote, produtos, outros...) */
+  otherByCategory: Record<string, number>;
   /** null = calculadora não salva (ou plano abaixo do Profissional) */
   estimate: MarginEstimate | null;
 };
@@ -53,6 +57,11 @@ export async function loadMarginSummary(db: Db, businessId: string, from: string
     revenueWithoutCost: n(d.revenue_without_cost),
     packageSessions: n(d.package_sessions),
     toReceive: n(d.to_receive),
+    // sem a 70 no banco os campos não vêm: 0 e sem divisão (a linha some)
+    otherIncome: n(d.other_income),
+    otherByCategory: Object.fromEntries(
+      Object.entries((d.other_by_category ?? {}) as Record<string, unknown>).map(([k, v]) => [k, n(v)])
+    ),
     estimate: e
       ? { taxes: n(e.taxes), fees: n(e.fees), commissions: n(e.commissions), fixed: n(e.fixed), days: n(e.days), profit: n(e.profit) }
       : null,

@@ -3,8 +3,9 @@
 // conclusão. Atendimento sem custo não entra (aviso com link). Lucro estimado: só com a
 // Calculadora de preço salva (Profissional e Equipe). Sem "use client": tela do servidor.
 import Link from "next/link";
-import { AlertTriangle, Lock } from "lucide-react";
+import { AlertTriangle, ChevronDown, Lock } from "lucide-react";
 import { Ajuda } from "@/components/ajuda";
+import { CATEGORY_LABEL, type CashCategory } from "@/lib/cash";
 import { brl } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { MarginSummary } from "@/lib/margin-data";
@@ -118,7 +119,49 @@ export function MarginCard({
           </div>
         </>
       )}
+
+      {data.otherIncome > 0 && <OtherIncome total={data.otherIncome} byCategory={data.otherByCategory} />}
     </section>
+  );
+}
+
+// 70: nomes da divisão (categorias do caixa; "atendimento" aqui é lançamento avulso, sem agendamento)
+const OTHER_LABEL: Record<string, string> = {
+  pacote: "Pacotes",
+  produtos: "Produtos",
+  outros: "Outros",
+  atendimento: "Atendimentos avulsos",
+};
+
+/** "Outras entradas do período" (70): entradas do caixa sem atendimento ligado; toque abre a divisão. */
+function OtherIncome({ total, byCategory }: { total: number; byCategory: Record<string, number> }) {
+  const rows = Object.entries(byCategory)
+    .filter(([, v]) => v > 0)
+    .sort((a, b) => b[1] - a[1]);
+  return (
+    <div className="mt-4 flex items-start gap-1 border-t pt-3" data-testid="margem-outras-entradas">
+      <details className="group min-w-0 flex-1">
+        <summary
+          className="flex min-h-11 cursor-pointer list-none items-center gap-2 text-sm [&::-webkit-details-marker]:hidden"
+          data-testid="btn-margem-outras-entradas"
+        >
+          <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden />
+          <span className="min-w-0">
+            Outras entradas do período: <strong className="whitespace-nowrap">{brl(total)}</strong>{" "}
+            <span className="text-muted-foreground">(não incluídas na margem)</span>
+          </span>
+        </summary>
+        <ul className="mb-1 ml-6 space-y-1 text-sm text-muted-foreground" data-testid="margem-outras-divisao">
+          {rows.map(([cat, v]) => (
+            <li key={cat} className="flex justify-between gap-3">
+              <span>{OTHER_LABEL[cat] ?? CATEGORY_LABEL[cat as CashCategory] ?? cat}</span>
+              <span className="whitespace-nowrap">{brl(v)}</span>
+            </li>
+          ))}
+        </ul>
+      </details>
+      <Ajuda id="margem-outras-entradas" />
+    </div>
   );
 }
 

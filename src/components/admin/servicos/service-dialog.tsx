@@ -5,6 +5,7 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { previewDurationChange, saveService } from "@/app/admin/(painel)/servicos/actions";
 import { DurationUpdateDialog, type DurationChange } from "@/components/admin/servicos/duration-update-dialog";
+import { CostSection, costInput, parseCost } from "@/components/admin/servicos/cost-section";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -21,6 +22,9 @@ export type EditableService = {
   price: number;
   duration_min: number;
   return_after_days: number | null;
+  /** 69: custo direto (null = não informado); só a matriz recebe */
+  cost_material?: number | null;
+  cost_other?: number | null;
 };
 
 const RETURN_PRESETS = [15, 21, 30, 45, 60];
@@ -41,11 +45,14 @@ export function ServiceDialog({
   onOpenChange,
   service,
   categories,
+  costAllowed = false,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   service: EditableService | null;   // null = novo
   categories: string[];
+  /** 69: o plano libera o custo (a partir do Básico) */
+  costAllowed?: boolean;
 }) {
   const [pending, start] = useTransition();
   const [name, setName] = useState("");
@@ -54,6 +61,8 @@ export function ServiceDialog({
   const [price, setPrice] = useState("0,00");
   const [dur, setDur] = useState("60");
   const [ret, setRet] = useState("");
+  const [costMat, setCostMat] = useState("");
+  const [costOther, setCostOther] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loadedId, setLoadedId] = useState<string | null | undefined>(undefined);
   const [durationChange, setDurationChange] = useState<DurationChange | null>(null);
@@ -67,6 +76,8 @@ export function ServiceDialog({
     setPrice(maskMoney(String(Math.round((service?.price ?? 0) * 100))));
     setDur(String(service?.duration_min ?? 60));
     setRet(service?.return_after_days ? String(service.return_after_days) : "");
+    setCostMat(costInput(service?.cost_material));
+    setCostOther(costInput(service?.cost_other));
     setError(null);
   }
   if (!open && loadedId !== undefined) setLoadedId(undefined);
@@ -84,6 +95,12 @@ export function ServiceDialog({
         price: parseMoney(price),
         duration_min: Number(dur),
         return_after_days: ret ? Number(ret) : null,
+        // 69: só manda o custo quando mudou
+        cost:
+          costAllowed &&
+          (parseCost(costMat) !== (service?.cost_material ?? null) || parseCost(costOther) !== (service?.cost_other ?? null))
+            ? { material: parseCost(costMat), other: parseCost(costOther) }
+            : undefined,
       });
       if (!r) return; // demonstração: o servidor redirecionou
       if (!r.ok) return setError(r.error);
@@ -204,6 +221,16 @@ export function ServiceDialog({
             <Label htmlFor="sv-desc">Descrição (opcional)</Label>
             <Textarea id="sv-desc" rows={3} value={description} onChange={(e) => setDescription(e.target.value.slice(0, 300))} />
           </div>
+
+          <CostSection
+            allowed={costAllowed}
+            price={parseMoney(price)}
+            mode="servico"
+            material={costMat}
+            other={costOther}
+            onMaterial={setCostMat}
+            onOther={setCostOther}
+          />
 
           {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-destructive">{error}</p>}
 

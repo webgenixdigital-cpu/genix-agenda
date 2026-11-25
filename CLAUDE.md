@@ -235,6 +235,18 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
   confere e apaga todas. `pending_payments` devolve saldo (`amount`), `total` e `paid`; `payment_balance` alimenta o
   diálogo. Relatórios que juntam caixa e atendimento somam por atendimento (metas: ticket médio; `billing_monthly`:
   parceiro arredondado no total). Tela: `PaymentSplit` (`components/admin/payment-split.tsx`), selo “Falta R$ X”.
+- **Custo do serviço, margem e calculadora (69):** custo **fora** de `services` (lida sem login pela vitrine):
+  `service_costs` (`cost_material`, `cost_other`, `cost_override` só combo; null = não informado), leitura só matriz e
+  demo, escrita só `save_service_cost` (matriz + `plan_allows(bid,basico)`). `service_direct_cost`: serviço = material +
+  outros; combo = valor próprio ou soma dos itens. Foto na conclusão: `booking_item_costs` (1 por item; sem itens, 1 pelo
+  `bookings.service_id`; índices únicos parciais), gatilho `booking_cost_on_status` (concluir grava, reabrir apaga; o
+  passado fica “sem custo”). `finance_margin_summary`: concluídos pela data do atendimento, receita = `booking_charge`
+  (cobrado, não o lançamento), sem custo fora da conta + aviso, pacote (custo conta) e “a receber”; lucro estimado só com
+  `pricing_settings` + Profissional: imposto %, taxa por forma sobre os lançamentos, comissão (Equipe: `commission_pct`
+  sobre `bookings.price`, parceiro pelo `partner_pct`) e fixos × dias ÷ 30. Calculadora: `/admin/financeiro/preco`
+  (Profissional+), `pricing_settings` (1 por espaço, `save_pricing_settings`), `pricing_suggestions` (média das saídas de
+  3 meses, horas pelo expediente − almoço fixo, comissão média no Equipe). Contas puras em `lib/pricing.ts`; recursos
+  `custo` (Básico) e `calculadora` (Profissional) em `planos.ts`.
 - **Serviços do agendamento (31):** `booking_items` (item `position 0` = serviço principal; só sai pela troca da 57 ou pelo pacote da 48). Em `bookings`,
   `service_name`/`price`/`duration_min`/`end_time` são o **total** (“Corte + Barba”, soma − desconto), mantidos só por
   `recalc_booking`; editar só por `booking_add_item`, `booking_remove_item`, `booking_set_discount` (gatilho

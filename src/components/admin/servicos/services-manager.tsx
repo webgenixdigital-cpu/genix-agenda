@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 
 type Row = EditableService & { active: boolean; bookable_online: boolean; show_in_catalog: boolean };
 
-export function ServicesManager({ services }: { services: Row[] }) {
+export function ServicesManager({ services, costAllowed = false }: { services: Row[]; costAllowed?: boolean }) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<EditableService | null>(null);
   const [pending, start] = useTransition();
@@ -79,6 +79,15 @@ export function ServicesManager({ services }: { services: Row[] }) {
                         <span className="text-muted-foreground"> · retorno em {s.return_after_days} dias</span>
                       )}
                     </p>
+                    {costAllowed && (
+                      <p className="mt-1 text-xs text-muted-foreground" data-testid={`custo-servico-${s.id}`}>
+                        {s.cost_material == null && s.cost_other == null ? (
+                          <span className="rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 font-semibold text-amber-900">Sem custo</span>
+                        ) : (
+                          <>Custo {brl((s.cost_material ?? 0) + (s.cost_other ?? 0))} · sobra {brl(s.price - (s.cost_material ?? 0) - (s.cost_other ?? 0))}</>
+                        )}
+                      </p>
+                    )}
                     {s.description && <p className="mt-1 text-sm text-muted-foreground">{s.description}</p>}
                   </div>
                   <Button
@@ -130,7 +139,7 @@ export function ServicesManager({ services }: { services: Row[] }) {
         </section>
       ))}
 
-      <ServiceDialog open={dialogOpen} onOpenChange={setDialogOpen} service={editing} categories={categories} />
+      <ServiceDialog open={dialogOpen} onOpenChange={setDialogOpen} service={editing} categories={categories} costAllowed={costAllowed} />
     </>
   );
 }

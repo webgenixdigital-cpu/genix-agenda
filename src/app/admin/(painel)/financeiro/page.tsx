@@ -5,7 +5,9 @@ import { ptBR } from "date-fns/locale";
 import { ArrowDownRight, ArrowUpRight, CalendarRange } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { requireRoles } from "@/lib/admin";
-import { getPlanContext } from "@/lib/plan";
+import { allows, getPlanContext } from "@/lib/plan";
+import { loadMarginSummary } from "@/lib/margin-data";
+import { MarginCard } from "@/components/admin/financeiro/margin-card";
 import { LockedFeature } from "@/components/admin/locked-feature";
 import { todayInZone } from "@/lib/dates";
 import { brl } from "@/lib/format";
@@ -38,10 +40,12 @@ export default async function FinanceiroPage({ searchParams }: Props) {
   const tz = business.timezone || "America/Sao_Paulo";
   const today = todayInZone(tz);
   const f = parseCashFilters(searchParams, today);
-  const [rows, summary, monthly] = await Promise.all([
+  const [rows, summary, monthly, margin] = await Promise.all([
     loadCashEntries(supabase, business.id, f, f.limite),
     loadCashSummary(supabase, business.id, f),
     loadCashMonthly(supabase, business.id, f.ate),
+    // 69: margem pelo valor cobrado dos atendimentos concluídos no período
+    loadMarginSummary(supabase, business.id, f.de, f.ate),
   ]);
   const chart =
     monthly?.map((m) => ({
@@ -136,6 +140,7 @@ export default async function FinanceiroPage({ searchParams }: Props) {
             </p>
           </div>
         </div>
+        {margin && <MarginCard data={margin} calculatorAllowed={allows(plan, "profissional")} />}
       </section>
 
       <div className={cn("grid gap-6", chart && "lg:grid-cols-[1fr_320px]")}>

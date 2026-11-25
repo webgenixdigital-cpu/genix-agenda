@@ -14,6 +14,8 @@ export type ServiceInput = {
   price: number;
   duration_min: number;
   return_after_days: number | null;
+  /** 69: custo direto (só a matriz, a partir do Básico); undefined = não mexe */
+  cost?: { material: number | null; other: number | null };
 };
 
 function refresh(slug: string) {
@@ -46,6 +48,7 @@ export async function saveService(input: ServiceInput): Promise<Result> {
     return_after_days: ret,
   };
 
+  let id = input.id;
   if (input.id) {
     const { error } = await supabase.from("services").update(row).eq("id", input.id).eq("business_id", business.id);
     if (error) return { ok: false, error: "Não foi possível salvar." };
@@ -54,13 +57,62 @@ export async function saveService(input: ServiceInput): Promise<Result> {
     const { data: last } = await supabase
       .from("services").select("sort_order").eq("business_id", business.id)
       .order("sort_order", { ascending: false }).limit(1).maybeSingle();
-    const { error } = await supabase
+    const { data: created, error } = await supabase
       .from("services")
-      .insert({ ...row, business_id: business.id, sort_order: (last?.sort_order ?? 0) + 1 });
-    if (error) return { ok: false, error: "Não foi possível criar o serviço." };
+      .insert({ ...row, business_id: business.id, sort_order: (last?.sort_order ?? 0) + 1 })
+      .select("id")
+      .single();
+    if (error || !created) return { ok: false, error: "Não foi possível criar o serviço." };
+    id = created.id as string;
+  }
+
+  if (input.cost && id) {
+    const c = await writeCost(id, input.cost.material, input.cost.other, null);
+    if (!c.ok) {
+      refresh(business.slug);
+      return { ok: false, error: `Serviço salvo, mas o custo não: ${c.error}` };
+    }
   }
 
   refresh(business.slug);
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------
+// 69 — Custo direto do serviço/combo (save_service_cost: só a matriz, a partir do Básico)
+// ---------------------------------------------------------------------
+const COST_ERRORS: Record<string, string> = {
+  PLANO_BASICO: "O custo do serviço é um recurso dos planos pagos, a partir do Básico.",
+  SEM_PERMISSAO: "Só a matriz pode ver e mudar o custo dos serviços.",
+  VALOR_INVALIDO: "Confira os valores do custo (de 0 a 99.999).",
+  SO_COMBO: "Valor próprio de custo só vale para combo.",
+  NAO_ENCONTRADO: "Serviço não encontrado.",
+};
+
+async function writeCost(serviceId: string, material: number | null, other: number | null, override: number | null): Promise<Result> {
+  const supabase = createClient();
+  const r2 = (n: number | null) => (n == null || !Number.isFinite(n) ? null : Math.round(n * 100) / 100);
+  const { error } = await supabase.rpc("save_service_cost", {
+    p_service: serviceId,
+    p_material: r2(material),
+    p_other: r2(other),
+    p_override: r2(override),
+  });
+  if (error) {
+    const key = Object.keys(COST_ERRORS).find((k) => error.message.includes(k));
+    return { ok: false, error: key ? COST_ERRORS[key] : "não foi possível gravar o custo." };
+  }
+  return { ok: true };
+}
+
+/** Grava só o custo (ex.: "Usar este custo no serviço", na Calculadora de preço) */
+export async function saveServiceCost(input: { serviceId: string; material: number | null; other: number | null; override?: number | null }): Promise<Result> {
+  const { business, role } = await getEditorContext();
+  if (role !== "owner") return { ok: false, error: COST_ERRORS.SEM_PERMISSAO };
+  const r = await writeCost(input.serviceId, input.material, input.other, input.override ?? null);
+  if (!r.ok) return r;
+  refresh(business.slug);
+  revalidatePath("/admin/financeiro/preco");
   return { ok: true };
 }
 
@@ -109,6 +161,8 @@ export type ComboInput = {
   category: string;
   price: number;
   serviceIds: string[];
+  /** 69: custo próprio do combo (null = soma dos serviços); undefined = não mexe */
+  costOverride?: number | null;
 };
 
 const COMBO_ERRORS: Record<string, string> = {
@@ -130,7 +184,7 @@ export async function saveCombo(input: ComboInput): Promise<Result> {
   if (!(input.price >= 0)) return { ok: false, error: COMBO_ERRORS.PRECO_INVALIDO };
 
   const supabase = createClient();
-  const { error } = await supabase.rpc("save_combo", {
+  const { data: comboId, error } = await supabase.rpc("save_combo", {
     p_business: business.id,
     p_id: input.id ?? null,
     p_name: input.name.trim(),
@@ -142,6 +196,14 @@ export async function saveCombo(input: ComboInput): Promise<Result> {
   if (error) {
     const key = Object.keys(COMBO_ERRORS).find((k) => error.message.includes(k));
     return { ok: false, error: key ? COMBO_ERRORS[key] : "Não foi possível salvar o combo." };
+  }
+  const savedId = (comboId as string | null) ?? input.id;
+  if (input.costOverride !== undefined && savedId) {
+    const c = await writeCost(savedId, null, null, input.costOverride);
+    if (!c.ok) {
+      refresh(business.slug);
+      return { ok: false, error: `Combo salvo, mas o custo não: ${c.error}` };
+    }
   }
   refresh(business.slug);
   return { ok: true };

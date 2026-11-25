@@ -29,14 +29,16 @@ function Corpo({ item, comTitulo }: { item: AjudaItem; comTitulo: boolean }) {
         <p className="text-xs font-semibold uppercase tracking-wide text-primary">Para que serve</p>
         <p className="text-foreground">{item.serve}</p>
       </div>
-      <div className="space-y-1">
-        <p className="text-xs font-semibold uppercase tracking-wide text-primary">Como fazer</p>
-        <ol className="list-decimal space-y-1 pl-5">
-          {item.passos.map((p) => (
-            <li key={p}>{p}</li>
-          ))}
-        </ol>
-      </div>
+      {item.passos.length > 0 && (
+        <div className="space-y-1">
+          <p className="text-xs font-semibold uppercase tracking-wide text-primary">Como fazer</p>
+          <ol className="list-decimal space-y-1 pl-5">
+            {item.passos.map((p) => (
+              <li key={p}>{p}</li>
+            ))}
+          </ol>
+        </div>
+      )}
       {item.atencao && item.atencao.length > 0 && (
         <div className="space-y-1 rounded-lg bg-amber-50 p-3 text-amber-950">
           <p className="text-xs font-semibold uppercase tracking-wide">Atenção</p>

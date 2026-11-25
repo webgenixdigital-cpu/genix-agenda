@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 import { AlertTriangle, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { deleteService, saveCombo, toggleService } from "@/app/admin/(painel)/servicos/actions";
+import { CostSection, costInput, parseCost } from "@/components/admin/servicos/cost-section";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -14,7 +15,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { brl, duration } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-export type ComboService = { id: string; name: string; price: number; duration_min: number; active: boolean };
+export type ComboService = {
+  id: string;
+  name: string;
+  price: number;
+  duration_min: number;
+  active: boolean;
+  /** 69: custo direto do serviço (null = não informado) */
+  cost?: number | null;
+};
 export type ComboRow = {
   id: string;
   name: string;
@@ -27,6 +36,8 @@ export type ComboRow = {
   show_in_catalog: boolean;
   /** serviços do combo, na ordem */
   serviceIds: string[];
+  /** 69: custo próprio do combo (null = soma dos serviços) */
+  cost_override?: number | null;
 };
 
 const MAX = 6;
@@ -43,7 +54,15 @@ function comboState(c: Pick<ComboRow, "price" | "serviceIds">, services: ComboSe
   return { list, normal, warnings };
 }
 
-export function CombosManager({ combos, services }: { combos: ComboRow[]; services: ComboService[] }) {
+export function CombosManager({
+  combos,
+  services,
+  costAllowed = false,
+}: {
+  combos: ComboRow[];
+  services: ComboService[];
+  costAllowed?: boolean;
+}) {
   const [pending, start] = useTransition();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<ComboRow | null>(null);
@@ -161,7 +180,7 @@ export function CombosManager({ combos, services }: { combos: ComboRow[]; servic
         </ul>
       )}
 
-      <ComboDialog open={open} onOpenChange={setOpen} combo={editing} services={services} />
+      <ComboDialog open={open} onOpenChange={setOpen} combo={editing} services={services} costAllowed={costAllowed} />
     </section>
   );
 }
@@ -171,11 +190,13 @@ function ComboDialog({
   onOpenChange,
   combo,
   services,
+  costAllowed,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   combo: ComboRow | null;
   services: ComboService[];
+  costAllowed: boolean;
 }) {
   const [pending, start] = useTransition();
   const [selected, setSelected] = useState<string[]>([]);
@@ -183,6 +204,8 @@ function ComboDialog({
   const [nameTouched, setNameTouched] = useState(false);
   const [price, setPrice] = useState("");
   const [description, setDescription] = useState("");
+  const [useOverride, setUseOverride] = useState(false);
+  const [override, setOverride] = useState("");
   const [loadedFor, setLoadedFor] = useState<string | null | undefined>(undefined);
 
   // abre sempre com os dados do combo (ou vazio, no novo)
@@ -195,6 +218,8 @@ function ComboDialog({
       setNameTouched(!!combo);
       setPrice(combo ? String(combo.price).replace(".", ",") : "");
       setDescription(combo?.description ?? "");
+      setUseOverride(combo?.cost_override != null);
+      setOverride(costInput(combo?.cost_override));
     }
   }
 
@@ -209,6 +234,8 @@ function ComboDialog({
   const tooHigh = hasPrice && value > normal;
   const equal = hasPrice && chosen.length >= 2 && Math.abs(value - normal) < 0.005;
   const suggested = chosen.map((s) => s.name).join(" + ");
+  // 69: custo do combo = soma dos serviços (null se algum não tiver custo)
+  const itemsCost = chosen.length && chosen.every((s) => s.cost != null) ? chosen.reduce((t, s) => t + (s.cost ?? 0), 0) : null;
 
   function pick(id: string) {
     const next = selected.includes(id) ? selected.filter((x) => x !== id) : selected.length < MAX ? [...selected, id] : selected;
@@ -231,6 +258,13 @@ function ComboDialog({
         category: combo?.category ?? "",
         price: value,
         serviceIds: selected,
+        // 69: só manda o custo quando mudou
+        costOverride:
+          costAllowed && (useOverride ? parseCost(override) : null) !== (combo?.cost_override ?? null)
+            ? useOverride
+              ? parseCost(override)
+              : null
+            : undefined,
       });
       if (!r) return; // demonstração: o servidor redirecionou
       if (!r.ok) return void toast.error(r.error);
@@ -332,6 +366,17 @@ function ComboDialog({
               data-testid="input-descricao-combo"
             />
           </div>
+
+          <CostSection
+            allowed={costAllowed}
+            price={hasPrice ? value : 0}
+            mode="combo"
+            itemsCost={itemsCost}
+            useOverride={useOverride}
+            onUseOverride={setUseOverride}
+            override={override}
+            onOverride={setOverride}
+          />
 
           {total > 600 && (
             <p className="text-sm text-destructive">A soma das durações passa de 10 horas. Tire algum serviço.</p>

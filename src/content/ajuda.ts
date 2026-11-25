@@ -683,8 +683,15 @@ const AJUDA_TEXTOS = {
       "Atendimento sem custo cadastrado não entra na conta (não vale como zero): ele aparece no aviso, com o link para cadastrar em Serviços.",
       "Sessão de pacote entra com o custo do material: o dinheiro do pacote entrou no dia da venda.",
       "“A receber” é o que falta pagar dos atendimentos com Pagamento pendente.",
+      "“Outras entradas do período” (venda de pacote, produtos, lançamentos avulsos) aparecem no saldo do Caixa, mas não entram na margem nem no lucro estimado. Toque na linha para ver por categoria.",
       planNote("custo"),
     ],
+  },
+  "margem-outras-entradas": {
+    titulo: "Outras entradas do período",
+    serve:
+      "Estas entradas aparecem no saldo do Caixa, mas não entram na margem nem no lucro estimado, que medem só os atendimentos.",
+    passos: [],
   },
   "preco-calculadora": {
     titulo: "Calculadora de preço",

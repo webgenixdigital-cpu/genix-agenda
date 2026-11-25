@@ -188,25 +188,63 @@ export async function updateBookingStatus(id: string, status: "confirmed" | "can
 // ---------------------------------------------------------------------
 // PARTE 2 — Concluir (e lançar no caixa)
 // ---------------------------------------------------------------------
-/** method "pendente" = "Escolher depois" (49): conclui sem caixa e fica Pagamento pendente */
-export async function completeBooking(id: string, method: Method | "pendente" | null): Promise<Result> {
+/** Uma parte do pagamento (68): forma + valor */
+export type PaymentPart = { method: Method; amount: number };
+
+/** Confere as partes antes de mandar ao banco (o banco confere de novo) */
+function cleanParts(parts: PaymentPart[]): PaymentPart[] | string {
+  if (!Array.isArray(parts) || parts.length < 1 || parts.length > 4) return "Informe de 1 a 4 formas de pagamento.";
+  const out: PaymentPart[] = [];
+  for (const p of parts) {
+    if (!["pix", "dinheiro", "credito", "debito"].includes(p?.method)) return "Escolha a forma de pagamento de cada parte.";
+    const amount = Math.round(Number(p.amount) * 100) / 100;
+    if (!Number.isFinite(amount) || amount <= 0) return "Informe um valor maior que zero em cada parte.";
+    out.push({ method: p.method, amount });
+  }
+  return out;
+}
+
+const COMPLETE_ERRORS: Record<string, string> = {
+  SEM_PERMISSAO: "Você não tem permissão para concluir este atendimento.",
+  JA_CONCLUIDO: "Esse atendimento já foi concluído.",
+  VALOR_ACIMA_DO_SALDO: "A soma das formas passa do valor a cobrar. Confira os valores.",
+  FORMA_INVALIDA: "Escolha a forma de pagamento de cada parte.",
+  VALOR_INVALIDO: "Informe um valor maior que zero em cada parte.",
+};
+
+/**
+ * method "pendente" = "Escolher depois" (49): conclui sem caixa e fica Pagamento pendente.
+ * payments (68) = dividir o pagamento: um lançamento por parte; soma menor que o cobrado
+ * deixa o saldo como Pagamento pendente.
+ */
+export async function completeBooking(
+  id: string,
+  method: Method | "pendente" | null,
+  payments?: PaymentPart[]
+): Promise<Result> {
   await getEditorContext();
+  let parts: PaymentPart[] | null = null;
+  if (payments) {
+    const c = cleanParts(payments);
+    if (typeof c === "string") return { ok: false, error: c };
+    parts = c;
+  }
   const supabase = createClient();
 
-  // status + lançamento no caixa juntos, com a permissão conferida no banco
-  const { error } = await supabase.rpc("complete_booking", { p_booking: id, p_method: method });
+  // status + lançamentos no caixa juntos, com a permissão conferida no banco
+  const { error } = await supabase.rpc(
+    "complete_booking",
+    parts ? { p_booking: id, p_method: null, p_payments: parts } : { p_booking: id, p_method: method }
+  );
   if (error) {
-    return {
-      ok: false,
-      error: error.message.includes("SEM_PERMISSAO")
-        ? "Você não tem permissão para concluir este atendimento."
-        : "Não foi possível concluir o atendimento.",
-    };
+    const key = Object.keys(COMPLETE_ERRORS).find((k) => error.message.includes(k));
+    return { ok: false, error: key ? COMPLETE_ERRORS[key] : "Não foi possível concluir o atendimento." };
   }
 
   refresh();
   revalidatePath("/admin/financeiro");
   revalidatePath("/admin/ganhos");
+  revalidatePath("/admin");
   return { ok: true };
 }
 
@@ -219,8 +257,9 @@ const PAYMENT_ERRORS: Record<string, string> = {
   PLANO_GRATIS: "Registrar pagamento no caixa é um recurso dos planos pagos, a partir do Básico.",
   NAO_PENDENTE: "Esse pagamento já foi registrado.",
   JA_LANCADO: "Esse atendimento já tem um lançamento no caixa.",
-  FORMA_INVALIDA: "Escolha a forma de pagamento.",
-  VALOR_INVALIDO: "Informe um valor maior que zero.",
+  VALOR_ACIMA_DO_SALDO: "O valor passa do que falta pagar. Confira os valores.",
+  FORMA_INVALIDA: "Escolha a forma de pagamento de cada parte.",
+  VALOR_INVALIDO: "Informe um valor maior que zero em cada parte.",
   DATA_INVALIDA: "A data do pagamento não pode ser no futuro.",
   NAO_ENCONTRADO: "Não encontrado.",
 };
@@ -229,44 +268,51 @@ const paymentError = (message?: string) =>
   "Não foi possível registrar o pagamento.";
 
 export type PaymentMethod = Method;
+/** remaining = o que ainda falta pagar depois deste registro (0 = quitado) */
+export type PaymentResult = { ok: true; remaining: number } | { ok: false; error: string };
 
-export async function registerBookingPayment(input: {
-  bookingId: string;
-  method: Method;
-  amount: number;
-  date: string; // AAAA-MM-DD
-}): Promise<Result> {
-  await getEditorContext();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.date)) return { ok: false, error: "Escolha a data do pagamento." };
-  const supabase = createClient();
-  const { error } = await supabase.rpc("register_booking_payment", {
-    p_booking: input.bookingId,
-    p_method: input.method,
-    p_amount: input.amount,
-    p_date: input.date,
-  });
-  if (error) return { ok: false, error: paymentError(error.message) };
+function afterPayment() {
   refresh();
   revalidatePath("/admin/financeiro");
   revalidatePath("/admin/clientes", "layout");
   revalidatePath("/admin");
-  return { ok: true };
 }
 
-/** Pacote vendido com "Escolher depois": matriz e recepção registram (lançamento "pacote") */
-export async function registerPackagePayment(input: {
-  packageId: string;
-  method: Method;
-  amount: number;
+/** Atendimento com Pagamento pendente (49): uma ou mais partes (68); pode ser parcial */
+export async function registerBookingPayment(input: {
+  bookingId: string;
+  payments: PaymentPart[];
   date: string; // AAAA-MM-DD
-}): Promise<Result> {
+}): Promise<PaymentResult> {
   await getEditorContext();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(input.date)) return { ok: false, error: "Escolha a data do pagamento." };
+  const parts = cleanParts(input.payments);
+  if (typeof parts === "string") return { ok: false, error: parts };
   const supabase = createClient();
-  const { error } = await supabase.rpc("register_package_payment", {
+  const { data, error } = await supabase.rpc("register_booking_payment", {
+    p_booking: input.bookingId,
+    p_payments: parts,
+    p_date: input.date,
+  });
+  if (error) return { ok: false, error: paymentError(error.message) };
+  afterPayment();
+  return { ok: true, remaining: Number((data as { remaining?: number } | null)?.remaining ?? 0) };
+}
+
+/** Pacote vendido com "Escolher depois": matriz e recepção registram (lançamentos "pacote") */
+export async function registerPackagePayment(input: {
+  packageId: string;
+  payments: PaymentPart[];
+  date: string; // AAAA-MM-DD
+}): Promise<PaymentResult> {
+  await getEditorContext();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.date)) return { ok: false, error: "Escolha a data do pagamento." };
+  const parts = cleanParts(input.payments);
+  if (typeof parts === "string") return { ok: false, error: parts };
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("register_package_payment", {
     p_package: input.packageId,
-    p_method: input.method,
-    p_amount: input.amount,
+    p_payments: parts,
     p_date: input.date,
   });
   if (error) {
@@ -277,11 +323,21 @@ export async function registerPackagePayment(input: {
         : paymentError(error.message),
     };
   }
-  refresh();
-  revalidatePath("/admin/financeiro");
-  revalidatePath("/admin/clientes", "layout");
-  revalidatePath("/admin");
-  return { ok: true };
+  afterPayment();
+  return { ok: true, remaining: Number((data as { remaining?: number } | null)?.remaining ?? 0) };
+}
+
+/** Total, já pago e o que falta (68), para o diálogo de Registrar pagamento. Só leitura. */
+export async function getPaymentBalance(
+  kind: "booking" | "package",
+  id: string
+): Promise<{ ok: true; total: number; paid: number; remaining: number } | { ok: false; error: string }> {
+  await getAdminContext();
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("payment_balance", { p_kind: kind, p_id: id });
+  if (error || !data) return { ok: false, error: "Não foi possível carregar o valor." };
+  const d = data as { total: number; paid: number; remaining: number };
+  return { ok: true, total: Number(d.total), paid: Number(d.paid), remaining: Number(d.remaining) };
 }
 
 // ---------------------------------------------------------------------

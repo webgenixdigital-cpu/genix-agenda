@@ -48,6 +48,8 @@ export type AgendaBooking = {
   items_count?: number;
   /** 49: 'pending' = concluído com "Escolher depois"; 'paid' = pago depois */
   payment_status?: "pending" | "paid" | null;
+  /** 68: soma das partes já pagas (pendente com parte paga = "Falta R$ X") */
+  amount_paid?: number | null;
   /** 50: encaixe sobreposto (por cima de outro atendimento do mesmo profissional) */
   overlay?: boolean;
   /** 64: banho e tosa — nome do pet atendido (o tutor segue em customer_name) */

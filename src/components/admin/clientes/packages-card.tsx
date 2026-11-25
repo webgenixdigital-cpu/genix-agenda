@@ -42,6 +42,8 @@ export type CustomerPackage = {
   fixed: boolean;
   /** 49_pagamento_depois: vendido com "Escolher depois", ainda sem pagamento no caixa */
   paymentPending: boolean;
+  /** 68: quanto já foi pago (pendente com parte paga = "Falta R$ X") */
+  amountPaid: number;
   /** 37_plano_fechado: saldo por serviço do pacote */
   items: { id: string; service_name: string; sessions_total: number; used: number; remaining: number }[];
   /** visitas que usaram o pacote; services = serviços do pacote usados nela */
@@ -164,7 +166,7 @@ export function PackagesCard({
                         )}
                         <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", st.cls)}>{st.label}</span>
                         {p.fixed && <span className="rounded-full bg-secondary px-2 py-0.5 text-xs font-medium">Datas fixas</span>}
-                        {p.paymentPending && p.effective_status !== "cancelled" && <PaymentPendingBadge testId={`selo-pagamento-pendente-${p.id}`} />}
+                        {p.paymentPending && p.effective_status !== "cancelled" && <PaymentPendingBadge testId={`selo-pagamento-pendente-${p.id}`} remaining={p.amountPaid > 0 ? Math.max(p.price - p.amountPaid, 0) : null} />}
                       </div>
                       <p className="text-sm text-muted-foreground">
                         {p.items.length > 1 ? `${p.items.length} serviços` : p.service_name} · {brl(p.price)} · vendido em {br(p.sold_at.slice(0, 10))}
@@ -188,7 +190,7 @@ export function PackagesCard({
                     size="sm"
                     className="mt-3 h-10"
                     onClick={() => {
-                      setPayTarget({ kind: "package", id: p.id, customerName: "", description: `Pacote ${p.name}`, suggested: p.price });
+                      setPayTarget({ kind: "package", id: p.id, customerName: "", description: `Pacote ${p.name}`, suggested: null });
                       setPayOpen(true);
                     }}
                     data-testid={`btn-registrar-pagamento-${p.id}`}

@@ -520,8 +520,15 @@ const AJUDA_TEXTOS = {
   concluir: {
     titulo: "Concluir atendimento",
     serve: "Marca que o atendimento foi feito e lança o valor no caixa.",
-    passos: ["Toque em “Concluir”.", "Confira o valor e escolha a forma de pagamento.", "Confirme."],
+    passos: [
+      "Toque em “Concluir” e confira o valor.",
+      "Toque na forma de pagamento: ela fica marcada e aparece o campo Valor, já com o total.",
+      "Pagou em mais de uma forma (ex.: parte no débito e parte no crédito)? Mude o valor e toque em “Outra forma”.",
+      "Confira o resumo (Total · Lançado · Falta) e toque em “Concluir e lançar”.",
+    ],
     atencao: [
+      "Tocar na forma não conclui: só o botão do final conclui e lança no caixa.",
+      "Se o cliente pagou só uma parte, ponha o valor pago: o botão vira “Concluir com R$ … pendente” e o resto fica como Pagamento pendente.",
       "Sessão de pacote não entra no caixa de novo: já foi paga na venda.",
       `Depois de concluir, você pode mandar ao cliente o link de avaliação. ${planNote("pedidoAvaliacao")}`,
     ],
@@ -534,25 +541,45 @@ const AJUDA_TEXTOS = {
       "No Concluir, toque em “Escolher depois”.",
       "O atendimento aparece com o selo “Pagamento pendente” na Agenda e na ficha do cliente.",
       "Quando o cliente pagar, toque em “Registrar pagamento” no atendimento ou na lista “Pagamentos pendentes” da Agenda.",
+      "Pagou só uma parte? Registre o que foi pago: o selo passa a mostrar “Falta R$ …” até completar.",
     ],
     atencao: [
-      "Enquanto estiver pendente, nada entra no caixa nem no faturamento.",
+      "Enquanto estiver pendente, só o que já foi pago entra no caixa e no faturamento.",
       "O atendimento já conta em “Meus ganhos”, com o aviso de pagamento pendente.",
       "Diferente de “Concluir sem lançar no caixa”, que conclui e não fica pendente.",
     ],
   },
   "registrar-pagamento": {
     titulo: "Registrar pagamento",
-    serve: "Lança no caixa o pagamento de um atendimento ou pacote que ficou com “Pagamento pendente”.",
+    serve:
+      "Lança no caixa o pagamento de um atendimento ou pacote que ficou com “Pagamento pendente”. Aceita pagamento em partes e em mais de uma forma.",
     passos: [
-      "Escolha a forma de pagamento.",
-      "Confira o valor (vem o que foi cobrado; dá para mudar se o cliente pagou outro valor).",
+      "Confira no topo o total, o que já foi pago e o que falta.",
+      "Escolha a forma e confira o valor (vem o que falta; dá para pôr menos, se o cliente pagou só uma parte).",
+      "Pagou em mais de uma forma? Toque em “Outra forma” e divida o valor.",
       "Confira a data (hoje, ou o dia em que o cliente pagou).",
-      "Toque em “Registrar no caixa”: o selo some.",
+      "Toque em “Registrar no caixa”. Pagou tudo: o selo some. Pagou uma parte: o selo mostra “Falta R$ …”.",
     ],
     atencao: [
-      "O pagamento entra no caixa e no faturamento na data escolhida.",
-      "Para desfazer, reabra o atendimento (o lançamento sai junto).",
+      "Cada forma vira um lançamento no caixa, na data escolhida.",
+      "Não dá para registrar mais do que falta.",
+      "Para desfazer, reabra o atendimento (todos os lançamentos dele saem juntos). Excluir uma parte no Caixa volta a fatura para pendente.",
+    ],
+  },
+  "dividir-pagamento": {
+    titulo: "Dividir pagamento",
+    serve:
+      "Para quando o cliente paga em mais de uma forma (ex.: R$ 80 no débito e R$ 170 no crédito) ou paga só uma parte agora.",
+    passos: [
+      "Toque na primeira forma e ajuste o valor (ex.: 80,00 no débito).",
+      "Toque em “+ Outra forma” e escolha a segunda: o valor já vem com o que falta (ex.: 170,00 no crédito).",
+      "Confira o resumo: Total · Lançado · Falta.",
+      "Toque no botão do final. Cada forma vira um lançamento no caixa.",
+    ],
+    atencao: [
+      "Se a soma ficar abaixo do valor, o que falta fica como Pagamento pendente, com o selo “Falta R$ …”.",
+      "A soma não pode passar do valor a pagar. Troco de dinheiro não entra: lance só o valor do atendimento.",
+      "Até 4 formas por vez.",
     ],
   },
   "pagamentos-pendentes": {

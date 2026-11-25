@@ -195,7 +195,7 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
   e `plan_kind`: teste vencido, webhook e cron não rebaixam. No código, `getPlanContext().grant` (conta sem cobrança).
 - Operações sensíveis via funções `security definer`: `get_available_slots`, `create_public_booking`,
   `complete_booking` (status + caixa), `create_business_for_user`, `submit_review`, `public_plan_info`.
-- Trava de conflito de horário: constraint `no_overlap` em `bookings`. Caixa: 1 lançamento por atendimento.
+- Trava de conflito de horário: constraint `no_overlap` em `bookings`. Caixa: 1 lançamento por parte do pagamento (68), nunca acima do cobrado.
 - **Novo agendamento (47):** ordem Cliente (WhatsApp primeiro) → Pacote → Serviço → Data/horário → Profissional → Obs/Repetir.
   Horários por `manual_booking_slots(bid, serviço, data, horário?)` (só leitura): mesmas peças da vitrine (expediente,
   passo, `professional_does_service`, `slot_conflicts_block` — almoço e folga fixa são bloqueios recorrentes —, ocupados),
@@ -225,6 +225,16 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
   `reopen_booking` (49) desfaz o lançamento do pago depois conferindo com o evento `payment_registered`. Lista:
   `pending_payments` (Agenda `?pagamentos=1`). Comissão/“Meus ganhos” contam (com aviso); faturamento/contador só o caixa.
   Grátis: sem pendência (não há caixa). Diálogo: `RegisterPaymentDialog` (provider da Agenda, tipo `payment`).
+- **Pagamento parcial e dividido (68):** cada parte = 1 lançamento ligado ao atendimento (`booking_id`) ou ao pacote
+  (`cash_entries.customer_package_id`); saiu o índice único da 07. `complete_booking(id, null, p_payments)` e
+  `register_*_payment(id, p_payments, data)` recebem `[{method, amount}]` (1 a 4, `payment_parts_total`); soma acima do
+  saldo = `VALOR_ACIMA_DO_SALDO`; abaixo = fica `pending` com o saldo. `amount_paid` (bookings/customer_packages) e a
+  virada pending ↔ paid são do gatilho do caixa (`payment_sync_*`; excluir uma parte volta a pendente); o gatilho
+  BEFORE recusa qualquer gravação que passe do cobrado (`booking_charge`). Concluir em dobro = `JA_CONCLUIDO`.
+  Cada parte gera evento `payment_registered` com `cash_entry_id` (`source` conclusao|registro); `reopen_booking`
+  confere e apaga todas. `pending_payments` devolve saldo (`amount`), `total` e `paid`; `payment_balance` alimenta o
+  diálogo. Relatórios que juntam caixa e atendimento somam por atendimento (metas: ticket médio; `billing_monthly`:
+  parceiro arredondado no total). Tela: `PaymentSplit` (`components/admin/payment-split.tsx`), selo “Falta R$ X”.
 - **Serviços do agendamento (31):** `booking_items` (item `position 0` = serviço principal; só sai pela troca da 57 ou pelo pacote da 48). Em `bookings`,
   `service_name`/`price`/`duration_min`/`end_time` são o **total** (“Corte + Barba”, soma − desconto), mantidos só por
   `recalc_booking`; editar só por `booking_add_item`, `booking_remove_item`, `booking_set_discount` (gatilho

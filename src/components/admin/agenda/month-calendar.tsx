@@ -213,7 +213,7 @@ export function MonthCalendar(props: Props) {
                       {b.series_id && <Repeat className="h-3 w-3" aria-label="Recorrente" />}
                       {b.overlay && <Layers2 className="h-3 w-3 shrink-0" aria-label="Encaixe sobreposto" data-testid={`selo-encaixe-${b.id}`} />}
                       {b.status === "completed" && b.payment_status === "pending" && (
-                        <Clock className="h-3 w-3 text-amber-700" aria-label="Pagamento pendente" />
+                        <Clock className="h-3 w-3 text-amber-700" aria-label={Number(b.amount_paid ?? 0) > 0 ? "Pagamento parcial" : "Pagamento pendente"} />
                       )}
                     </span>
                   </span>

@@ -13,7 +13,7 @@ import { BookingActions, type RescheduleProps } from "@/components/admin/agenda/
 import { NewBookingDialog } from "@/components/admin/agenda/new-booking-dialog";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { AutoConfirmBadge } from "@/components/admin/auto-confirm-badge";
-import { PaymentPendingBadge } from "@/components/admin/payment-pending-badge";
+import { PaymentPendingBadge, bookingBadgeRemaining } from "@/components/admin/payment-pending-badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { addDaysISO } from "@/lib/dates";
 import { brl } from "@/lib/format";
@@ -453,7 +453,7 @@ export function WeekGrid(props: Props) {
                 <div className="flex flex-wrap items-center gap-2">
                   <StatusBadge status={selected.status} />
                   <AutoConfirmBadge status={selected.status} reason={selected.auto_confirm_reason} testId="selo-auto-confirmado-semana" />
-                  {selected.status === "completed" && selected.payment_status === "pending" && <PaymentPendingBadge testId="selo-pagamento-pendente-semana" />}
+                  {selected.status === "completed" && selected.payment_status === "pending" && <PaymentPendingBadge testId="selo-pagamento-pendente-semana" remaining={bookingBadgeRemaining(selected)} partial={Number(selected.amount_paid ?? 0) > 0} />}
                   {selected.series_id && <Badge icon={<Repeat className="h-3 w-3" />}>Recorrente</Badge>}
                   {selected.customer_package_id && (
                     <Badge icon={<Package className="h-3 w-3" />}>{props.sessionLabel[selected.id] ?? "Pacote"}</Badge>
@@ -577,7 +577,11 @@ function BookingBlock(props: {
             )}
             {b.status === "completed" && b.payment_status === "pending" && (
               <Badge icon={<Clock className="h-3 w-3" />} testId={`selo-pagamento-pendente-${b.id}`}>
-                Pagamento pendente
+                {bookingBadgeRemaining(b) != null
+                  ? `Falta ${brl(bookingBadgeRemaining(b) ?? 0)}`
+                  : Number(b.amount_paid ?? 0) > 0
+                    ? "Pagamento parcial"
+                    : "Pagamento pendente"}
               </Badge>
             )}
           </div>

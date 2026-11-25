@@ -161,13 +161,25 @@ export default async function ClientePage({ params }: Props) {
   const c = res.data ? ({ birth_date: null, ...(res.data as object) } as CustomerRow) : null;
   if (!c) notFound();
 
-  const { data: bookings } = await supabase
+  // 68: amount_paid só existe depois da migration; sem ela (42703), a mesma consulta sem a coluna
+  const bkRes = await supabase
     .from("bookings")
     .select("id, booking_date, start_time, service_name, professional_name, price, status, customer_package_id, auto_confirm_reason, payment_status, amount_paid, booking_items(price, paid_by_package, customer_package_item_id)")
     .eq("customer_id", c.id)
     .order("booking_date", { ascending: false })
     .order("start_time", { ascending: false })
     .limit(100);
+  let bookings = bkRes.data;
+  if (bkRes.error?.code === "42703") {
+    const old = await supabase
+    .from("bookings")
+    .select("id, booking_date, start_time, service_name, professional_name, price, status, customer_package_id, auto_confirm_reason, payment_status, booking_items(price, paid_by_package, customer_package_item_id)")
+    .eq("customer_id", c.id)
+    .order("booking_date", { ascending: false })
+    .order("start_time", { ascending: false })
+    .limit(100);
+    bookings = (old.data ?? []).map((b) => ({ ...b, amount_paid: 0 }));
+  }
 
   const list = bookings ?? [];
 
@@ -226,7 +238,8 @@ export default async function ClientePage({ params }: Props) {
     canSell ? loadSaleOptions(supabase, business.id) : Promise.resolve({ templates: [], professionals: [] }),
     getPlanContext(business.id),
     // 39_pacote_datas_fixas: modo de agendamento de cada pacote
-    supabase.from("customer_packages").select("id, schedule_mode, payment_status, amount_paid, pet_id").eq("customer_id", c.id),
+    supabase.from("customer_packages").select("*") // 68: "*" lê amount_paid quando a coluna existe (antes da migration, segue sem ela)
+     .eq("customer_id", c.id),
   ]);
   const modeById = new Map(((pkgModes ?? []) as { id: string; schedule_mode: string }[]).map((m) => [m.id, m.schedule_mode]));
   // 49_pagamento_depois: pacote vendido com "Escolher depois"

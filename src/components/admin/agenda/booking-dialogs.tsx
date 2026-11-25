@@ -13,7 +13,7 @@
 // agendamento e só fecha quando o usuário fecha.
 import { createContext, useCallback, useContext, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCheck, Loader2, Plus, Split } from "lucide-react";
+import { CheckCheck, Loader2, Plus } from "lucide-react";
 import { attendeeText } from "@/lib/pets";
 import { toast } from "sonner";
 import { cancelSeriesFuture, completeBooking, updateBookingStatus } from "@/app/admin/(painel)/agenda/actions";
@@ -26,7 +26,8 @@ import { RescheduleDialog } from "@/components/admin/agenda/reschedule-dialog";
 import { EditBookingDialog, bookingTotals, itemGroups, useBookingEditInfo } from "@/components/admin/agenda/edit-booking-dialog";
 import { ReopenDialog } from "@/components/admin/agenda/reopen-booking-button";
 import { RegisterPaymentDialog } from "@/components/admin/register-payment-dialog";
-import { PaymentSplit, newRow, splitParts, splitSummary, type SplitRow } from "@/components/admin/payment-split";
+import { PAYMENT_METHODS, PaymentSplit, newRow, splitParts, splitSummary, type SplitRow } from "@/components/admin/payment-split";
+import type { PaymentMethod } from "@/app/admin/(painel)/agenda/actions";
 import { todayISO } from "@/lib/dates";
 import type { AgendaBooking, RescheduleProps } from "@/components/admin/agenda/booking-actions";
 
@@ -61,12 +62,7 @@ export function useBookingDialogs(): Api {
 /** depois que um diálogo fecha, o mesmo toque não pode abrir outro (toque fantasma no cartão de baixo) */
 const GHOST_MS = 400;
 
-const METHODS = [
-  { value: "pix", label: "Pix" },
-  { value: "dinheiro", label: "Dinheiro" },
-  { value: "credito", label: "Cartão de crédito" },
-  { value: "debito", label: "Cartão de débito" },
-] as const;
+const METHOD_LABEL = Object.fromEntries(PAYMENT_METHODS.map((m) => [m.value, m.label])) as Record<PaymentMethod, string>;
 
 export function BookingDialogsProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -178,19 +174,20 @@ function CompleteDialog({ active, open, onClose }: { active: Active; open: boole
   // forma de pagamento só no plano pago e com valor a cobrar (sessão de pacote sem adicional: não)
   const askMethod = active.ctx.fullAccess && (totals?.charge ?? 0) > 0;
 
-  // 68: dividir o pagamento (várias formas; pode ficar parte pendente)
-  const [split, setSplit] = useState(false);
-  const [rows, setRows] = useState<SplitRow[]>([]);
+  // 68: formas de pagamento — tocar seleciona (não conclui); valor editável; até 4 partes
+  const [rows, setRows] = useState<SplitRow[]>(() => [newRow()]);
   const charge = totals?.charge ?? 0;
+  const pay = splitSummary(rows, charge);
 
   useEffect(() => {
-    if (!open) {
-      setEditOpen(false);
-      setSplit(false);
-    }
+    if (!open) setEditOpen(false);
   }, [open]);
+  // abre (ou o valor muda pelo Editar): recomeça sem forma escolhida
+  useEffect(() => {
+    if (open) setRows([newRow()]);
+  }, [open, charge]);
 
-  function finish(method: (typeof METHODS)[number]["value"] | "pendente" | null, success: string) {
+  function finish(method: "pendente" | null, success: string) {
     onClose();
     start(async () => {
       const r = await completeBooking(b.id, method);
@@ -200,13 +197,14 @@ function CompleteDialog({ active, open, onClose }: { active: Active; open: boole
     });
   }
 
-  function finishSplit() {
+  function finishPaid() {
     const parts = splitParts(rows, charge);
     if (typeof parts === "string") {
       toast.error(parts);
       return;
     }
-    const { missing } = splitSummary(rows, charge);
+    const { sum, missing } = pay;
+    const label = parts.length === 1 ? METHOD_LABEL[parts[0].method] : `${parts.length} formas`;
     onClose();
     start(async () => {
       const r = await completeBooking(b.id, null, parts);
@@ -217,8 +215,8 @@ function CompleteDialog({ active, open, onClose }: { active: Active; open: boole
       }
       toast.success(
         missing > 0
-          ? `Concluído · ${brl(charge - missing)} no caixa, falta ${brl(missing)} (Pagamento pendente)`
-          : `Concluído e lançado no caixa em ${parts.length} formas`
+          ? `Concluído · ${brl(sum)} no caixa (${label}), falta ${brl(missing)} (Pagamento pendente)`
+          : `Concluído e lançado no caixa: ${brl(sum)} (${label})`
       );
     });
   }
@@ -289,63 +287,33 @@ function CompleteDialog({ active, open, onClose }: { active: Active; open: boole
             </Button>
           )}
 
-          {askMethod && !split && (
-            <div className="grid grid-cols-2 gap-2">
-              {METHODS.map((m) => (
-                <Button
-                  key={m.value}
-                  variant="outline"
-                  className="h-12"
-                  disabled={pending}
-                  onClick={() => finish(m.value, `Concluído e lançado no caixa (${m.label})`)}
-                  data-testid={`pagamento-${m.value}`}
-                >
-                  {m.label}
-                </Button>
-              ))}
-            </div>
-          )}
-          {askMethod && !split && (
-            <div className="flex items-center gap-1">
-              <Button
-                variant="outline"
-                className="h-11 flex-1"
-                disabled={pending}
-                onClick={() => {
-                  setRows([newRow(charge)]);
-                  setSplit(true);
-                }}
-                data-testid={`btn-concluir-dividir-${b.id}`}
-              >
-                <Split className="mr-1.5 h-4 w-4" /> Dividir pagamento
-              </Button>
-              <Ajuda id="dividir-pagamento" />
-            </div>
-          )}
-          {askMethod && split && (
+          {askMethod && (
             <div className="space-y-3">
-              <p className="text-sm font-medium">Quanto foi pago em cada forma?</p>
-              <PaymentSplit rows={rows} onChange={setRows} due={charge} disabled={pending} testId="concluir-dividir" />
+              <div className="flex items-center gap-1">
+                <p className="text-sm font-medium">Forma de pagamento</p>
+                <Ajuda id="dividir-pagamento" />
+              </div>
+              <PaymentSplit rows={rows} onChange={setRows} due={charge} disabled={pending} testId="concluir-pagamento" />
+              {pay.valid && pay.missing > 0 && (
+                <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900" data-testid="aviso-concluir-pendente">
+                  Faltam <strong>{brl(pay.missing)}</strong>: esse valor fica como <strong>Pagamento pendente</strong> até você
+                  registrar o resto.
+                </p>
+              )}
               <Button
                 className="h-12 w-full"
-                disabled={pending || !splitSummary(rows, charge).valid || splitSummary(rows, charge).over > 0}
-                onClick={finishSplit}
-                data-testid={`btn-concluir-dividido-${b.id}`}
+                disabled={pending || !pay.valid}
+                onClick={finishPaid}
+                data-testid={`btn-concluir-lancar-${b.id}`}
               >
-                <CheckCheck className="mr-1.5 h-4 w-4" /> Concluir e lançar no caixa
-              </Button>
-              <Button
-                variant="ghost"
-                className="h-11 w-full"
-                disabled={pending}
-                onClick={() => setSplit(false)}
-                data-testid={`btn-concluir-voltar-${b.id}`}
-              >
-                Voltar para uma forma só
+                <CheckCheck className="mr-1.5 h-4 w-4" />
+                {pay.valid && pay.missing > 0
+                  ? `Concluir com ${brl(pay.missing)} pendente`
+                  : `Concluir e lançar ${brl(pay.valid ? pay.sum : charge)}`}
               </Button>
             </div>
           )}
-          {askMethod && !split && (
+          {askMethod && (
             <div className="space-y-1">
               <div className="flex items-center gap-1">
                 <Button
@@ -364,7 +332,7 @@ function CompleteDialog({ active, open, onClose }: { active: Active; open: boole
               </p>
             </div>
           )}
-          {askMethod && !split && (
+          {askMethod && (
             <div className="space-y-1">
               <Button
                 variant="ghost"

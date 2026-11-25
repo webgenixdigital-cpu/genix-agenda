@@ -36,10 +36,12 @@ export async function loadAgenda(ctx: AdminContext, wholeTeam: boolean, o: Optio
   const isPet = business.subcategory === PET_NICHE_ID;
 
   // mesma consulta, em páginas de PAGE linhas (limite do PostgREST); quase sempre 1 ida só
+  // 68: amount_paid só existe depois da migration; sem ela (42703), a mesma consulta sem a coluna
+  let withPaid = true;
   const page = (n: number) => {
     let q = supabase
       .from("bookings")
-      .select(`id, booking_date, start_time, end_time, customer_name, customer_phone, customer_phone_country, customer_notes, customer_id, service_name, professional_name, professional_id, service_id, price, status, source, customer_package_id, series_id, auto_confirm_reason, items_count, payment_status, amount_paid, overlay${isPet ? ", transport, pet:pets(name)" : ""}`)
+      .select(`id, booking_date, start_time, end_time, customer_name, customer_phone, customer_phone_country, customer_notes, customer_id, service_name, professional_name, professional_id, service_id, price, status, source, customer_package_id, series_id, auto_confirm_reason, items_count, payment_status, ${withPaid ? "amount_paid, " : ""}overlay${isPet ? ", transport, pet:pets(name)" : ""}`)
       .eq("business_id", business.id)
       .order("booking_date")
       .order("start_time")
@@ -53,7 +55,11 @@ export async function loadAgenda(ctx: AdminContext, wholeTeam: boolean, o: Optio
   const allBookings = async () => {
     const rows: unknown[] = [];
     for (let n = 0; n < MAX_PAGES; n++) {
-      const { data } = await page(n);
+      let { data, error } = await page(n);
+      if (error?.code === "42703" && withPaid) {
+        withPaid = false;
+        ({ data, error } = await page(n));
+      }
       rows.push(...(data ?? []));
       if (!data || data.length < PAGE) break;
     }

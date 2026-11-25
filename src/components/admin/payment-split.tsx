@@ -1,13 +1,13 @@
 "use client";
 
-// Dividir o pagamento (68_pagamento_parcial.sql): até 4 partes, cada uma com forma e
-// valor. Mostra quanto falta (fica Pagamento pendente) ou quanto passou (o banco
-// recusa). Usado no Concluir e no Registrar pagamento. Estado fica com quem usa.
+// Formas de pagamento (68_pagamento_parcial.sql), no Concluir e no Registrar pagamento.
+// Tocar numa forma só a SELECIONA e mostra o campo Valor, já com o que falta (editável).
+// "+ Outra forma" abre outra parte (até 4). O resumo mostra Total · Lançado · Falta.
+// Quem usa guarda as linhas e desenha o botão final (Concluir/Registrar).
 import { Plus, X } from "lucide-react";
 import type { PaymentMethod, PaymentPart } from "@/app/admin/(painel)/agenda/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { brl } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -20,7 +20,7 @@ export const PAYMENT_METHODS: { value: PaymentMethod; label: string }[] = [
 
 export const MAX_PARTS = 4;
 
-/** Linha do formulário: valor em texto (vírgula decimal) */
+/** Uma parte: forma (null = ainda não escolhida) e valor em texto (vírgula decimal) */
 export type SplitRow = { key: number; method: PaymentMethod | null; amount: string };
 
 export const toMoneyInput = (n: number) => n.toFixed(2).replace(".", ",");
@@ -29,29 +29,31 @@ export const parseMoney = (v: string) => Number(v.includes(",") ? v.replace(/\./
 const cents = (n: number) => Math.round(n * 100);
 
 let nextKey = 1;
-export const newRow = (amount = 0, method: PaymentMethod | null = null): SplitRow => ({
-  key: nextKey++,
-  method,
-  amount: amount > 0 ? toMoneyInput(amount) : "",
-});
+/** Parte vazia (sem forma; o valor entra quando a forma é escolhida) */
+export const newRow = (): SplitRow => ({ key: nextKey++, method: null, amount: "" });
 
-/** Soma (em reais) e validação das linhas */
+/** Soma do que tem forma escolhida, o que falta e o que passou */
 export function splitSummary(rows: SplitRow[], due: number) {
-  const values = rows.map((r) => parseMoney(r.amount));
-  const valid = values.every((v) => Number.isFinite(v) && v > 0);
-  const sumCents = values.reduce((s, v) => s + (Number.isFinite(v) ? cents(v) : 0), 0);
+  const chosen = rows.filter((r) => r.method !== null);
+  const values = chosen.map((r) => parseMoney(r.amount));
+  const sumCents = values.reduce((s, v) => s + (Number.isFinite(v) && v > 0 ? cents(v) : 0), 0);
   const diff = cents(due) - sumCents;
   return {
     sum: sumCents / 100,
     missing: diff > 0 ? diff / 100 : 0,
     over: diff < 0 ? -diff / 100 : 0,
-    valid: valid && rows.every((r) => r.method !== null),
+    /** pelo menos 1 forma, todas as partes com forma e valor > 0, sem passar do total */
+    valid:
+      chosen.length > 0 &&
+      chosen.length === rows.length &&
+      values.every((v) => Number.isFinite(v) && v > 0) &&
+      diff >= 0,
   };
 }
 
 /** Partes prontas para a action, ou a mensagem do que falta preencher */
 export function splitParts(rows: SplitRow[], due: number): PaymentPart[] | string {
-  if (rows.some((r) => !r.method)) return "Escolha a forma de pagamento de cada parte.";
+  if (rows.length === 0 || rows.some((r) => !r.method)) return "Escolha a forma de pagamento de cada parte.";
   const parts = rows.map((r) => ({ method: r.method as PaymentMethod, amount: cents(parseMoney(r.amount)) / 100 }));
   if (parts.some((p) => !Number.isFinite(p.amount) || p.amount <= 0)) return "Informe um valor maior que zero em cada parte.";
   if (splitSummary(rows, due).over > 0) return "A soma passa do valor a pagar. Confira os valores.";
@@ -63,76 +65,102 @@ export function PaymentSplit({
   onChange,
   due,
   disabled,
-  testId = "dividir",
+  testId = "pagamento",
 }: {
   rows: SplitRow[];
   onChange: (rows: SplitRow[]) => void;
-  /** valor a pagar agora (cobrado na conclusão; saldo no Registrar) */
+  /** valor a pagar agora (cobrado no Concluir; saldo no Registrar) */
   due: number;
   disabled?: boolean;
   testId?: string;
 }) {
   const s = splitSummary(rows, due);
-  const set = (key: number, patch: Partial<SplitRow>) => onChange(rows.map((r) => (r.key === key ? { ...r, ...patch } : r)));
+
+  // escolher a forma: se a parte ainda não tem valor, entra o que falta (sem contar ela)
+  function choose(key: number, method: PaymentMethod) {
+    const others = splitSummary(
+      rows.filter((r) => r.key !== key),
+      due
+    );
+    onChange(
+      rows.map((r) =>
+        r.key === key
+          ? { ...r, method, amount: r.amount === "" && others.missing > 0 ? toMoneyInput(others.missing) : r.amount }
+          : r
+      )
+    );
+  }
+  const setAmount = (key: number, amount: string) => onChange(rows.map((r) => (r.key === key ? { ...r, amount } : r)));
+  const canAdd = rows.length < MAX_PARTS && rows.every((r) => r.method !== null) && s.missing > 0;
 
   return (
-    <div className="space-y-2" data-testid={`${testId}-pagamento`}>
+    <div className="space-y-3" data-testid={`${testId}-formas`}>
       {rows.map((r, i) => (
-        <div key={r.key} className="flex items-center gap-2">
-          <div className="min-w-0 flex-1">
-            <Select
-              value={r.method ?? undefined}
-              onValueChange={(v) => set(r.key, { method: v as PaymentMethod })}
-              disabled={disabled}
-            >
-              <SelectTrigger className="h-11" aria-label={`Forma da parte ${i + 1}`} data-testid={`${testId}-forma-${i}`}>
-                <SelectValue placeholder="Forma" />
-              </SelectTrigger>
-              <SelectContent>
-                {PAYMENT_METHODS.map((m) => (
-                  <SelectItem key={m.value} value={m.value}>
-                    {m.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        <div key={r.key} className={cn("space-y-2", rows.length > 1 && "rounded-xl border p-2")}>
+          {rows.length > 1 && (
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-muted-foreground">Forma {i + 1}</span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-11 w-11"
+                aria-label={`Tirar a forma ${i + 1}`}
+                disabled={disabled}
+                onClick={() => onChange(rows.filter((x) => x.key !== r.key))}
+                data-testid={`${testId}-tirar-${i}`}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+          <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label={`Forma de pagamento ${i + 1}`}>
+            {PAYMENT_METHODS.map((m) => {
+              const on = r.method === m.value;
+              return (
+                <Button
+                  key={m.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={on}
+                  variant={on ? "default" : "outline"}
+                  className="h-12"
+                  disabled={disabled}
+                  onClick={() => choose(r.key, m.value)}
+                  data-testid={`${testId}-forma-${i}-${m.value}`}
+                >
+                  {m.label}
+                </Button>
+              );
+            })}
           </div>
-          <Input
-            inputMode="decimal"
-            className="h-11 w-28 shrink-0"
-            placeholder="0,00"
-            aria-label={`Valor da parte ${i + 1} (R$)`}
-            value={r.amount}
-            disabled={disabled}
-            onChange={(e) => set(r.key, { amount: e.target.value.replace(/[^\d,.]/g, "") })}
-            data-testid={`${testId}-valor-${i}`}
-          />
-          {rows.length > 1 ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="h-11 w-11 shrink-0"
-              aria-label={`Tirar a parte ${i + 1}`}
-              disabled={disabled}
-              onClick={() => onChange(rows.filter((x) => x.key !== r.key))}
-              data-testid={`${testId}-tirar-${i}`}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          ) : (
-            <span className="w-11 shrink-0" aria-hidden />
+          {r.method && (
+            <div className="flex items-center gap-2">
+              <label htmlFor={`${testId}-valor-${r.key}`} className="shrink-0 text-sm font-medium">
+                Valor (R$)
+              </label>
+              <Input
+                id={`${testId}-valor-${r.key}`}
+                inputMode="decimal"
+                className="h-11 min-w-0 flex-1"
+                placeholder="0,00"
+                value={r.amount}
+                disabled={disabled}
+                onChange={(e) => setAmount(r.key, e.target.value.replace(/[^\d,.]/g, ""))}
+                data-testid={`${testId}-valor-${i}`}
+              />
+            </div>
           )}
         </div>
       ))}
 
-      {rows.length < MAX_PARTS && (
+      {canAdd && (
         <Button
           type="button"
           variant="outline"
           className="h-11 w-full"
           disabled={disabled}
-          onClick={() => onChange([...rows, newRow(s.missing)])}
+          onClick={() => onChange([...rows, newRow()])}
           data-testid={`${testId}-outra-forma`}
         >
           <Plus className="mr-1.5 h-4 w-4" /> Outra forma
@@ -141,21 +169,14 @@ export function PaymentSplit({
 
       <p
         className={cn(
-          "flex flex-wrap justify-between gap-x-3 rounded-lg px-3 py-2 text-sm",
-          s.over > 0 ? "bg-red-50 text-destructive" : s.missing > 0 ? "bg-amber-50 text-amber-900" : "bg-muted"
+          "flex flex-wrap justify-between gap-x-3 gap-y-1 rounded-lg px-3 py-2 text-sm",
+          s.over > 0 ? "bg-red-50 text-destructive" : s.missing > 0 && s.sum > 0 ? "bg-amber-50 text-amber-900" : "bg-muted"
         )}
         data-testid={`${testId}-resumo`}
       >
-        <span>
-          Soma: <strong>{brl(s.sum)}</strong> de {brl(due)}
-        </span>
-        <span>
-          {s.over > 0
-            ? `Passou ${brl(s.over)}`
-            : s.missing > 0
-              ? `Falta ${brl(s.missing)}: fica Pagamento pendente`
-              : "Valor completo"}
-        </span>
+        <span>Total {brl(due)}</span>
+        <span>Lançado {brl(s.sum)}</span>
+        <span className="font-semibold">{s.over > 0 ? `Passou ${brl(s.over)}` : `Falta ${brl(s.missing)}`}</span>
       </p>
     </div>
   );

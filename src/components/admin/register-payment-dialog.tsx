@@ -2,7 +2,8 @@
 
 // "Registrar pagamento" de um atendimento ou pacote com Pagamento pendente
 // (49_pagamento_depois.sql; partes e saldo na 68_pagamento_parcial.sql):
-// mostra total, já pago e o que falta; uma ou mais formas; pode ser parcial.
+// mostra total, já pago e o que falta. Tocar na forma só a seleciona e mostra o valor
+// (já com o que falta); “+ Outra forma” divide; pode ser parcial.
 // Quem abre guarda o alvo (cópia), fora de qualquer lista: ver booking-dialogs.tsx.
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -59,12 +60,11 @@ export function RegisterPaymentDialog({
     setBalance(null);
     setDate(today);
     setError(null);
-    setRows(suggested !== null ? [newRow(suggested)] : []);
+    setRows([newRow()]);
     void getPaymentBalance(kind, id).then((r) => {
       if (!alive || !r) return;
       if (!r.ok) return setError(r.error);
       setBalance({ total: r.total, paid: r.paid, remaining: r.remaining });
-      setRows((cur) => (cur.length ? cur : [newRow(r.remaining)]));
     });
     return () => {
       alive = false;
@@ -135,14 +135,17 @@ export function RegisterPaymentDialog({
             )
           )}
 
-          {rows.length > 0 && (
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-1">
-                <Label>Forma e valor</Label>
-                <Ajuda id="dividir-pagamento" />
-              </div>
-              <PaymentSplit rows={rows} onChange={setRows} due={due} disabled={pending} testId="pagamento" />
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-1">
+              <Label>Forma de pagamento</Label>
+              <Ajuda id="dividir-pagamento" />
             </div>
+            <PaymentSplit rows={rows} onChange={setRows} due={due} disabled={pending || !balance} testId="pagamento" />
+          </div>
+          {summary.valid && summary.missing > 0 && (
+            <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900" data-testid="aviso-registrar-pendente">
+              Faltam <strong>{brl(summary.missing)}</strong>: esse valor continua como <strong>Pagamento pendente</strong>.
+            </p>
           )}
 
           <div className="space-y-1.5">
@@ -162,16 +165,16 @@ export function RegisterPaymentDialog({
 
           <Button
             className="h-12 w-full text-base"
-            disabled={pending || !target || rows.length === 0 || !summary.valid || summary.over > 0}
+            disabled={pending || !target || !balance || !summary.valid}
             onClick={save}
             data-testid="btn-salvar-pagamento"
           >
             {pending ? (
               <Loader2 className="h-5 w-5 animate-spin" />
-            ) : summary.missing > 0 && summary.sum > 0 ? (
-              "Registrar parte no caixa"
+            ) : summary.valid && summary.missing > 0 ? (
+              `Registrar com ${brl(summary.missing)} pendente`
             ) : (
-              "Registrar no caixa"
+              `Registrar e lançar ${brl(summary.valid ? summary.sum : due)}`
             )}
           </Button>
         </div>

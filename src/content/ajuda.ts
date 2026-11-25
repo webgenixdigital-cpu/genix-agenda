@@ -521,14 +521,15 @@ const AJUDA_TEXTOS = {
     titulo: "Concluir atendimento",
     serve: "Marca que o atendimento foi feito e lança o valor no caixa.",
     passos: [
-      "Toque em “Concluir”.",
-      "Confira o valor e escolha a forma de pagamento.",
-      "Pagou em mais de uma forma (ex.: parte no débito e parte no crédito)? Toque em “Dividir pagamento”.",
-      "Confirme.",
+      "Toque em “Concluir” e confira o valor.",
+      "Toque na forma de pagamento: ela fica marcada e aparece o campo Valor, já com o total.",
+      "Pagou em mais de uma forma (ex.: parte no débito e parte no crédito)? Mude o valor e toque em “Outra forma”.",
+      "Confira o resumo (Total · Lançado · Falta) e toque em “Concluir e lançar”.",
     ],
     atencao: [
+      "Tocar na forma não conclui: só o botão do final conclui e lança no caixa.",
+      "Se o cliente pagou só uma parte, ponha o valor pago: o botão vira “Concluir com R$ … pendente” e o resto fica como Pagamento pendente.",
       "Sessão de pacote não entra no caixa de novo: já foi paga na venda.",
-      "Se o cliente pagou só uma parte, use “Dividir pagamento” com o valor pago: o resto fica como Pagamento pendente.",
       `Depois de concluir, você pode mandar ao cliente o link de avaliação. ${planNote("pedidoAvaliacao")}`,
     ],
   },
@@ -570,10 +571,10 @@ const AJUDA_TEXTOS = {
     serve:
       "Para quando o cliente paga em mais de uma forma (ex.: R$ 80 no débito e R$ 170 no crédito) ou paga só uma parte agora.",
     passos: [
-      "Escolha a forma e o valor da primeira parte.",
-      "Toque em “Outra forma”: a nova linha já vem com o que falta.",
-      "Confira a soma embaixo: “Valor completo” ou “Falta R$ …”.",
-      "Confirme. Cada forma vira um lançamento no caixa.",
+      "Toque na primeira forma e ajuste o valor (ex.: 80,00 no débito).",
+      "Toque em “+ Outra forma” e escolha a segunda: o valor já vem com o que falta (ex.: 170,00 no crédito).",
+      "Confira o resumo: Total · Lançado · Falta.",
+      "Toque no botão do final. Cada forma vira um lançamento no caixa.",
     ],
     atencao: [
       "Se a soma ficar abaixo do valor, o que falta fica como Pagamento pendente, com o selo “Falta R$ …”.",

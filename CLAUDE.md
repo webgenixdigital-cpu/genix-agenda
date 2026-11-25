@@ -363,6 +363,9 @@ Comandos: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run buil
 - Supabase Auth: "Confirm email" desligado (acesso livre); confirmação posterior via `signInWithOtp` + `/auth/confirm`.
   Templates (Reset, Magic Link, Invite) usam `{{ .RedirectTo }}?token_hash=...&type=...`.
 - Variáveis novas na Vercel só valem após **redeploy**.
+- **Funções chamadas pelo app: todo DELETE/UPDATE precisa de WHERE** (pg-safeupdate do Supabase; o PGlite não pega).
+  Vale para rpc e gatilho disparado pelo app, inclusive tabela temporária (`delete from _tmp where true`). No SQL Editor
+  a trava não existe, então a função “funciona” lá e falha na tela com `21000 DELETE requires a WHERE clause` (69).
 - **Classes Tailwind não podem ficar em `src/lib`**: a pasta não está no `content` do `tailwind.config.ts`, e a classe some do CSS de produção. Strings de classe (mapas de cor/status) moram em `src/components`.
 - Responsividade: o `DialogContent` base já tem `max-h-[92svh]`, rolagem interna, margem lateral e X de 44 px. Para alvo pequeno que não pode crescer (switch, aba, botão `sm`, link curto), use `.tap-target` (`globals.css`). Para tabela larga, use `.scroll-shadow-x`, que rola só dentro dela. Entre md e lg o menu lateral fica sempre recolhido.
 - **Lista desenhada no servidor + estado no navegador:** no Next 14 a `key` posta num componente de servidor (ex.: `BookingCard`)

@@ -121,3 +121,15 @@ export function MarginCard({
     </section>
   );
 }
+
+/** Falha ao calcular (erro no banco): aviso discreto no lugar do cartão; o código vai para o log do servidor. */
+export function MarginUnavailable() {
+  return (
+    <section className="rounded-2xl border bg-card p-4 md:p-5" aria-labelledby="margem-titulo" data-testid="caixa-margem-erro">
+      <h2 id="margem-titulo" className="flex items-center gap-1 font-sans text-base font-semibold">
+        Margem dos atendimentos <Ajuda id="margem-caixa" />
+      </h2>
+      <p className="mt-2 text-sm text-muted-foreground">Não foi possível calcular a margem agora. Tente de novo em alguns minutos.</p>
+    </section>
+  );
+}

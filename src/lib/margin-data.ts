@@ -1,6 +1,7 @@
 // Margem dos atendimentos e lucro estimado (69): finance_margin_summary no banco.
 // Só a matriz e a demonstração leem (o banco confere); a partir do Básico.
-// Sem a 69 no banco (ou erro): null, e a tela do Caixa segue sem o cartão.
+// Erro (ou a 69 fora do banco): "erro", com o código no log do servidor; o Caixa mostra
+// um aviso no lugar do cartão (nunca some calado).
 import type { createClient } from "@/lib/supabase/server";
 
 type Db = ReturnType<typeof createClient>;
@@ -30,9 +31,16 @@ export type MarginSummary = {
 
 const n = (v: unknown) => Number(v ?? 0);
 
-export async function loadMarginSummary(db: Db, businessId: string, from: string, to: string): Promise<MarginSummary | null> {
+export async function loadMarginSummary(db: Db, businessId: string, from: string, to: string): Promise<MarginSummary | "erro"> {
   const { data, error } = await db.rpc("finance_margin_summary", { p_business: businessId, p_from: from, p_to: to });
-  if (error || !data) return null;
+  if (error || !data) {
+    console.error("[margem] finance_margin_summary falhou", {
+      business: businessId,
+      code: error?.code ?? "SEM_DADOS",
+      message: error?.message,
+    });
+    return "erro";
+  }
   const d = data as Record<string, unknown>;
   const e = d.estimate as Record<string, unknown> | null;
   return {

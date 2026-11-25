@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requireRoles } from "@/lib/admin";
 import { allows, getPlanContext } from "@/lib/plan";
 import { loadMarginSummary } from "@/lib/margin-data";
-import { MarginCard } from "@/components/admin/financeiro/margin-card";
+import { MarginCard, MarginUnavailable } from "@/components/admin/financeiro/margin-card";
 import { LockedFeature } from "@/components/admin/locked-feature";
 import { todayInZone } from "@/lib/dates";
 import { brl } from "@/lib/format";
@@ -140,7 +140,11 @@ export default async function FinanceiroPage({ searchParams }: Props) {
             </p>
           </div>
         </div>
-        {margin && <MarginCard data={margin} calculatorAllowed={allows(plan, "profissional")} />}
+        {margin === "erro" ? (
+          <MarginUnavailable />
+        ) : (
+          <MarginCard data={margin} calculatorAllowed={allows(plan, "profissional")} />
+        )}
       </section>
 
       <div className={cn("grid gap-6", chart && "lg:grid-cols-[1fr_320px]")}>

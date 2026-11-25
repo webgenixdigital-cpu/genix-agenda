@@ -356,7 +356,7 @@ begin
     id uuid, price numeric, charge numeric, paid numeric, pending boolean, pkg boolean,
     partner_pct numeric, commission_pct numeric, has_cost boolean, cost numeric
   ) on commit drop;
-  delete from _margin_bk;
+  delete from _margin_bk where true;   -- PostgREST (pg_safeupdate) recusa delete sem where
 
   insert into _margin_bk
   select b.id, b.price, booking_charge(b.id), b.amount_paid, b.payment_status = 'pending',

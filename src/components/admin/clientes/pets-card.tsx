@@ -20,6 +20,7 @@ import {
   PET_SIZES,
   PET_SPECIES,
   labelOf,
+  petSizeFromWeight,
   type Pet,
   type PetInput,
 } from "@/lib/pets";
@@ -234,13 +235,23 @@ export function PetsCard({ customerId, pets, canDelete }: { customerId: string; 
             {/* PARTE 2 — Porte e pelagem (definem tempo e preço do serviço) */}
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <Label htmlFor="pet-porte">Porte</Label>
-                <OptSelect id="pet-porte" value={values.size} onChange={(v) => set({ size: v })} options={[...PET_SIZES]} />
-              </div>
-              <div className="space-y-1.5">
                 <Label htmlFor="pet-peso">Peso (kg)</Label>
                 <Input id="pet-peso" inputMode="decimal" className="h-11" placeholder="ex.: 8,5" value={values.weightKg}
-                  onChange={(e) => set({ weightKg: e.target.value.replace(/[^\d,.]/g, "").slice(0, 6) })} data-testid="pet-peso" />
+                  onChange={(e) => {
+                    const weightKg = e.target.value.replace(/[^\d,.]/g, "").slice(0, 6);
+                    // 71: o porte acompanha o peso; depois o profissional pode trocar na mão
+                    const auto = petSizeFromWeight(weightKg);
+                    set(auto ? { weightKg, size: auto } : { weightKg });
+                  }} data-testid="pet-peso" />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="pet-porte">Porte</Label>
+                <OptSelect id="pet-porte" value={values.size} onChange={(v) => set({ size: v })} options={[...PET_SIZES]} />
+                {values.size && petSizeFromWeight(values.weightKg) === values.size ? (
+                  <p className="text-xs text-muted-foreground">Calculado pelo peso</p>
+                ) : values.size && petSizeFromWeight(values.weightKg) ? (
+                  <p className="text-xs text-muted-foreground">Ajustado na mão (pelo peso seria {labelOf(PET_SIZES, petSizeFromWeight(values.weightKg)).split(" (")[0]})</p>
+                ) : null}
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="pet-pelagem">Tipo de pelagem</Label>

@@ -13,13 +13,21 @@ export const PET_SEXES = [
   { value: "femea", label: "Fêmea" },
 ] as const;
 
+/** 71: faixas iguais a pet_size_from_weight no banco (max = limite superior em kg) */
 export const PET_SIZES = [
-  { value: "mini", label: "Mini (até 3 kg)" },
-  { value: "pequeno", label: "Pequeno (3 a 10 kg)" },
-  { value: "medio", label: "Médio (10 a 25 kg)" },
-  { value: "grande", label: "Grande (25 a 45 kg)" },
-  { value: "gigante", label: "Gigante (mais de 45 kg)" },
+  { value: "mini", label: "Mini (até 4 kg)", max: 4 },
+  { value: "pequeno", label: "Pequeno (4,1 a 9 kg)", max: 9 },
+  { value: "medio", label: "Médio (9,1 a 16 kg)", max: 16 },
+  { value: "grande", label: "Grande (16,1 a 25 kg)", max: 25 },
+  { value: "gigante", label: "Gigante (mais de 25 kg)", max: Infinity },
 ] as const;
+
+/** 71: porte pelo peso ("8,5" ou 8.5). Vazio/inválido = "" */
+export function petSizeFromWeight(weight: string | number | null | undefined): string {
+  const w = typeof weight === "number" ? weight : Number(String(weight ?? "").replace(",", "."));
+  if (!Number.isFinite(w) || w <= 0) return "";
+  return PET_SIZES.find((s) => w <= s.max)?.value ?? "";
+}
 
 export const PET_COAT_TYPES = ["Curta", "Média", "Longa", "Dupla", "Crespa/encaracolada", "Dura (stripping)", "Sem pelo"];
 export const PET_COAT_CONDITIONS = ["Normal", "Com nós", "Embolada"];

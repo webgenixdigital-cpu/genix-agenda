@@ -618,7 +618,12 @@ const AJUDA_TEXTOS = {
   pets: {
     titulo: "Pets",
     serve: "Guarda os pets deste tutor: espécie, raça, porte, peso, pelagem e comportamento. Isso ajuda a prever o tempo do banho e da tosa.",
-    passos: ["Toque em “Adicionar pet”.", "Preencha o que souber (só o nome é obrigatório) e salve.", "Para mudar algo, toque no lápis ao lado do pet."],
+    passos: [
+      "Toque em “Adicionar pet”.",
+      "Preencha o que souber (só o nome é obrigatório). Informe sempre o peso e a pelagem: eles definem o preço e o tempo do serviço.",
+      "O porte aparece sozinho pelo peso: Mini até 4 kg, Pequeno 4,1 a 9, Médio 9,1 a 16, Grande 16,1 a 25 e Gigante acima de 25 kg. Se precisar, troque na mão.",
+      "Para mudar algo, toque no lápis ao lado do pet.",
+    ],
     atencao: [
       "Não registre dados de saúde (doenças, remédios, alergias).",
       "Arquivar tira o pet da lista sem apagar o histórico. Excluir apaga de vez e só a matriz pode.",
